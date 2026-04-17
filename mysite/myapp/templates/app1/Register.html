@@ -1,0 +1,855 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Register — Next Route | Smart Transport</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ===== LIGHT / DARK MODE VARIABLES ===== */
+  :root {
+    --bg: #0b0b14;
+    --card: #13131f;
+    --card2: #16162a;
+    --red: #ff4757;
+    --orange: #ff6b35;
+    --text: #ffffff;
+    --muted: #9090b0;
+    --dim: #50507a;
+    --border: rgba(255,255,255,0.08);
+    --input-bg: #0f0f20;
+    --input-border: rgba(255,255,255,0.1);
+    --badge-edu: rgba(74,222,128,0.12);
+    --badge-ind: rgba(251,191,36,0.12);
+    --nav-bg: rgba(11,11,20,0.92);
+    --toast-bg: #1a1a30;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body.light {
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --card2: #ffffff;
+    --red: #e63946;
+    --orange: #f4a261;
+    --text: #1e293b;
+    --muted: #5b6e8c;
+    --dim: #8c9bb0;
+    --border: rgba(0, 0, 0, 0.08);
+    --input-bg: #ffffff;
+    --input-border: rgba(0, 0, 0, 0.12);
+    --badge-edu: rgba(74,222,128,0.15);
+    --badge-ind: rgba(251,191,36,0.15);
+    --nav-bg: rgba(255,255,255,0.92);
+    --toast-bg: #ffffff;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    padding: 50px 20px;
+    transition: background 0.3s ease, color 0.2s ease;
+  }
+
+  /* animated background effects */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 800px 600px at 0% 0%, rgba(123,47,190,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 600px 500px at 100% 100%, rgba(255,71,87,0.1) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.3s;
+  }
+  body.light::before {
+    opacity: 0.4;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body.light::after {
+    background-image:
+      linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  }
+
+  /* navbar with logo and toggle */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 72px;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    transition: var(--transition);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+  }
+  .logo-icon-custom {
+    width: 75px;
+    height: 65px;
+    background:transparent;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-icon-custom span { font-size: 24px; }
+  .logo-text {
+    font-family: 'Alegreya SC', serif;
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff, var(--orange));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  body.light .logo-text {
+    background: linear-gradient(135deg, var(--red), var(--orange));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .nav-login {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: rgba(255,71,87,0.08);
+    transition: 0.3s;
+  }
+  .nav-login strong { color: var(--red); }
+  .nav-login:hover { color: white; background: rgba(255,71,87,0.15); }
+  body.light .nav-login:hover { color: var(--red); }
+
+  /* Theme Toggle Button with animation */
+  .theme-toggle {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    transition: all 0.4s var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+  .theme-toggle:hover {
+    transform: scale(1.05);
+    border-color: var(--red);
+    box-shadow: 0 0 12px rgba(255,71,87,0.3);
+  }
+  .theme-toggle .toggle-icon {
+    transition: transform 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+    display: inline-block;
+  }
+  .theme-toggle:hover .toggle-icon {
+    transform: rotate(15deg);
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 600px;
+    margin-top: 72px;
+    margin-bottom: 30px;
+    animation: fadeUp 0.7s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(32px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    padding: 44px 44px 48px;
+    backdrop-filter: blur(30px);
+    box-shadow: 0 40px 100px rgba(0,0,0,0.2);
+    transition: var(--transition);
+  }
+  body.light .card {
+    box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+  }
+
+  .card-header { text-align: center; margin-bottom: 28px; }
+  .brand-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,71,87,0.1);
+    border: 1px solid rgba(255,71,87,0.2);
+    border-radius: 999px;
+    padding: 6px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--red);
+    margin-bottom: 20px;
+  }
+  .brand-pill .dot {
+    width: 6px; height: 6px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.4; transform:scale(1.5); }
+  }
+  .card-header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff, var(--orange));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  body.light .card-header h1 {
+    background: linear-gradient(135deg, var(--red), var(--orange));
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  .card-header p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+  .progress {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 32px;
+  }
+  .prog-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--dim);
+    transition: all 0.4s;
+  }
+  .prog-dot.active {
+    width: 28px;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+  }
+
+  .form-group { margin-bottom: 24px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  label span.req { color: var(--red); margin-left: 3px; }
+
+  .input-wrap { position: relative; }
+  .input-wrap .icon {
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    opacity: 0.5;
+  }
+  input, .dropdown-selected {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1.5px solid var(--input-border);
+    border-radius: 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 13px 16px 13px 42px;
+    outline: none;
+    transition: all 0.3s;
+  }
+  input:focus, .dropdown-selected.open {
+    border-color: var(--red);
+    background: rgba(255,71,87,0.05);
+    box-shadow: 0 0 0 3px rgba(255,71,87,0.12);
+  }
+  .eye-btn {
+    position: absolute;
+    right: 14px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--dim);
+  }
+  .eye-btn:hover { color: var(--red); }
+
+  .dropdown-wrap { position: relative; }
+  .dropdown-selected {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 13px 44px 13px 42px;
+    user-select: none;
+  }
+  .dropdown-selected .d-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 16px;
+    opacity: 0.6;
+  }
+  .dropdown-arrow {
+    position: absolute;
+    right: 14px;
+    font-size: 12px;
+    color: var(--dim);
+    transition: transform 0.3s;
+  }
+  .dropdown-selected.open .dropdown-arrow { transform: rotate(180deg); color: var(--red); }
+
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: var(--card2);
+    border: 1px solid rgba(255,71,87,0.25);
+    border-radius: 16px;
+    overflow-y: auto;
+    z-index: 200;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    box-shadow: 0 25px 45px rgba(0,0,0,0.3);
+    backdrop-filter: blur(8px);
+  }
+  .dropdown-menu.open {
+    max-height: 320px;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+  }
+  .dropdown-option {
+    padding: 14px 18px 14px 48px;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: 0.2s;
+    border-bottom: 1px solid var(--border);
+  }
+  .dropdown-option:last-child { border-bottom: none; }
+  .dropdown-option:hover { background: rgba(255,71,87,0.12); color: var(--text); }
+  .dropdown-option.selected { color: var(--red); background: rgba(255,71,87,0.08); }
+  .dropdown-option .opt-icon { font-size: 16px; min-width: 24px; }
+  .dropdown-divider { height: 1px; background: var(--border); margin: 6px 0; }
+
+  .dynamic-section {
+    overflow: visible;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.4s ease, margin 0.3s;
+    margin-top: 0;
+  }
+  .dynamic-section.visible {
+    max-height: 280px;
+    opacity: 1;
+    margin-top: 8px;
+  }
+
+  .type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 12px;
+    opacity: 0;
+    transition: all 0.3s;
+  }
+  .type-badge.visible { opacity: 1; }
+  .type-badge.edu { background: var(--badge-edu); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+  .type-badge.ind { background: var(--badge-ind); color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+  body.light .type-badge.edu { color: #2b7a3e; }
+  body.light .type-badge.ind { color: #c47a1a; }
+
+  .strength-bar {
+    height: 3px;
+    border-radius: 3px;
+    background: var(--input-border);
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .strength-fill { height: 100%; width: 0; border-radius: 3px; transition: width 0.4s; }
+
+  .btn-register {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, var(--red), #ff6b6b);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 18px;
+    box-shadow: 0 8px 30px rgba(255,71,87,0.35);
+    transition: all 0.3s;
+  }
+  .btn-register:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(255,71,87,0.5); }
+  .btn-register.loading { pointer-events: none; opacity: 0.8; }
+  .btn-register .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto;
+  }
+  .btn-register.loading .btn-text { display: none; }
+  .btn-register.loading .spinner { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .login-link { text-align: center; margin-top: 26px; font-size: 14px; color: var(--muted); }
+  .login-link a { color: var(--red); text-decoration: none; font-weight: 600; }
+
+  .toast {
+    position: fixed;
+    bottom: 30px; right: 30px;
+    background: var(--toast-bg);
+    border: 1px solid rgba(74,222,128,0.3);
+    border-radius: 14px;
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: #4ade80;
+    z-index: 999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+    backdrop-filter: blur(16px);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: rgba(255,71,87,0.3); color: var(--red); }
+
+  @media (max-width: 560px) {
+    .card { padding: 32px 24px 36px; }
+    .form-row { grid-template-columns: 1fr; gap: 12px; }
+    nav { padding: 0 20px; }
+    .logo-text { font-size: 20px; }
+    .logo-icon-custom { width: 38px; height: 38px; }
+    .dropdown-menu.open { max-height: 280px; }
+    .dropdown-option { padding: 12px 16px 12px 42px; }
+    .theme-toggle { width: 42px; height: 42px; font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-icon-custom">
+      <img style="width: 100%; height: 100%" src="{% static 'app1/logo.png' %}" alt="Next Route Logo">
+    </div>
+    <span class="logo-text">Next Route</span>
+  </a>
+  <div class="nav-right">
+    <a href="/login/" class="nav-login">Already have an account? <strong>Login →</strong></a>
+    <div class="theme-toggle" id="themeToggle">
+      <span class="toggle-icon" id="toggleIcon">🌙</span>
+    </div>
+  </div>
+</nav>
+
+<div class="wrapper">
+  <div class="card">
+    <div class="card-header">
+      <div class="brand-pill"><span class="dot"></span> Smart Transport</div>
+      <h1>Create Account</h1>
+      <p>Join the next-generation mobility network</p>
+    </div>
+
+    <div class="progress">
+      <div class="prog-dot active" id="dot1"></div>
+      <div class="prog-dot" id="dot2"></div>
+      <div class="prog-dot" id="dot3"></div>
+    </div>
+
+    <form id="registerForm" onsubmit="event.preventDefault(); handleRegister();">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label>Full Name <span class="req">*</span></label>
+        <div class="input-wrap"><span class="icon">👤</span><input type="text" id="fullName" placeholder="John Doe"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Institution Email <span class="req">*</span></label>
+        <div class="input-wrap"><span class="icon">✉️</span><input type="email" id="email" placeholder="you@institution.edu.bd"></div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-row">
+          <div>
+            <label>Password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="icon">🔒</span>
+              <input type="password" id="password" placeholder="••••••••" oninput="checkStrength(this.value)">
+              <button class="eye-btn" onclick="togglePwd('password',this)" type="button">👁️</button>
+            </div>
+            <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+          </div>
+          <div>
+            <label>Confirm <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="icon">🔒</span>
+              <input type="password" id="confirmPwd" placeholder="••••••••">
+              <button class="eye-btn" onclick="togglePwd('confirmPwd',this)" type="button">👁️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Phone Number <span class="req">*</span></label>
+        <div class="input-wrap"><span class="icon">📱</span><input type="tel" id="phone" placeholder="+880 1XXXXXXXXX"></div>
+      </div>
+
+      <!-- INSTITUTION TYPE -->
+      <div class="form-group">
+        <label>Institution Type <span class="req">*</span></label>
+        <div class="dropdown-wrap" id="instTypeWrap">
+          <div class="dropdown-selected" id="instTypeBtn" onclick="toggleDropdown('instType')">
+            <span class="d-icon">🏛️</span>
+            <span id="instTypeText">Select institution type</span>
+            <span class="dropdown-arrow">▼</span>
+          </div>
+          <div class="dropdown-menu" id="instTypeMenu">
+            <div class="dropdown-option" onclick="selectInstType('Educational','🎓')"><span class="opt-icon">🎓</span> Educational</div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-option" onclick="selectInstType('Industrial','🏭')"><span class="opt-icon">🏭</span> Industrial</div>
+          </div>
+        </div>
+        <div class="type-badge edu" id="eduBadge">🎓 University / College selected</div>
+        <div class="type-badge ind" id="indBadge">🏭 Company / Industry selected</div>
+      </div>
+
+      <!-- USER TYPE SECTION -->
+      <div id="userTypeSection" class="dynamic-section">
+        <div class="form-group">
+          <label>User Type <span class="req">*</span></label>
+          <div class="dropdown-wrap" id="userTypeWrap">
+            <div class="dropdown-selected" id="userTypeBtn" onclick="toggleDropdown('userType')">
+              <span class="d-icon">🎭</span>
+              <span id="userTypeText">Select your role</span>
+              <span class="dropdown-arrow">▼</span>
+            </div>
+            <div class="dropdown-menu" id="userTypeMenu"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INSTITUTION ID SECTION -->
+      <div id="institutionIdSection" class="dynamic-section">
+        <div class="form-group">
+          <label id="idLabel">Institution ID <span class="req">*</span></label>
+          <div class="input-wrap"><span class="icon">🪪</span><input type="text" id="institutionId" placeholder="Student / Employee ID"></div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-register" id="registerBtn">
+        <span class="btn-text">🚀 Create Account</span>
+        <div class="spinner"></div>
+      </button>
+
+      <div class="login-link">Already have an account? <a href="/login/">Login here</a></div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastIcon">✅</span><span id="toastMsg"></span></div>
+
+<script>
+  // ========== THEME TOGGLE (Light/Dark with animation) ==========
+  const themeToggle = document.getElementById('themeToggle');
+  const toggleIcon = document.getElementById('toggleIcon');
+  const body = document.body;
+
+  const savedTheme = localStorage.getItem('registerTheme');
+  if (savedTheme === 'light') {
+    body.classList.add('light');
+    toggleIcon.textContent = '☀️';
+  } else {
+    toggleIcon.textContent = '🌙';
+  }
+
+  themeToggle.addEventListener('click', () => {
+    body.classList.toggle('light');
+    const isLight = body.classList.contains('light');
+    toggleIcon.textContent = isLight ? '☀️' : '🌙';
+    localStorage.setItem('registerTheme', isLight ? 'light' : 'dark');
+    themeToggle.style.transform = 'scale(0.95)';
+    setTimeout(() => { themeToggle.style.transform = ''; }, 150);
+  });
+
+  // ========== ROLE DEFINITIONS ==========
+  const EDUCATIONAL_ROLES = [
+    { icon: '🎓', label: 'Student' },
+    { icon: '👨‍🏫', label: 'Faculty' },
+    { icon: '👩‍💼', label: 'Staff' },
+    { icon: '🛡️', label: 'Admin' },
+    { icon: '🚌', label: 'Driver' }
+  ];
+  const INDUSTRIAL_ROLES = [
+    { icon: '👔', label: 'Executive' },
+    { icon: '👩‍💼', label: 'Staff' },
+    { icon: '🛡️', label: 'Admin' },
+    { icon: '🚌', label: 'Driver' }
+  ];
+
+  let selectedInstType = null;
+  let selectedUserType = null;
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.dropdown-selected').forEach(b => b.classList.remove('open'));
+  }
+
+  function toggleDropdown(which) {
+    const btn = document.getElementById(which + 'Btn');
+    const menu = document.getElementById(which + 'Menu');
+    const isOpen = menu.classList.contains('open');
+    closeAllDropdowns();
+    if (!isOpen) {
+      menu.classList.add('open');
+      btn.classList.add('open');
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-wrap')) closeAllDropdowns();
+  });
+
+  function selectInstType(type, icon) {
+    selectedInstType = type;
+    selectedUserType = null;
+    document.getElementById('instTypeText').innerHTML = icon + ' ' + type;
+    document.getElementById('instTypeBtn').classList.add('has-value');
+    closeAllDropdowns();
+
+    document.querySelectorAll('#instTypeMenu .dropdown-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+
+    const eduBadge = document.getElementById('eduBadge');
+    const indBadge = document.getElementById('indBadge');
+    eduBadge.classList.remove('visible');
+    indBadge.classList.remove('visible');
+    if (type === 'Educational') eduBadge.classList.add('visible');
+    else indBadge.classList.add('visible');
+
+    const roles = type === 'Educational' ? EDUCATIONAL_ROLES : INDUSTRIAL_ROLES;
+    const menu = document.getElementById('userTypeMenu');
+    menu.innerHTML = '';
+    roles.forEach((role, idx) => {
+      const optionDiv = document.createElement('div');
+      optionDiv.className = 'dropdown-option';
+      optionDiv.innerHTML = `<span class="opt-icon">${role.icon}</span> ${role.label}`;
+      optionDiv.onclick = (e) => {
+        e.stopPropagation();
+        selectUserType(role.label, role.icon);
+      };
+      menu.appendChild(optionDiv);
+      if (idx < roles.length - 1) {
+        const divider = document.createElement('div');
+        divider.className = 'dropdown-divider';
+        menu.appendChild(divider);
+      }
+    });
+
+    document.getElementById('userTypeText').innerHTML = 'Select your role';
+    document.getElementById('userTypeBtn').classList.remove('has-value');
+    document.getElementById('institutionIdSection').classList.remove('visible');
+    document.getElementById('userTypeSection').classList.add('visible');
+    updateProgress(2);
+  }
+
+  function selectUserType(type, icon) {
+    selectedUserType = type;
+    document.getElementById('userTypeText').innerHTML = icon + ' ' + type;
+    document.getElementById('userTypeBtn').classList.add('has-value');
+    closeAllDropdowns();
+
+    document.querySelectorAll('#userTypeMenu .dropdown-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+
+    const labels = {
+      'Student': 'Student ID',
+      'Faculty': 'Faculty ID',
+      'Staff': 'Staff ID',
+      'Admin': 'Admin ID',
+      'Driver': 'Driver License No.',
+      'Executive': 'Employee ID'
+    };
+    const labelElem = document.getElementById('idLabel');
+    labelElem.innerHTML = (labels[type] || 'Institution ID') + ' <span class="req">*</span>';
+
+    const idInput = document.getElementById('institutionId');
+    if (type === 'Driver') idInput.placeholder = 'DL-XXXXXXXXX';
+    else if (type === 'Student') idInput.placeholder = '2024-1-60-XXX';
+    else if (type === 'Executive') idInput.placeholder = 'EMP-XXXXXX';
+    else if (type === 'Faculty') idInput.placeholder = 'FAC-XXXXXX';
+    else idInput.placeholder = 'ID-' + (type === 'Admin' ? 'ADMIN' : 'REG') + 'XXXX';
+    idInput.value = '';
+
+    document.getElementById('institutionIdSection').classList.add('visible');
+    updateProgress(3);
+  }
+
+  function updateProgress(step) {
+    for (let i = 1; i <= 3; i++) {
+      const dot = document.getElementById('dot' + i);
+      dot.classList.toggle('active', i <= step);
+    }
+  }
+
+  function togglePwd(id, btn) {
+    const inp = document.getElementById(id);
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      inp.type = 'password';
+      btn.textContent = '👁️';
+    }
+  }
+
+  function checkStrength(val) {
+    const fill = document.getElementById('strengthFill');
+    let strength = 0;
+    if (val.length >= 6) strength++;
+    if (/[A-Z]/.test(val)) strength++;
+    if (/[0-9]/.test(val)) strength++;
+    if (/[^A-Za-z0-9]/.test(val)) strength++;
+    const colors = ['#ff4757','#ff6b35','#fbbf24','#4ade80'];
+    const widths = ['25%','50%','75%','100%'];
+    fill.style.width = strength > 0 ? widths[strength-1] : '0';
+    fill.style.background = strength > 0 ? colors[strength-1] : '';
+  }
+
+  function showToast(msg, isError = false) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastMsg').innerText = msg;
+    document.getElementById('toastIcon').innerText = isError ? '❌' : '✅';
+    toast.classList.add('show');
+    if (isError) toast.classList.add('error');
+    else toast.classList.remove('error');
+    setTimeout(() => toast.classList.remove('show'), 3500);
+  }
+
+  function handleRegister() {
+    const fullName = document.getElementById('fullName').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const pwd = document.getElementById('password').value;
+    const cpwd = document.getElementById('confirmPwd').value;
+    const phone = document.getElementById('phone').value.trim();
+    const instId = document.getElementById('institutionId').value.trim();
+
+    if (!fullName) { showToast('Please enter your full name', true); return; }
+    if (!email) { showToast('Institution email required', true); return; }
+    if (pwd.length < 6) { showToast('Password must be at least 6 characters', true); return; }
+    if (pwd !== cpwd) { showToast('Passwords do not match', true); return; }
+    if (!phone) { showToast('Phone number is required', true); return; }
+    if (!selectedInstType) { showToast('Please select institution type', true); return; }
+    if (!selectedUserType) { showToast('Please select your user type', true); return; }
+    if (!instId) { showToast('Please enter your Institution/Employee ID', true); return; }
+
+    // Create form data for submission
+    const formData = new FormData();
+    formData.append('full_name', fullName);
+    formData.append('email', email);
+    formData.append('password', pwd);
+    formData.append('phone', phone);
+    formData.append('institution_type', selectedInstType);
+    formData.append('user_type', selectedUserType);
+    formData.append('institution_id', instId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+    const btn = document.getElementById('registerBtn');
+    btn.classList.add('loading');
+
+    // Submit to Django backend
+    fetch('/api/register/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      btn.classList.remove('loading');
+      if (data.success) {
+        showToast(data.message);
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      } else {
+        showToast(data.message, true);
+      }
+    })
+    .catch(error => {
+      btn.classList.remove('loading');
+      showToast('Registration failed. Please try again.', true);
+    });
+  }
+</script>
+</body>
+</html>
