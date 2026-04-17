@@ -289,7 +289,7 @@
   </div>
  
   <!-- Login Form -->
-  <form method="POST" action="/api/login/">
+  <form method="POST" action="/login/">
   {% csrf_token %}
   <div class="container3">
   <div class="container4">
@@ -306,7 +306,7 @@
   <div class="email">Password</div>
   </div>
   <div class="container6">
-  <a href="#" class="forgot-password" onclick="alert('Contact admin to reset password')">Forgot Password?</a>
+  <a href="/forgot-password/" class="forgot-password">Forgot Password?</a>
   </div>
   <div class="password-wrapper">
   <div class="password-input">
