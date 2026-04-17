@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, width=device-width">
+  <title>Login - Next Route</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM Sans:wght@400;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700&display=swap">
+ 
+  <style>
+  body {
+  margin: 0;
+  line-height: normal;
+  font-family: 'DM Sans', sans-serif;
+  }
+
+  :root {
+  --color-crimson: #ff4757;
+  --color-dimgray: #5a5470;
+  --color-gray-100: #1c1c2e;
+  --color-gray-200: rgba(255, 255, 255, 0.08);
+  --color-gray-300: rgba(255, 255, 255, 0.05);
+  --color-gray-400: rgba(255, 255, 255, 0.07);
+  --color-lavender: #e8e0f0;
+  --color-lightslategray: #a09ab8;
+  --color-white: #fff;
+  --padding-12: 12px;
+  --padding-16: 16px;
+  --br-10: 10px;
+  --font-dm-sans: DM Sans;
+  --font-syne: Syne;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --height-18: 18px;
+  --height-48: 48px;
+  --width-414: 414px;
+  }
+
+  .base-user-login {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  background: linear-gradient(135deg, #0f0f1a, #1a0a25 50%, #0a0f1f);
+  text-align: center;
+  font-size: var(--fs-14);
+  color: var(--color-white);
+  font-family: var(--font-dm-sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  }
+ 
+  .button {
+  position: absolute;
+  top: 57px;
+  left: 51px;
+  }
+ 
+  .back-to-home {
+  color: var(--color-white);
+  text-decoration: none;
+  line-height: 21px;
+  font-weight: 600;
+  transition: color 0.3s;
+  }
+ 
+  .back-to-home:hover {
+  color: var(--color-crimson);
+  }
+ 
+  .container {
+  box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.4);
+  border-radius: 16px;
+  background-color: var(--color-gray-100);
+  border-top: 2px solid var(--color-gray-400);
+  border-right: 1px solid var(--color-gray-400);
+  border-bottom: 1px solid var(--color-gray-400);
+  border-left: 1px solid var(--color-gray-400);
+  box-sizing: border-box;
+  width: 480px;
+  padding: 34px 33px;
+  }
+ 
+  .container2 {
+  text-align: center;
+  margin-bottom: 30px;
+  }
+ 
+  .heading-1 {
+  margin-bottom: 10px;
+  }
+ 
+  .welcome-back {
+  font-size: 28px;
+  font-family: var(--font-syne);
+  line-height: 42px;
+  }
+   .paragraph {
+  font-size: 15px;
+  color: var(--color-lightslategray);
+  }
+ 
+  .container3 {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  }
+ 
+  .container4 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  }
+ 
+  .label {
+  text-align: left;
+  }
+ 
+  .email {
+  font-weight: 600;
+  line-height: 21px;
+  }
+ 
+  .email-input, .password-input {
+  border-radius: var(--br-10);
+  background-color: var(--color-gray-300);
+  border: 1px solid var(--color-gray-200);
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: var(--padding-12) var(--padding-16);
+  width: 100%;
+  }
+ 
+  .email-input input, .password-input input {
+  background: transparent;
+  border: none;
+  color: var(--color-white);
+  font-size: var(--fs-16);
+  width: 100%;
+  outline: none;
+  font-family: var(--font-dm-sans);
+  }
+ 
+  .email-input input::placeholder, .password-input input::placeholder {
+  color: var(--color-dimgray);
+  }
+ 
+  .container5 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  }
+ 
+  .container6 {
+  text-align: right;
+  }
+ 
+  .forgot-password {
+  font-size: 13px;
+  color: var(--color-crimson);
+  text-decoration: none;
+  cursor: pointer;
+  }
+ 
+  .forgot-password:hover {
+  text-decoration: underline;
+  }
+ 
+  .password-wrapper {
+  position: relative;
+  width: 100%;
+  }
+ 
+  .password-input {
+  width: 100%;
+  padding-right: 48px;
+  }
+ 
+  .button2 {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  }
+ 
+  .button3 {
+  box-shadow: 0px 0px 20px rgba(255, 71, 87, 0.4);
+  border-radius: 16777200px;
+  background-color: var(--color-crimson);
+  text-align: center;
+  font-size: var(--fs-16);
+  color: var(--color-white);
+  border: none;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 10px;
+  }
+ 
+  .button3:hover {
+  background-color: #ff6b6b;
+  transform: translateY(-2px);
+  }
+ 
+  .paragraph2 {
+  text-align: center;
+  margin-top: 20px;
+  color: var(--color-lightslategray);
+  }
+ 
+  .register {
+  color: var(--color-crimson);
+  text-decoration: none;
+  font-weight: 600;
+  }
+ 
+  .register:hover {
+  text-decoration: underline;
+  }
+ 
+  .messages {
+  margin-bottom: 20px;
+  }
+ 
+  .error {
+  background: rgba(255, 71, 87, 0.2);
+  color: #ff4757;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  text-align: center;
+  }
+ 
+  .success {
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  text-align: center;
+  }
+ 
+  @media (max-width: 560px) {
+  .container {
+  width: 90%;
+  padding: 25px 20px;
+  }
+  .button {
+  position: static;
+  margin-bottom: 20px;
+  text-align: left;
+  }
+  .base-user-login {
+  flex-direction: column;
+  padding-top: 80px;
+  }
+  }
+  </style>
+</head>
+<body>
+  <div class="base-user-login">
+  <div class="button">
+  <a href="/" class="back-to-home">← Back to Home</a>
+  </div>
+ 
+  <div class="container">
+  <div class="container2">
+  <div class="heading-1">
+  <b class="welcome-back">Welcome Back</b>
+  </div>
+  <div class="paragraph">
+  <div class="sign-in-to">Sign in to your Next Route account</div>
+  </div>
+  </div>
+ 
+  <!-- Messages -->
+  <div class="messages">
+  {% if messages %}
+  {% for message in messages %}
+  <div class="{% if message.tags == 'error' %}error{% else %}success{% endif %}">
+  {{ message }}
+  </div>
+  {% endfor %}
+  {% endif %}
+  </div>
+ 
+  <!-- Login Form -->
+  <form method="POST" action="/api/login/">
+  {% csrf_token %}
+  <div class="container3">
+  <div class="container4">
+  <div class="label">
+  <div class="email">Email or Username</div>
+  </div>
+  <div class="email-input">
+  <input type="text" name="username" placeholder="you@gmail.com or username" required>
+  </div>
+  </div>
+ 
+  <div class="container5">
+  <div class="label">
+  <div class="email">Password</div>
+  </div>
+  <div class="container6">
+  <a href="#" class="forgot-password" onclick="alert('Contact admin to reset password')">Forgot Password?</a>
+  </div>
+  <div class="password-wrapper">
+  <div class="password-input">
+  <input type="password" name="password" id="password" placeholder="••••••••" required>
+  </div>
+  <div class="button2" onclick="togglePassword()">
+  👁️
+  </div>
+  </div>
+  </div>
+ 
+  <button type="submit" class="button3">
+  Login
+  </button>
+  </div>
+  </form>
+ 
+  <div class="paragraph2">
+  <span>Don't have an account? </span>
+  <a href="/register/" class="register">Register</a>
+  </div>
+  </div>
+  </div>
+ 
+  <script>
+  function togglePassword() {
+  const passwordInput = document.getElementById('password');
+  const icon = document.querySelector('.button2');
+  if (passwordInput.type === 'password') {
+  passwordInput.type = 'text';
+  icon.textContent = '🙈';
+  } else {
+  passwordInput.type = 'password';
+  icon.textContent = '👁️';
+  }
+  }
+  </script>
+</body>
