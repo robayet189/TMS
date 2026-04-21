@@ -1,4 +1,3 @@
-# myapp/views.py
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -6,6 +5,11 @@ from django.urls import reverse
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from .models import UserProfile
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings
 import re
 
 def homepage(request):
@@ -24,11 +28,9 @@ def register_user(request):
         user_type = request.POST.get('user_type')
         institution_id = request.POST.get('institution_id')
 
-        # Convert to lowercase for consistent storage
         institution_type = institution_type.lower() if institution_type else ''
         user_type = user_type.lower() if user_type else ''
 
-        # Validation
         if User.objects.filter(email=email).exists():
             return JsonResponse({'success': False, 'message': 'Email already registered'})
 
@@ -39,10 +41,8 @@ def register_user(request):
             return JsonResponse({'success': False, 'message': 'Invalid email format'})
 
         try:
-            # Use email as username (since your login expects email/username)
-            username = email  # ← CHANGE THIS: Use full email as username
-           
-            # Make username unique if it already exists
+            username = email
+            
             original_username = username
             counter = 1
             while User.objects.filter(username=username).exists():
@@ -57,7 +57,6 @@ def register_user(request):
                 last_name=full_name.split()[-1] if ' ' in full_name and len(full_name.split()) > 1 else ''
             )
 
-            # Create user profile with additional info
             UserProfile.objects.create(
                 user=user,
                 phone=phone,
@@ -66,9 +65,7 @@ def register_user(request):
                 institution_id=institution_id
             )
 
-            # Auto-login after registration
             login(request, user)
-
             return JsonResponse({'success': True, 'message': f'Welcome {full_name}!'})
 
         except Exception as e:
@@ -79,13 +76,11 @@ def register_user(request):
 def login_page(request):
     return render(request, 'app1/login.html')
 
-
 def login_user(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
 
-        # Try to authenticate
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
@@ -97,18 +92,13 @@ def login_user(request):
             return render(request, 'app1/login.html')
 
     return render(request, 'app1/login.html')
+
 def logout_user(request):
     logout(request)
     messages.success(request, 'Logged out successfully')
     return redirect('homepage')
 
 # ========== FORGOT PASSWORD FUNCTIONS ==========
-
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
-from django.conf import settings
 
 def forgot_password(request):
     """Handle forgot password requests"""
@@ -117,40 +107,37 @@ def forgot_password(request):
         
         if not email:
             messages.error(request, 'Please enter your email address.')
-            return render(request, 'forgot_password.html')
+            return render(request, 'app1/forgot_password.html')
         
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # Security: Don't reveal if email exists
             messages.success(request, 'If an account exists with that email, we have sent password reset instructions.')
-            return render(request, 'forgot_password.html')
+            return render(request, 'app1/forgot_password.html')
         
-        # Generate reset token
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         
-        # Build reset link
+        # FIXED: Correct URL pattern name
         reset_link = request.build_absolute_uri(
             reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
         )
         
-        # Send email
         subject = "Password Reset - Next Route Transport"
         message = f"""
-        Hello {user.username},
-        
-        You requested a password reset for your Next Route account.
-        
-        Click the link below to reset your password:
-        {reset_link}
-        
-        This link will expire in 24 hours.
-        
-        If you didn't request this, please ignore this email.
-        
-        - Next Route Team
-        """
+Hello {user.username},
+
+You requested a password reset for your Next Route account.
+
+Click the link below to reset your password:
+{reset_link}
+
+This link will expire in 24 hours.
+
+If you didn't request this, please ignore this email.
+
+- Next Route Team
+"""
         
         try:
             send_mail(
@@ -165,10 +152,9 @@ def forgot_password(request):
             print(f"Email error: {e}")
             messages.error(request, 'Unable to send email. Please try again later.')
         
-        return render(request, 'forgot_password.html')
+        return render(request, 'app1/forgot_password.html')
     
-    return render(request, 'forgot_password.html')
-
+    return render(request, 'app1/forgot_password.html')
 
 def password_reset_confirm_view(request, uidb64, token):
     """Handle password reset confirmation"""
@@ -185,29 +171,29 @@ def password_reset_confirm_view(request, uidb64, token):
             
             if not new_password or len(new_password) < 6:
                 messages.error(request, 'Password must be at least 6 characters.')
-                return render(request, 'password_reset_confirm.html', {'valid': True})
+                return render(request, 'app1/password_reset_confirm.html', {'valid': True})
             
             if new_password != confirm_password:
                 messages.error(request, 'Passwords do not match.')
-                return render(request, 'password_reset_confirm.html', {'valid': True})
+                return render(request, 'app1/password_reset_confirm.html', {'valid': True})
             
-            # Set new password
             user.set_password(new_password)
             user.save()
             
-            messages.success(request, 'Your password has been reset successfully! Please login with your new password.')
-            return redirect('login_user')
+            return redirect('password_reset_success')
         
-        return render(request, 'password_reset_confirm.html', {'valid': True})
+        return render(request, 'app1/password_reset_confirm.html', {'valid': True})
     else:
-        return render(request, 'password_reset_confirm.html', {'valid': False})
+        return render(request, 'app1/password_reset_confirm.html', {'valid': False})
+    
+    
 
 
-# ========== FORGOT PASSWORD FUNCTIONS ==========
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
+# ========== PASSWORD RESET SUCCESS PAGE ==========
+
+def password_reset_success(request):
+    """Password reset success page"""
+    return render(request, 'app1/password_reset_success.html')
 
 def forgot_password(request):
     if request.method == 'POST':
@@ -215,60 +201,36 @@ def forgot_password(request):
         
         if not email:
             messages.error(request, 'Please enter your email address.')
-            return render(request, 'forgot_password.html')
+            return render(request, 'app1/forgot_password.html')
         
         try:
             user = User.objects.get(email=email)
+            
+            # Generate reset token
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            
+            # Reset link
+            reset_link = request.build_absolute_uri(
+                reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+            )
+            
+            # Print in console for development
+            print(f"\n========== PASSWORD RESET LINK ==========")
+            print(f"Email: {email}")
+            print(f"Reset link: {reset_link}")
+            print(f"==========================================\n")
+            
+            # Redirect to success page
+            return redirect('forgot_password_success')
+            
         except User.DoesNotExist:
-            messages.success(request, 'If an account exists with that email, we have sent password reset instructions.')
-            return render(request, 'forgot_password.html')
-        
-        token = default_token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_link = request.build_absolute_uri(
-            reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
-        )
-        
-        subject = "Password Reset - Next Route"
-        message = f"Reset your password: {reset_link}"
-        
-        try:
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email], fail_silently=False)
-            messages.success(request, 'Password reset instructions sent to your email.')
-        except Exception as e:
-            messages.error(request, 'Unable to send email. Please try again.')
-        
-        return render(request, 'forgot_password.html')
+            # Even if email doesn't exist, redirect to success page (security)
+            return redirect('forgot_password_success')
     
-    return render(request, 'forgot_password.html')
+    return render(request, 'app1/forgot_password.html')
 
 
-def password_reset_confirm_view(request, uidb64, token):
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
-    except:
-        user = None
-    
-    if user is not None and default_token_generator.check_token(user, token):
-        if request.method == 'POST':
-            new_password = request.POST.get('new_password')
-            confirm_password = request.POST.get('confirm_password')
-            
-            if not new_password or len(new_password) < 6:
-                messages.error(request, 'Password must be at least 6 characters.')
-                return render(request, 'password_reset_confirm.html', {'valid': True})
-            
-            if new_password != confirm_password:
-                messages.error(request, 'Passwords do not match.')
-                return render(request, 'password_reset_confirm.html', {'valid': True})
-            
-            user.set_password(new_password)
-            user.save()
-            messages.success(request, 'Password reset successful! Please login.')
-            return redirect('login_user')
-        
-        return render(request, 'password_reset_confirm.html', {'valid': True})
-    else:
-        return render(request, 'password_reset_confirm.html', {'valid': False})
-
+def forgot_password_success(request):
+    """Forgot password success page - after email submission"""
+    return render(request, 'app1/forgot_password_success.html')
