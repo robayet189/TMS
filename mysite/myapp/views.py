@@ -243,36 +243,6 @@ def forgot_password(request):
     
     return render(request, 'forgot_password.html')
 
-
-def password_reset_confirm_view(request, uidb64, token):
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
-    except:
-        user = None
-    
-    if user is not None and default_token_generator.check_token(user, token):
-        if request.method == 'POST':
-            new_password = request.POST.get('new_password')
-            confirm_password = request.POST.get('confirm_password')
-            
-            if not new_password or len(new_password) < 6:
-                messages.error(request, 'Password must be at least 6 characters.')
-                return render(request, 'password_reset_confirm.html', {'valid': True})
-            
-            if new_password != confirm_password:
-                messages.error(request, 'Passwords do not match.')
-                return render(request, 'password_reset_confirm.html', {'valid': True})
-            
-            user.set_password(new_password)
-            user.save()
-            messages.success(request, 'Password reset successful! Please login.')
-            return redirect('login_user')
-        
-        return render(request, 'password_reset_confirm.html', {'valid': True})
-    else:
-        return render(request, 'password_reset_confirm.html', {'valid': False})
-
 from django.shortcuts import render, redirect
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.decorators import login_required
