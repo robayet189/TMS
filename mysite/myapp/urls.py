@@ -17,4 +17,5 @@ urlpatterns = [
     path('dashboard/profile/', views.profile, name='profile'),
     path('dashboard/change-password/', views.change_password, name='change_password'),
     path('dashboard/renew-pass/', views.renew_pass, name='renew_pass'),
+    path('edit-profile/', views.edit_profile, name='edit_profile'),
 ]

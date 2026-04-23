@@ -1,427 +1,45 @@
 {% load static %}
 <style>
-    /* Profile Page Specific Styles */
-    .profile-container {
-        width: 100%;
-    }
-
-    .page-title {
-        font-family: 'Syne', sans-serif;
-        font-weight: 700;
-        font-size: 28px;
-        color: var(--text);
-        margin-bottom: 24px;
-    }
-
-    .content-grid {
-        display: flex;
-        gap: 24px;
-        align-items: flex-start;
-    }
-
-    .left-col {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
-
-    .card {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        box-shadow: var(--shadow-sm);
-        transition: background 0.3s ease;
-    }
-
-    /* Profile Card */
-    .profile-card {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-        padding: 0 25px;
-        height: 133px;
-    }
-
-    .avatar-box {
-        width: 82px;
-        height: 82px;
-        flex-shrink: 0;
-        border: 1px solid var(--red);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Syne', sans-serif;
-        font-weight: 700;
-        font-size: 32px;
-        color: var(--text);
-        background: var(--bg-sidebar);
-        border-radius: 50%;
-    }
-
-    .profile-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .profile-name {
-        font-weight: 600;
-        font-size: 20px;
-        color: var(--text);
-        margin-bottom: 5px;
-    }
-
-    .profile-email {
-        font-size: 14px;
-        color: var(--text-muted);
-        margin-bottom: 8px;
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 12px;
-        background: rgba(0, 212, 255, 0.12);
-        border-radius: 999px;
-        font-weight: 600;
-        font-size: 12px;
-        color: var(--cyan);
-    }
-
-    .edit-profile-btn {
-        flex-shrink: 0;
-        height: 41px;
-        padding: 0 20px;
-        border: 1px solid var(--red);
-        background: transparent;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 600;
-        font-size: 14px;
-        color: var(--red);
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-    }
-
-    .edit-profile-btn:hover {
-        background: rgba(230, 57, 70, 0.1);
-        transform: translateY(-2px);
-    }
-
-    .edit-profile-btn svg {
-        width: 14px;
-        height: 14px;
-        stroke: var(--red);
-        fill: none;
-        stroke-width: 1.5;
-    }
-
-    /* Form Card - Hidden by default */
-    .form-card {
-        padding: 24px 25px 28px;
-    }
-
-    .form-card.hidden {
-        display: none !important;
-    }
-
-    .section-title {
-        font-weight: 600;
-        font-size: 16px;
-        color: var(--text);
-        margin-bottom: 20px;
-    }
-
-    .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-
-    .form-label {
-        font-weight: 600;
-        font-size: 13px;
-        color: var(--text-muted);
-    }
-
-    .form-input {
-        background: var(--bg-sidebar);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        height: 43px;
-        padding: 0 16px;
-        color: var(--text);
-        font-family: 'DM Sans', sans-serif;
-        font-size: 14px;
-        outline: none;
-        transition: border-color 0.15s;
-        width: 100%;
-    }
-
-    .form-input:focus {
-        border-color: var(--red);
-    }
-
-    .form-input.pw {
-        letter-spacing: 4px;
-    }
-
-    .save-btn {
-        height: 41px;
-        padding: 0 22px;
-        background: var(--red);
-        border: none;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 600;
-        font-size: 14px;
-        color: white;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .save-btn:hover {
-        background: #c1121f;
-        transform: translateY(-2px);
-    }
-
-    .save-btn svg {
-        width: 14px;
-        height: 14px;
-        stroke: white;
-        fill: none;
-        stroke-width: 1.5;
-    }
-
-    /* Password Card */
-    .password-card {
-        padding: 24px 25px 28px;
-    }
-
-    .password-fields {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-width: 448px;
-        margin-bottom: 24px;
-    }
-
-    .update-btn {
-        height: 41px;
-        padding: 0 22px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 600;
-        font-size: 14px;
-        color: var(--text);
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .update-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    /* Transport Info Card */
-    .transport-info-card {
-        padding: 24px 25px;
-    }
-
-    .transport-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 14px;
-    }
-
-    .transport-header svg {
-        width: 18px;
-        height: 18px;
-        stroke: var(--cyan);
-    }
-
-    .pass-details {
-        display: flex;
-        gap: 24px;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .pass-detail {
-        font-size: 14px;
-        color: var(--text-dim);
-    }
-
-    .pass-detail span {
-        color: var(--text);
-        margin-left: 4px;
-    }
-
-    .badge-active {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 12px;
-        background: rgba(0, 200, 150, 0.12);
-        border-radius: 999px;
-        font-weight: 600;
-        font-size: 12px;
-        color: var(--green);
-        margin-left: 6px;
-    }
-
-    /* Pass Card Widget */
-    .pass-card-col {
-        width: 283px;
-        flex-shrink: 0;
-    }
-
-    .pass-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-left: 4px solid var(--orange);
-        border-radius: 16px;
-        box-shadow: var(--shadow-sm);
-        padding: 24px;
-    }
-
-    .pass-card-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 22px;
-    }
-
-    .pass-icon-wrap {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: rgba(230, 100, 55, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .pass-icon-wrap svg {
-        width: 20px;
-        height: 20px;
-        stroke: var(--orange);
-    }
-
-    .pass-card-title {
-        font-weight: 600;
-        font-size: 14px;
-        color: var(--text);
-    }
-
-    .pass-card-id {
-        font-size: 11px;
-        color: var(--text-dim);
-        margin-top: 2px;
-    }
-
-    .pass-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-bottom: 20px;
-    }
-
-    .pass-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 12px;
-    }
-
-    .pass-row-label {
-        color: var(--text-dim);
-    }
-
-    .pass-row-val {
-        color: var(--text);
-        font-weight: 500;
-    }
-
-    .badge-active-sm {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 12px;
-        background: rgba(0, 200, 150, 0.12);
-        border-radius: 50px;
-        font-weight: 600;
-        font-size: 10px;
-        color: var(--green);
-    }
-
-    .renew-btn {
-        width: 100%;
-        height: 38px;
-        border: 1px solid var(--orange);
-        background: transparent;
-        border-radius: 8px;
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 600;
-        font-size: 12px;
-        color: var(--orange);
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .renew-btn:hover {
-        background: rgba(230, 100, 55, 0.1);
-    }
-
-    .message-success {
-        background: rgba(0, 200, 150, 0.1);
-        border-left: 4px solid var(--green);
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        color: var(--green);
-    }
-
-    .message-error {
-        background: rgba(255, 71, 87, 0.1);
-        border-left: 4px solid var(--red);
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        color: var(--red);
-    }
-
-    @media (max-width: 900px) {
-        .content-grid {
-            flex-direction: column;
-        }
-        .pass-card-col {
-            width: 100%;
-        }
-        .profile-card {
-            flex-wrap: wrap;
-            height: auto;
-            padding: 20px;
-        }
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+    .profile-container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .page-title { font-size: 28px; font-weight: 700; margin-bottom: 24px; color: #1a1a2e; }
+    .profile-grid { display: grid; grid-template-columns: 1fr 300px; gap: 24px; }
+    .card { background: white; border: 1px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .profile-card { display: flex; align-items: center; gap: 20px; padding: 24px; }
+    .avatar-box { width: 72px; height: 72px; border: 2px solid #e63946; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; background: #f8f9fa; border-radius: 12px; color: #1a1a2e; }
+    .profile-info { flex: 1; }
+    .profile-name { font-size: 20px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+    .profile-email { font-size: 14px; color: #6c757d; margin-bottom: 8px; }
+    .badge { display: inline-block; padding: 4px 12px; background: rgba(0, 212, 255, 0.12); border-radius: 20px; font-size: 12px; font-weight: 600; color: #00d4ff; }
+    .btn-edit { padding: 10px 20px; border: 1px solid #e63946; background: transparent; border-radius: 8px; font-weight: 600; font-size: 14px; color: #e63946; cursor: pointer; transition: all 0.2s; }
+    .btn-edit:hover { background: rgba(230, 57, 70, 0.1); }
+    .edit-form { padding: 24px; display: none; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 13px; font-weight: 600; color: #6c757d; }
+    .form-input { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; height: 44px; padding: 0 16px; font-size: 14px; outline: none; width: 100%; }
+    .form-input:focus { border-color: #e63946; }
+    .btn-save { height: 44px; padding: 0 24px; background: #e63946; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; color: white; cursor: pointer; margin-right: 12px; }
+    .btn-save:hover { background: #c1121f; }
+    .btn-cancel { height: 44px; padding: 0 24px; background: transparent; border: 1px solid #e0e0e0; border-radius: 8px; font-weight: 600; font-size: 14px; color: #6c757d; cursor: pointer; }
+    .password-card { padding: 24px; }
+    .password-fields { display: flex; flex-direction: column; gap: 16px; max-width: 450px; margin-bottom: 20px; }
+    .btn-update { height: 44px; padding: 0 24px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; font-weight: 600; font-size: 14px; color: #1a1a2e; cursor: pointer; }
+    .transport-info { padding: 20px 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
+    .info-item { font-size: 14px; color: #6c757d; }
+    .info-item span { color: #1a1a2e; font-weight: 500; }
+    .badge-active { display: inline-block; padding: 4px 12px; background: rgba(0, 200, 150, 0.12); border-radius: 20px; font-size: 12px; font-weight: 600; color: #00c896; }
+    .pass-card { padding: 24px; border-left: 4px solid #ff6b35; }
+    .pass-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #1a1a2e; }
+    .pass-id { font-size: 12px; color: #6c757d; margin-bottom: 16px; }
+    .pass-rows { margin-bottom: 20px; }
+    .pass-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    .pass-row:last-child { border-bottom: none; }
+    .btn-renew { width: 100%; height: 40px; border: 1px solid #ff6b35; background: transparent; border-radius: 8px; font-weight: 600; font-size: 13px; color: #ff6b35; cursor: pointer; }
+    .btn-renew:hover { background: rgba(255, 107, 53, 0.1); }
+    .message-success { background: rgba(0, 200, 150, 0.1); border-left: 4px solid #00c896; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; color: #00c896; }
+    .message-error { background: rgba(255, 71, 87, 0.1); border-left: 4px solid #e63946; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; color: #e63946; }
+    @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } }
 </style>
 
 <div class="profile-container">
@@ -433,35 +51,21 @@
         {% endfor %}
     {% endif %}
 
-    <div class="content-grid">
-        <div class="left-col">
-
-            <!-- PROFILE INFO CARD -->
-            <div class="card profile-card">
-                <div class="avatar-box">
-                    {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
-                </div>
-
+    <div class="profile-grid">
+        <div class="left-section">
+            <!-- PROFILE CARD -->
+            <div class="card profile-card" id="profileCard">
+                <div class="avatar-box">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</div>
                 <div class="profile-info">
                     <div class="profile-name">{{ user.get_full_name|default:user.username }}</div>
                     <div class="profile-email">{{ user.email }}</div>
-                    <span class="badge">
-                        {% if profile.user_type %}
-                            {{ profile.get_user_type_display }}
-                        {% else %}
-                            Student
-                        {% endif %}
-                    </span>
+                    <span class="badge">{% if profile.user_type %}{{ profile.get_user_type_display }}{% else %}User{% endif %}</span>
                 </div>
-
-                <button class="edit-profile-btn" id="showEditFormBtn">
-                    <svg viewBox="0 0 14 14"><path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z"/></svg>
-                    Edit Profile
-                </button>
+                <button type="button" class="btn-edit" id="editProfileBtn">Edit Profile</button>
             </div>
 
-            <!-- EDIT PROFILE FORM (Hidden by default - shows when Edit button clicked) -->
-            <div class="card form-card hidden" id="editForm">
+            <!-- EDIT FORM -->
+            <div class="card edit-form" id="editFormCard">
                 <div class="section-title">Edit Profile</div>
                 <form method="post" action="{% url 'profile' %}" id="profileForm">
                     {% csrf_token %}
@@ -475,7 +79,7 @@
                             <input class="form-input" type="text" name="last_name" value="{{ user.last_name }}">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Phone Number</label>
+                            <label class="form-label">Phone</label>
                             <input class="form-input" type="tel" name="phone" value="{{ profile.phone|default:'' }}">
                         </div>
                         <div class="form-group">
@@ -487,17 +91,14 @@
                             <input class="form-input" type="text" name="institution_id" value="{{ profile.institution_id|default:'' }}">
                         </div>
                     </div>
-                    <div style="display: flex; gap: 12px;">
-                        <button type="submit" class="save-btn">
-                            <svg viewBox="0 0 14 14"><path d="M12 9v3a1 1 0 01-1 1H3a1 1 0 01-1-1V9M10 4L7 1 4 4M7 1v8"/></svg>
-                            Save Changes
-                        </button>
-                        <button type="button" class="edit-profile-btn" id="cancelEditBtn">Cancel</button>
+                    <div>
+                        <button type="submit" class="btn-save">Save Changes</button>
+                        <button type="button" class="btn-cancel" id="cancelEditBtn">Cancel</button>
                     </div>
                 </form>
             </div>
 
-            <!-- CHANGE PASSWORD CARD -->
+            <!-- CHANGE PASSWORD -->
             <div class="card password-card">
                 <div class="section-title">Change Password</div>
                 <form method="post" action="{% url 'change_password' %}" id="passwordForm">
@@ -505,239 +106,44 @@
                     <div class="password-fields">
                         <div class="form-group">
                             <label class="form-label">Current Password</label>
-                            <input class="form-input pw" type="password" name="current_password" placeholder="••••••••" required>
+                            <input class="form-input" type="password" name="current_password" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">New Password</label>
-                            <input class="form-input pw" type="password" name="new_password" placeholder="••••••••" required>
+                            <input class="form-input" type="password" name="new_password" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Confirm New Password</label>
-                            <input class="form-input pw" type="password" name="confirm_password" placeholder="••••••••" required>
+                            <input class="form-input" type="password" name="confirm_password" required>
                         </div>
                     </div>
-                    <button type="submit" class="update-btn">Update Password</button>
+                    <button type="submit" class="btn-update">Update Password</button>
                 </form>
             </div>
 
-            <!-- TRANSPORT PASS INFO CARD -->
-            <div class="card transport-info-card">
-                <div class="transport-header">
-                    <svg viewBox="0 0 18 18"><rect x="2" y="4" width="14" height="10" rx="2"/><path d="M6 8h6M6 11h3"/></svg>
-                    <div class="section-title" style="margin-bottom:0">Transport Pass</div>
-                </div>
-                <div class="pass-details">
-                    <div class="pass-detail">Type:<span>Monthly Pass</span></div>
-                    <div class="pass-detail">Valid Until:<span>{{ pass_valid_until }}</span></div>
-                    <div class="pass-detail">
-                        Status:
-                        <span class="badge-active">
-                            {% if is_pass_active %}Active{% else %}Inactive{% endif %}
-                        </span>
-                    </div>
-                </div>
+            <!-- TRANSPORT INFO -->
+            <div class="card transport-info">
+                <div class="info-item">Type: <span>Monthly Pass</span></div>
+                <div class="info-item">Valid Until: <span>{{ pass_valid_until }}</span></div>
+                <div class="info-item">Status: <span class="badge-active">{% if is_pass_active %}Active{% else %}Inactive{% endif %}</span></div>
             </div>
-
         </div>
 
-        <!-- PASS CARD WIDGET -->
-        <div class="pass-card-col">
-            <div class="pass-card">
-                <div class="pass-card-header">
-                    <div class="pass-icon-wrap">
-                        <svg viewBox="0 0 20 20">
-                            <rect x="2" y="5" width="16" height="11" rx="2"/>
-                            <path d="M7 9h6M7 12h4"/>
-                            <path d="M6 5V4a1 1 0 011-1h6a1 1 0 011 1v1"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="pass-card-title">Transport Pass</div>
-                        <div class="pass-card-id">{{ pass_id }}</div>
-                    </div>
-                </div>
-
+        <!-- PASS CARD -->
+        <div class="right-section">
+            <div class="card pass-card">
+                <div class="pass-title">Transport Pass</div>
+                <div class="pass-id">{{ pass_id }}</div>
                 <div class="pass-rows">
-                    <div class="pass-row">
-                        <span class="pass-row-label">Type</span>
-                        <span class="pass-row-val">Monthly Pass</span>
-                    </div>
-                    <div class="pass-row">
-                        <span class="pass-row-label">Status</span>
-                        <span class="badge-active-sm">
-                            {% if is_pass_active %}Active{% else %}Inactive{% endif %}
-                        </span>
-                    </div>
-                    <div class="pass-row">
-                        <span class="pass-row-label">Valid Until</span>
-                        <span class="pass-row-val">{{ pass_valid_until }}</span>
-                    </div>
+                    <div class="pass-row"><span>Type</span><span>Monthly Pass</span></div>
+                    <div class="pass-row"><span>Status</span><span class="badge-active">{% if is_pass_active %}Active{% else %}Inactive{% endif %}</span></div>
+                    <div class="pass-row"><span>Valid Until</span><span>{{ pass_valid_until }}</span></div>
                 </div>
-
                 <form method="post" action="{% url 'renew_pass' %}" id="renewForm">
                     {% csrf_token %}
-                    <button type="submit" class="renew-btn">Renew Pass</button>
+                    <button type="submit" class="btn-renew">Renew Pass</button>
                 </form>
             </div>
         </div>
-
     </div>
 </div>
-
-<script>
-    (function() {
-        // Function to initialize all event handlers
-        function initProfilePage() {
-            console.log("Initializing profile page...");
-
-            // Get elements
-            const showEditBtn = document.getElementById('showEditFormBtn');
-            const editForm = document.getElementById('editForm');
-            const cancelEditBtn = document.getElementById('cancelEditBtn');
-            const profileForm = document.getElementById('profileForm');
-            const passwordForm = document.getElementById('passwordForm');
-            const renewForm = document.getElementById('renewForm');
-
-            // SHOW EDIT FORM - This is the main fix!
-            if (showEditBtn && editForm) {
-                // Remove existing listeners by cloning
-                const newShowBtn = showEditBtn.cloneNode(true);
-                showEditBtn.parentNode.replaceChild(newShowBtn, showEditBtn);
-
-                newShowBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("Edit button clicked - showing form");
-                    editForm.classList.remove('hidden');
-                    newShowBtn.style.display = 'none';
-                });
-            } else {
-                console.log("Edit button or form not found");
-                console.log("showEditBtn:", showEditBtn);
-                console.log("editForm:", editForm);
-            }
-
-            // CANCEL EDIT
-            if (cancelEditBtn && editForm) {
-                const newCancelBtn = cancelEditBtn.cloneNode(true);
-                cancelEditBtn.parentNode.replaceChild(newCancelBtn, cancelEditBtn);
-
-                newCancelBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log("Cancel clicked - hiding form");
-                    editForm.classList.add('hidden');
-                    const showBtn = document.getElementById('showEditFormBtn');
-                    if (showBtn) {
-                        showBtn.style.display = 'flex';
-                    }
-                });
-            }
-
-            // PROFILE FORM SUBMIT
-            if (profileForm) {
-                const newProfileForm = profileForm.cloneNode(true);
-                profileForm.parentNode.replaceChild(newProfileForm, profileForm);
-
-                newProfileForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    console.log("Profile form submitted");
-                    const formData = new FormData(this);
-
-                    try {
-                        const response = await fetch(this.action, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        });
-
-                        const html = await response.text();
-                        document.getElementById('main-content').innerHTML = html;
-
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('An error occurred. Please try again.');
-                    }
-                });
-            }
-
-            // PASSWORD FORM SUBMIT
-            if (passwordForm) {
-                const newPasswordForm = passwordForm.cloneNode(true);
-                passwordForm.parentNode.replaceChild(newPasswordForm, passwordForm);
-
-                newPasswordForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    console.log("Password form submitted");
-                    const formData = new FormData(this);
-
-                    try {
-                        const response = await fetch(this.action, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        });
-
-                        const result = await response.text();
-
-                        // Check if it's a JSON redirect response
-                        if (result.trim().startsWith('{')) {
-                            try {
-                                const data = JSON.parse(result);
-                                if (data.redirect) {
-                                    window.location.href = data.redirect;
-                                    return;
-                                }
-                            } catch(e) {}
-                        }
-
-                        document.getElementById('main-content').innerHTML = result;
-
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('An error occurred. Please try again.');
-                    }
-                });
-            }
-
-            // RENEW FORM SUBMIT
-            if (renewForm) {
-                const newRenewForm = renewForm.cloneNode(true);
-                renewForm.parentNode.replaceChild(newRenewForm, renewForm);
-
-                newRenewForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    console.log("Renew form submitted");
-                    const formData = new FormData(this);
-
-                    try {
-                        const response = await fetch(this.action, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        });
-
-                        const html = await response.text();
-                        document.getElementById('main-content').innerHTML = html;
-
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('An error occurred. Please try again.');
-                    }
-                });
-            }
-        }
-
-        // Run when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initProfilePage);
-        } else {
-            initProfilePage();
-        }
-    })();
-</script>

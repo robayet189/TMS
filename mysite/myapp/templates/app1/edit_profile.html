@@ -1,0 +1,33 @@
+{% extends 'app1/base.html' %}
+{% block content %}
+<div class="container mt-5">
+    <h2>Edit Profile</h2>
+    <form method="POST" class="mt-4">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">First Name</label>
+            <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Last Name</label>
+            <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ user.email }}" required>
+        </div>
+
+        <!-- Add more fields if your model has them (phone, role, etc.) -->
+        <div class="mb-3">
+            <label class="form-label">Phone (Optional)</label>
+            <input type="text" name="phone" class="form-control" value="{{ user.profile.phone|default:'' }}">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{% url 'profile' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}
