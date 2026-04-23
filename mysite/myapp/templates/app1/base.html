@@ -100,12 +100,12 @@
             border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
         }
-.logo-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-}
+        .logo-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
 
         .logo-text {
             font-family: 'Alegreya SC', serif;
@@ -500,7 +500,6 @@
 <body>
 
 <aside class="sidebar">
-    <!-- Sidebar content -->
     <div class="sidebar-logo">
         <div class="logo-box">
             <img src="{% static 'app1/logo.png' %}" alt="logo" style="width:100%; height:100%; object-fit:contain;">
@@ -547,16 +546,16 @@
         </div>
     </header>
 
-    <!-- ⭐ THIS IS THE CRITICAL DIV - Content gets swapped here ⭐ -->
     <div id="main-content" class="content">
         {% block content %}
-        <!-- Page content will be inserted here -->
         {% endblock %}
     </div>
 </main>
 
 <script>
-    // Theme Toggle
+    // ==========================================
+    // THEME TOGGLE
+    // ==========================================
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
 
@@ -575,8 +574,101 @@
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
     });
 
-    // SPA Navigation
+    // ==========================================
+    // ✅ PROFILE PAGE: EVENT DELEGATION (FIXES EDIT & PASSWORD BUTTONS)
+    // ==========================================
+    function initProfileEvents() {
+        // Edit Profile Button Click
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'editProfileBtn' || e.target.closest('#editProfileBtn')) {
+                e.preventDefault();
+                const profileCard = document.getElementById('profileCard');
+                const editForm = document.getElementById('editFormCard');
+                if (profileCard) profileCard.style.display = 'none';
+                if (editForm) {
+                    editForm.style.display = 'block';
+                    editForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+
+            // Cancel Button Click
+            if (e.target.id === 'cancelEditBtn' || e.target.closest('#cancelEditBtn')) {
+                e.preventDefault();
+                const profileCard = document.getElementById('profileCard');
+                const editForm = document.getElementById('editFormCard');
+                if (editForm) editForm.style.display = 'none';
+                if (profileCard) profileCard.style.display = 'flex';
+            }
+        });
+
+        // Form Submit Handler with Event Delegation
+        document.addEventListener('submit', function(e) {
+            const form = e.target.closest('form');
+            if (!form) return;
+
+            const formId = form.id;
+            if (['profileForm', 'passwordForm', 'renewForm'].includes(formId)) {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const actionUrl = form.action;
+
+                fetch(actionUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken') || getCookie('csrftoken')
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.text();
+                })
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContent = doc.getElementById('main-content');
+
+                    if (newContent && document.getElementById('main-content')) {
+                        document.getElementById('main-content').innerHTML = newContent.innerHTML;
+                        // Re-initialize events for new content
+                        setTimeout(() => initProfileEvents(), 100);
+                    } else {
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Something went wrong. Please try again.');
+                });
+            }
+        });
+    }
+
+    // Helper function to get CSRF token from cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // ==========================================
+    // ✅ SPA NAVIGATION (Your existing code + profile events)
+    // ==========================================
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize profile events
+        initProfileEvents();
+
         const navLinks = document.querySelectorAll('.nav a');
         const contentDiv = document.getElementById('main-content');
 
@@ -600,6 +692,8 @@
                     history.pushState({ url: url }, '', url);
                 }
                 updateActiveLink(url);
+                // Re-initialize profile events after AJAX load
+                setTimeout(() => initProfileEvents(), 100);
             } catch (error) {
                 console.error(error);
                 contentDiv.innerHTML = '<p style="color:var(--red); text-align:center; padding:40px;">Failed to load page. Please refresh.</p>';
