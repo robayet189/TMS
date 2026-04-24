@@ -1,0 +1,81 @@
+<h2>Routes & Schedule</h2>
+
+<div class="filters-bar">
+    <input type="date" id="travel_date" name="date" value="{{ selected_date|default:'' }}">
+    <input type="text" id="search_route" placeholder="Search route or stop..." value="{{ search_query|default:'' }}">
+    <select id="time_filter" name="time_filter">
+        <option value="">All Times</option>
+        <option value="morning" {% if time_filter == 'morning' %}selected{% endif %}>Morning (Before 12 PM)</option>
+        <option value="afternoon" {% if time_filter == 'afternoon' %}selected{% endif %}>Afternoon (12-4 PM)</option>
+        <option value="evening" {% if time_filter == 'evening' %}selected{% endif %}>Evening (After 4 PM)</option>
+    </select>
+</div>
+
+<div class="routes-grid" id="routesGrid">
+    {% for schedule in routes %}
+    <div class="route-card" data-schedule-id="{{ schedule.id }}" data-fare="{{ schedule.fare }}" data-seats="{{ schedule.available_seats }}">
+        <div class="route-code">Route {{ schedule.route.code }}</div>
+        <div class="route-path">{{ schedule.route.start }} → {{ schedule.route.end }}</div>
+        <div class="route-time">Departure: {{ schedule.departure_time|time:"g:i A" }}</div>
+        <div class="route-date">Date: {{ schedule.travel_date|date:"M d, Y" }}</div>
+        <div class="route-fare">Fare: ৳{{ schedule.fare }}</div>
+        <div class="seats-available">Available Seats: {{ schedule.available_seats }}/{{ schedule.bus.capacity }}</div>
+        <button class="btn-book" onclick="openBookingModal('{{ schedule.id }}', '{{ schedule.fare }}', '{{ schedule.available_seats }}')">Book Now</button>
+    </div>
+    {% empty %}
+    <div class="no-trip-card">
+        <strong>No routes available</strong>
+        There are no active routes scheduled for today.
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Include Booking Modal -->
+{% include 'app1/includes/booking_modal.html' %}
+
+<!-- Filter Scripts -->
+<script>
+    // Filter functionality
+    const travelDate = document.getElementById('travel_date');
+    const searchRoute = document.getElementById('search_route');
+    const timeFilter = document.getElementById('time_filter');
+    
+    function applyFilters() {
+        const params = new URLSearchParams();
+        if (travelDate.value) params.set('travel_date', travelDate.value);
+        if (searchRoute.value) params.set('search', searchRoute.value);
+        if (timeFilter.value) params.set('time_filter', timeFilter.value);
+        
+        fetch(`/schedule/?${params.toString()}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const grid = document.getElementById('routesGrid');
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const newGrid = tempDiv.querySelector('#routesGrid');
+            if (newGrid) {
+                grid.innerHTML = newGrid.innerHTML;
+            }
+        });
+    }
+    
+    travelDate.addEventListener('change', applyFilters);
+    searchRoute.addEventListener('keyup', debounce(applyFilters, 500));
+    timeFilter.addEventListener('change', applyFilters);
+    
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction() {
+            const later = () => {
+                clearTimeout(timeout);
+                func();
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+</script>

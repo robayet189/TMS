@@ -74,6 +74,7 @@ class Schedule(models.Model):
     travel_date = models.DateField()
     fare = models.DecimalField(max_digits=8, decimal_places=2, default=60.00)
     is_active = models.BooleanField(default=True)
+    available_seats = models.IntegerField(default=40)
 
     class Meta:
         unique_together = ['route', 'travel_date', 'departure_time']
@@ -81,3 +82,50 @@ class Schedule(models.Model):
 
     def __str__(self):
         return f"{self.route.code} - {self.departure_time} on {self.travel_date}"
+    
+   
+
+class Booking(models.Model):
+    """Ticket booking information"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
+    ]
+    
+    PAYMENT_STATUS = [
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='bookings')
+    booking_date = models.DateTimeField(auto_now_add=True)
+    number_of_seats = models.IntegerField(default=1)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='confirmed')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='paid')
+    booking_id = models.CharField(max_length=50, unique=True, blank=True)
+    passenger_name = models.CharField(max_length=100, blank=True)
+    passenger_phone = models.CharField(max_length=15, blank=True)
+    passenger_email = models.CharField(max_length=100, blank=True)
+    seat_numbers = models.CharField(max_length=200, blank=True)
+    travel_date = models.DateField(null=True, blank=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.booking_id:
+            import random
+            import string
+            self.booking_id = 'TR' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        if not self.travel_date and self.schedule:
+            self.travel_date = self.schedule.travel_date
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        seat_info = f" - Seats: {self.seat_numbers}" if self.seat_numbers else ""
+        return f"Booking {self.booking_id} - {self.passenger_name or self.user.username}{seat_info}"
+    
+    class Meta:
+        ordering = ['-booking_date']  

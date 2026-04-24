@@ -17,4 +17,11 @@ urlpatterns = [
     path('dashboard/profile/', views.profile, name='profile'),
     path('dashboard/change-password/', views.change_password, name='change_password'),
     path('dashboard/renew-pass/', views.renew_pass, name='renew_pass'),
+    path('book-ticket/<int:schedule_id>/', views.book_ticket, name='book_ticket'),
+    path('my-bookings/', views.my_bookings, name='my_bookings'),
+    path('booking/<str:booking_id>/', views.booking_detail, name='booking_detail'),
+    path('cancel-booking/<str:booking_id>/', views.cancel_booking, name='cancel_booking'),
+    path('check-seats/<int:schedule_id>/', views.check_seat_availability, name='check_seat_availability'),
+    path('schedule/', views.schedule, name='schedule'),
+    path('book-ticket/<int:schedule_id>/', views.book_ticket, name='book_ticket'),
 ]
