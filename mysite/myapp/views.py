@@ -11,7 +11,14 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from django.conf import settings
+<<<<<<< HEAD
+from .models import UserProfile, Route, Bus, Schedule, Booking
+from django.shortcuts import get_object_or_404
+from .models import Booking, Schedule
+import json
+=======
 from django.contrib.auth.tokens import default_token_generator
+>>>>>>> 5e79ce3f42363426114d3b9e3dd0b0df81c062da
 import re
 
 from .models import UserProfile, Schedule
@@ -334,4 +341,145 @@ def renew_pass(request):
         if is_ajax(request):
             return render(request, 'app1/partials/profile_content.html', get_profile_context(user))
         return redirect('profile')
+<<<<<<< HEAD
+
     return redirect('profile')
+
+
+
+@login_required
+def book_ticket(request, schedule_id):
+    """Handle ticket booking via AJAX"""
+    if request.method == 'POST':
+        try:
+            schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
+            
+            # Get data from request
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                number_of_seats = int(data.get('seats', 1))
+                passenger_name = data.get('passenger_name', '')
+                passenger_phone = data.get('passenger_phone', '')
+            else:
+                number_of_seats = int(request.POST.get('seats', 1))
+                passenger_name = request.POST.get('passenger_name', '')
+                passenger_phone = request.POST.get('passenger_phone', '')
+            
+            # Check seat availability
+            if number_of_seats > schedule.available_seats:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Sorry, only {schedule.available_seats} seats available'
+                }, status=400)
+            
+            # Calculate total amount
+            total_amount = schedule.fare * number_of_seats
+            
+            # Create booking
+            booking = Booking.objects.create(
+                user=request.user,
+                schedule=schedule,
+                number_of_seats=number_of_seats,
+                total_amount=total_amount,
+                status='confirmed',
+                payment_status='paid',
+                passenger_name=passenger_name or request.user.get_full_name(),
+                passenger_phone=passenger_phone or getattr(request.user.profile, 'phone', '')
+            )
+            
+            # Update available seats
+            schedule.available_seats -= number_of_seats
+            schedule.save()
+            
+            return JsonResponse({
+                'success': True,
+                'booking_id': booking.booking_id,
+                'message': 'Booking confirmed successfully!',
+                'booking': {
+                    'id': booking.booking_id,
+                    'route': f"{schedule.route.code} - {schedule.route.start} → {schedule.route.end}",
+                    'date': schedule.travel_date.strftime('%b %d, %Y'),
+                    'time': schedule.departure_time.strftime('%I:%M %p'),
+                    'seats': number_of_seats,
+                    'total': f"৳{total_amount}"
+                }
+            })
+            
+        except Schedule.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Schedule not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
+
+
+@login_required
+def my_bookings(request):
+    """View user's all bookings"""
+    bookings = Booking.objects.filter(user=request.user).select_related('schedule__route').order_by('-booking_date')
+    
+    context = {
+        'bookings': bookings,
+        'active_count': bookings.filter(status='confirmed').count(),
+        'total_spent': sum(b.total_amount for b in bookings.filter(status='confirmed'))
+    }
+    
+    if is_ajax(request):
+        return render(request, 'app1/partials/bookings_content.html', context)
+    return render(request, 'app1/my_bookings.html', context)
+
+
+@login_required
+def booking_detail(request, booking_id):
+    """View single booking details"""
+    booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
+    
+    context = {
+        'booking': booking,
+    }
+    
+    if is_ajax(request):
+        return render(request, 'app1/partials/booking_detail_content.html', context)
+    return render(request, 'app1/booking_detail.html', context)
+
+
+@login_required
+def cancel_booking(request, booking_id):
+    """Cancel a booking"""
+    if request.method == 'POST':
+        booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
+        
+        if booking.status == 'cancelled':
+            return JsonResponse({'success': False, 'error': 'Booking already cancelled'}, status=400)
+        
+        if booking.status == 'confirmed':
+            # Restore seats
+            schedule = booking.schedule
+            schedule.available_seats += booking.number_of_seats
+            schedule.save()
+            
+            # Update booking status
+            booking.status = 'cancelled'
+            booking.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Booking cancelled successfully',
+                'refund_amount': f"৳{booking.total_amount}"
+            })
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+
+@login_required
+def check_seat_availability(request, schedule_id):
+    """Check seat availability for a schedule"""
+    schedule = get_object_or_404(Schedule, id=schedule_id)
+    return JsonResponse({
+        'available_seats': schedule.available_seats,
+        'total_seats': schedule.bus.capacity if schedule.bus else 40,
+        'fare': float(schedule.fare)
+    })
+=======
+    return redirect('profile')
+>>>>>>> 5e79ce3f42363426114d3b9e3dd0b0df81c062da
