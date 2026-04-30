@@ -1,5 +1,5 @@
 ﻿from django.urls import path
-from . import views
+from . import views,views_admin
 
 urlpatterns = [
     path('', views.homepage, name='homepage'),
@@ -25,5 +25,25 @@ urlpatterns = [
     path('schedule/', views.schedule, name='schedule'),
     path('book-ticket/<int:schedule_id>/', views.book_ticket, name='book_ticket'),
     path('edit-profile/', views.edit_profile, name='edit_profile'),
+    path('admin_page/dashboard/', views_admin.admin_dashboard, name='admin_dashboard'),
+    path('admin_page/fleet/', views_admin.admin_fleet, name='admin_fleet'),
+    path('admin_page/routes/', views_admin.admin_routes, name='admin_routes'),
+    path('admin_page/users/', views_admin.admin_users, name='admin_users'),
+    path('admin_page/bookings/', views_admin.admin_bookings, name='admin_bookings'),
+    path('admin_page/revenue/', views_admin.admin_revenue, name='admin_revenue'),
+    path('admin_page/alerts/', views_admin.admin_alerts, name='admin_alerts'),
+    path('admin_page/notifications/', views_admin.admin_notifications, name='admin_notifications'),
 
+    # Admin API
+    path('admin_page/api/update-booking/<int:booking_id>/', views_admin.admin_update_booking_status,
+         name='admin_update_booking'),
+    path('admin_page/api/delete-user/<int:user_id>/', views_admin.admin_delete_user, name='admin_delete_user'),
+    path('admin_page/api/toggle-bus/<int:bus_id>/', views_admin.admin_toggle_bus_status, name='admin_toggle_bus'),
+    # Fleet Management APIs
+    path('admin_page/fleet/', views_admin.admin_fleet, name='admin_fleet'),
+    path('admin_page/api/get-bus/<int:bus_id>/', views_admin.admin_get_bus, name='admin_get_bus'),
+    path('admin_page/api/add-bus/', views_admin.admin_add_bus, name='admin_add_bus'),
+    path('admin_page/api/update-bus/<int:bus_id>/', views_admin.admin_update_bus, name='admin_update_bus'),
+    path('admin_page/api/toggle-bus/<int:bus_id>/', views_admin.admin_toggle_bus_status, name='admin_toggle_bus'),
+    path('admin_page/api/delete-bus/<int:bus_id>/', views_admin.admin_delete_bus, name='admin_delete_bus'),
 ]

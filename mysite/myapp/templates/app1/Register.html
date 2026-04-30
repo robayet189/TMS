@@ -794,7 +794,7 @@
     setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
-  function handleRegister() {
+function handleRegister() {
     const fullName = document.getElementById('fullName').value.trim();
     const email = document.getElementById('email').value.trim();
     const pwd = document.getElementById('password').value;
@@ -818,7 +818,7 @@
     formData.append('password', pwd);
     formData.append('phone', phone);
     formData.append('institution_type', selectedInstType);
-    formData.append('user_type', selectedUserType);
+    formData.append('user_type', selectedUserType);  // Sends 'Admin' (capital A)
     formData.append('institution_id', instId);
     formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
 
@@ -827,29 +827,39 @@
 
     // Submit to Django backend
     fetch('/api/register/', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
     })
     .then(response => response.json())
     .then(data => {
-      btn.classList.remove('loading');
-      if (data.success) {
-        showToast(data.message);
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 1500);
-      } else {
-        showToast(data.message, true);
-      }
+        btn.classList.remove('loading');
+        if (data.success) {
+            showToast(data.message);
+            setTimeout(() => {
+                // ✅ Use the redirect URL from server response (preferred)
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    // ✅ FIXED: Fallback based on user type (case-insensitive)
+                    if (selectedUserType && selectedUserType.toLowerCase() === 'admin') {
+                        window.location.href = '/admin_page/dashboard/';  // Your actual admin URL
+                    } else {
+                        window.location.href = '/dashboard/';
+                    }
+                }
+            }, 1500);
+        } else {
+            showToast(data.message, true);
+        }
     })
     .catch(error => {
-      btn.classList.remove('loading');
-      showToast('Registration failed. Please try again.', true);
+        btn.classList.remove('loading');
+        showToast('Registration failed. Please try again.', true);
     });
-  }
+}
 </script>
 </body>
 </html>

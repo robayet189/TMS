@@ -89,6 +89,7 @@ def register_user(request):
                 last_name=full_name.split()[-1] if ' ' in full_name and len(full_name.split()) > 1 else ''
             )
 
+            # Create user profile
             UserProfile.objects.create(
                 user=user,
                 phone=phone,
@@ -97,8 +98,22 @@ def register_user(request):
                 institution_id=institution_id
             )
 
+            # Log the user in
             login(request, user)
-            return JsonResponse({'success': True, 'message': f'Welcome {full_name}!'})
+
+            # ✅ IMPORTANT: Redirect based on user type
+            if user_type == 'admin':
+                redirect_url = '/admin_page/dashboard/'
+                message = f'Welcome Admin {full_name}!'
+            else:
+                redirect_url = '/dashboard/'
+                message = f'Welcome {full_name}!'
+
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'redirect_url': redirect_url
+            })
         except Exception as e:
             return JsonResponse({'success': False, 'message': f'Registration failed: {str(e)}'})
 
@@ -113,17 +128,40 @@ def login_user(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+        remember_me = request.POST.get('remember_me') == 'on'
+
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
             login(request, user)
-            messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
-            return redirect('dashboard')
+
+            # Set session expiry
+            if not remember_me:
+                request.session.set_expiry(0)
+            else:
+                request.session.set_expiry(1209600)
+
+            # ✅ FIXED: Use 'profile' instead of 'userprofile'
+            try:
+                profile = user.profile  # ← Changed from 'userprofile' to 'profile'
+                is_admin_user = profile.user_type == 'admin'
+                print(f"User Type from profile: {profile.user_type}")
+            except Exception as e:
+                print(f"Error getting profile: {e}")
+                is_admin_user = user.is_superuser
+
+            # Redirect based on user type
+            if is_admin_user:
+                messages.success(request, f'Welcome back Admin, {user.get_full_name() or user.username}!')
+                return redirect('admin_dashboard')
+            else:
+                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                return redirect('dashboard')
         else:
             messages.error(request, 'Invalid email/username or password')
-            return render(request, 'app1/login.html')
+            return render(request, 'app1/Login.html')
 
-    return render(request, 'app1/login.html')
+    return render(request, 'app1/Login.html')
 
 
 def logout_user(request):
