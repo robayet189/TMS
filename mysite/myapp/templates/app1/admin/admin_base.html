@@ -1,0 +1,652 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next Route – {% block title %}Admin Dashboard{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  /* Your existing CSS styles here - keep them exactly as they are */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base: #0f0f1a;
+    --bg-card: #1c1c2e;
+    --bg-sidebar: #12121f;
+    --border: rgba(255,255,255,0.07);
+    --border-subtle: rgba(255,255,255,0.05);
+    --text-primary: #ffffff;
+    --text-secondary: #a09ab8;
+    --text-muted: #5a5470;
+    --accent-red: #ff4757;
+    --accent-green: #00c896;
+    --accent-purple: #8a63ff;
+    --accent-yellow: #ffb800;
+  }
+
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* Toast Animation */
+  .toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    width: 356px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    z-index: 1000;
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+    height: 54px;
+  }
+
+  .toast.show {
+    transform: translateX(0);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    height: 72px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+
+  .logo-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logo-name {
+    font-family: 'Alegreya SC', serif;
+    font-size: 18px;
+    color: #e66437;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+
+  .logo-sub {
+    font-size: 9px;
+    color: var(--text-muted);
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 24px 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 44px;
+    padding-left: 16px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+    background: none;
+    border: none;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .nav-item:hover {
+    background: rgba(255,255,255,0.04);
+  }
+
+  .nav-item.active {
+    background: rgba(255,71,87,0.1);
+    border-left: 2px solid var(--accent-red);
+    padding-left: 14px;
+    color: var(--accent-red);
+  }
+
+  .nav-item .nav-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    border-top: 1px solid var(--border-subtle);
+    padding: 17px 12px 24px;
+  }
+
+  /* MAIN CONTENT */
+  .main {
+    flex: 1;
+    margin-left: 280px;
+    overflow-y: auto;
+    padding: 32px 47px 40px 32px;
+    min-height: 100vh;
+  }
+
+  /* Loading Spinner */
+  .loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 40px;
+  }
+
+  .loading-spinner.active {
+    display: block;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent-red);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Dashboard common styles */
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .page-header { display: flex; flex-direction: column; gap: 4px; }
+  .page-title { font-size: 32px; font-weight: 700; line-height: 1.5; }
+  .page-subtitle { font-size: 15px; color: var(--text-muted); }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 21px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .stat-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .stat-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .stat-badge {
+    height: 26px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .badge-green { background: rgba(0,200,150,0.1); color: var(--accent-green); }
+  .badge-red   { background: rgba(255,71,87,0.1);  color: var(--accent-red); }
+
+  .stat-label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+  .stat-value { font-size: 28px; font-weight: 700; line-height: 1.5; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 25px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .card-title { font-size: 18px; font-weight: 600; line-height: 1.5; }
+  .card-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .view-all {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-red);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    background: none;
+    border: none;
+  }
+
+  .booking-list, .alert-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .booking-row, .alert-row {
+    background: rgba(255,255,255,0.02);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .booking-info { display: flex; flex-direction: column; gap: 4px; }
+  .booking-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .booking-name { font-size: 14px; font-weight: 600; }
+  .booking-id, .booking-sep { font-size: 12px; color: var(--text-muted); }
+  .booking-route { font-size: 12px; color: var(--text-secondary); }
+  .booking-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .booking-amount { font-size: 14px; font-weight: 600; }
+
+  .status-badge {
+    height: 22px;
+    border-radius: 9999px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+  }
+  .status-confirmed { background: rgba(0,200,150,0.1); color: var(--accent-green); }
+  .status-cancelled { background: rgba(255,71,87,0.1); color: var(--accent-red); }
+  .status-pending   { background: rgba(255,184,0,0.1); color: var(--accent-yellow); }
+
+  .alert-row { border-left: 3px solid transparent; }
+  .alert-row.severity-high     { border-left-color: var(--accent-yellow); }
+  .alert-row.severity-critical { border-left-color: var(--accent-red); }
+
+  .alert-icon-wrap {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .alert-body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .alert-title { font-size: 14px; font-weight: 600; }
+  .alert-person { font-size: 12px; color: var(--text-secondary); }
+  .alert-time { font-size: 11px; color: var(--text-muted); }
+
+  .severity-pill {
+    height: 24px;
+    border-radius: 9999px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+  }
+  .pill-high     { background: rgba(255,184,0,0.1); color: var(--accent-yellow); }
+  .pill-critical { background: rgba(255,71,87,0.1); color: var(--accent-red); }
+
+  .filters-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .filters-bar input, .filters-bar select {
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table th, .data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .data-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-icon {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .btn-edit { background: rgba(138,99,255,0.2); color: var(--accent-purple); }
+  .btn-delete { background: rgba(255,71,87,0.2); color: var(--accent-red); }
+  .btn-view { background: rgba(0,200,150,0.2); color: var(--accent-green); }
+
+  .charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+  }
+
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); position: fixed; z-index: 100; transition: transform 0.3s; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row, .bottom-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img class="logo-icon" src="{% static 'app1/logo.png' %}" alt="logo">
+    <div class="logo-text">
+      <span class="logo-name">Next Route</span>
+      <span class="logo-sub">Admin Dashboard</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a class="nav-item {% if active == 'overview' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      <span class="nav-label">Overview</span>
+    </a>
+    <a class="nav-item {% if active == 'fleet' %}active{% endif %}" href="{% url 'admin_fleet' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/>
+      </svg>
+      <span class="nav-label">Fleet Management</span>
+    </a>
+    <a class="nav-item {% if active == 'routes' %}active{% endif %}" href="{% url 'admin_routes' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19 5l-2-2-2 2M5 19l2 2 2-2"/>
+      </svg>
+      <span class="nav-label">Route Management</span>
+    </a>
+    <a class="nav-item {% if active == 'users' %}active{% endif %}" href="{% url 'admin_users' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span class="nav-label">User Management</span>
+    </a>
+    <a class="nav-item {% if active == 'bookings' %}active{% endif %}" href="{% url 'admin_bookings' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+      </svg>
+      <span class="nav-label">Bookings</span>
+    </a>
+    <a class="nav-item {% if active == 'revenue' %}active{% endif %}" href="{% url 'admin_revenue' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+      </svg>
+      <span class="nav-label">Revenue & Payments</span>
+    </a>
+    <a class="nav-item {% if active == 'alerts' %}active{% endif %}" href="{% url 'admin_alerts' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+      </svg>
+      <span class="nav-label">Emergency Alerts</span>
+    </a>
+    <a class="nav-item {% if active == 'notifications' %}active{% endif %}" href="{% url 'admin_notifications' %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+      </svg>
+      <span class="nav-label">Notifications</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <form action="{% url 'logout' %}" method="post" style="width:100%">
+      {% csrf_token %}
+      <button type="submit" class="nav-item" style="width:100%">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span class="nav-label">Logout</span>
+      </button>
+    </form>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div id="toast" class="toast">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+    </svg>
+    <span class="toast-text" id="toastMessage">Welcome Admin!</span>
+  </div>
+
+  <div id="main-content">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<script>
+// Toast notification
+function showToast(message, isError = false) {
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMessage');
+    if (toast && toastMsg) {
+        toastMsg.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+}
+
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Global variable to track if we're loading
+let isLoading = false;
+
+// AJAX Navigation - FIXED VERSION
+document.addEventListener('DOMContentLoaded', function() {
+    const navLinks = document.querySelectorAll('.sidebar-nav a, .sidebar-footer a');
+    const contentDiv = document.getElementById('main-content');
+
+    async function loadPage(url, pushState = true) {
+        // Prevent multiple simultaneous loads
+        if (isLoading) return;
+        isLoading = true;
+
+        try {
+            // Show loading spinner
+            contentDiv.innerHTML = '<div class="loading-spinner active"><div class="spinner"></div></div>';
+
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) throw new Error('Network response was not ok');
+
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Extract the main content
+            let newContent = doc.getElementById('main-content');
+            if (!newContent) {
+                // If no main-content, try to get the content block
+                newContent = doc.querySelector('.dashboard') || doc.body;
+            }
+
+            if (newContent) {
+                contentDiv.innerHTML = newContent.innerHTML;
+            } else {
+                contentDiv.innerHTML = html;
+            }
+
+            // Re-initialize any page-specific scripts
+            if (typeof initPageScripts === 'function') {
+                initPageScripts();
+            }
+
+            if (pushState) {
+                const newUrl = new URL(url, window.location.origin);
+                history.pushState({ url: newUrl.pathname }, '', newUrl.pathname);
+            }
+
+            updateActiveLink(url);
+
+        } catch (error) {
+            console.error('Navigation error:', error);
+            contentDiv.innerHTML = '<p style="color:var(--accent-red); text-align:center; padding:40px;">Failed to load page. Please refresh.</p>';
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    function updateActiveLink(currentUrl) {
+        const currentPath = new URL(currentUrl, window.location.origin).pathname;
+        navLinks.forEach(link => {
+            if (link.href) {
+                const linkPath = new URL(link.href, window.location.origin).pathname;
+                if (linkPath === currentPath) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            }
+        });
+    }
+
+    // Handle navigation clicks
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Don't intercept if it's a form submit or has target="_blank"
+            if (this.tagName === 'BUTTON' || this.target === '_blank') return;
+
+            const url = this.href;
+            if (url && !url.startsWith('javascript:')) {
+                e.preventDefault();
+                loadPage(url, true);
+            }
+        });
+    });
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(event) {
+        const url = event.state?.url || window.location.pathname;
+        loadPage(url, false);
+    });
+
+    // Initial active link update
+    updateActiveLink(window.location.href);
+});
+
+// Function to reinitialize scripts after AJAX load
+window.initPageScripts = function() {
+    // Re-attach any event listeners for dynamically loaded content
+    document.querySelectorAll('[onclick]').forEach(el => {
+        const onclickAttr = el.getAttribute('onclick');
+        if (onclickAttr && !el.hasAttribute('data-click-bound')) {
+            el.setAttribute('data-click-bound', 'true');
+        }
+    });
+};
+</script>
+</body>
+</html>

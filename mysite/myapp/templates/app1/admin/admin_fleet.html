@@ -1,0 +1,878 @@
+{% extends 'app1/admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Fleet Management{% endblock %}
+
+{% block content %}
+<div class="fleet-dashboard">
+  <!-- Page Header with Title Left, Button Right -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Fleet Management</h1>
+      <p class="page-subtitle">Manage your bus fleet and maintenance</p>
+    </div>
+    <button class="btn-add-bus" onclick="openAddBusModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Add New Bus
+    </button>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(138,99,255,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="8" width="16" height="12" rx="2"/>
+            <circle cx="8" cy="18" r="2"/>
+            <circle cx="16" cy="18" r="2"/>
+          </svg>
+        </div>
+      </div>
+      <div>
+        <p class="stat-label">Total Fleet</p>
+        <p class="stat-value">{{ total_buses }}</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(0,200,150,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+        </div>
+      </div>
+      <div>
+        <p class="stat-label">Active</p>
+        <p class="stat-value" style="color: #00c896;">{{ active_buses }}</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(255,184,0,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 01-3.46 0"/>
+          </svg>
+        </div>
+      </div>
+      <div>
+        <p class="stat-label">In Maintenance</p>
+        <p class="stat-value" style="color: #ffb800;">{{ maintenance_buses }}</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(255,71,87,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+      </div>
+      <div>
+        <p class="stat-label">Inactive</p>
+        <p class="stat-value" style="color: #ff4757;">{{ inactive_buses }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search and Filter Bar -->
+  <div class="search-filter-section">
+    <div class="search-wrapper">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search by bus ID or driver name..." onkeyup="filterTable()">
+    </div>
+    <select id="statusFilter" class="filter-select" onchange="filterTable()">
+      <option value="all">All Status</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+    <button class="clear-filter-btn" onclick="clearFilters()">Clear Filters</button>
+  </div>
+
+  <!-- Buses Table -->
+  <div class="card">
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>BUS ID</th>
+            <th>CAPACITY</th>
+            <th>STATUS</th>
+            <th>DRIVER</th>
+            <th>DRIVER PHONE</th>
+            <th>AMENITIES</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody id="busesTableBody">
+          {% for bus in buses %}
+          <tr data-status="{% if bus.is_active %}active{% else %}inactive{% endif %}">
+            <td><strong>{{ bus.bus_number }}</strong></td>
+            <td>{{ bus.capacity }} seats</td>
+            <td>
+              <span class="status-badge {% if bus.is_active %}status-active{% else %}status-inactive{% endif %}">
+                {% if bus.is_active %}Active{% else %}Inactive{% endif %}
+              </span>
+            </td>
+            <td>{{ bus.driver_name|default:"—" }}</td>
+            <td>{{ bus.driver_phone|default:"—" }}</td>
+            <td>
+              <div class="amenities">
+                {% if bus.has_ac %}<span class="amenity-badge">❄️ AC</span>{% endif %}
+                {% if bus.has_wifi %}<span class="amenity-badge">📶 WiFi</span>{% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-icon btn-edit" onclick="editBus({{ bus.id }})" title="Edit">✏️</button>
+                <button class="btn-icon btn-toggle" onclick="toggleBusStatus({{ bus.id }})" title="Toggle Status">🔄</button>
+                <button class="btn-icon btn-delete" onclick="deleteBus({{ bus.id }})" title="Delete">🗑️</button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="empty-row">No buses found. Click "Add New Bus" to create one.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Bus Modal -->
+<div id="busModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add New Bus</h2>
+      <span class="modal-close" onclick="closeModal()">&times;</span>
+    </div>
+    <form id="busForm" onsubmit="saveBus(event)">
+      <input type="hidden" id="busId" name="bus_id">
+
+      <div class="form-group">
+        <label>Bus Number *</label>
+        <input type="text" id="busNumber" name="bus_number" required placeholder="e.g., UAP-104">
+      </div>
+
+      <div class="form-group">
+        <label>Capacity *</label>
+        <input type="number" id="capacity" name="capacity" required placeholder="Number of seats">
+      </div>
+
+      <div class="form-group">
+        <label>Driver Name</label>
+        <input type="text" id="driverName" name="driver_name" placeholder="Driver's full name">
+      </div>
+
+      <div class="form-group">
+        <label>Driver Phone</label>
+        <input type="tel" id="driverPhone" name="driver_phone" placeholder="Driver's contact number">
+      </div>
+
+      <div class="form-group">
+        <label>Amenities</label>
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="hasAc" name="has_ac">
+            <span>Air Conditioned (AC)</span>
+          </label>
+          <label>
+            <input type="checkbox" id="hasWifi" name="has_wifi">
+            <span>WiFi Available</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Status</label>
+        <select id="isActive" name="is_active">
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+      </div>
+
+      <div class="modal-buttons">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-save">Save Bus</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+/* Fleet Dashboard Styles */
+.fleet-dashboard {
+  width: 100%;
+}
+
+/* Page Header - Title Left, Button Right */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Add Bus Button - Right Aligned */
+.btn-add-bus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #ff4757;
+  border: none;
+  border-radius: 40px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.btn-add-bus svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-add-bus:hover {
+  transform: translateY(-2px);
+  background: #ff6b6b;
+  box-shadow: 0 4px 12px rgba(255,71,87,0.3);
+}
+
+/* Stats Cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.stat-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Search Filter Section */
+.search-filter-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-wrapper {
+  flex: 1;
+  position: relative;
+  min-width: 250px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 16px 10px 48px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #ff4757;
+}
+
+.filter-select {
+  padding: 10px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+.clear-filter-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-filter-btn:hover {
+  background: rgba(255,71,87,0.1);
+  border-color: #ff4757;
+  color: #ff4757;
+}
+
+/* Card */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+/* Data Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-card);
+}
+
+.data-table td {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-active {
+  background: rgba(0,200,150,0.1);
+  color: #00c896;
+}
+
+.status-inactive {
+  background: rgba(255,71,87,0.1);
+  color: #ff4757;
+}
+
+/* Amenities */
+.amenities {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.amenity-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: rgba(138,99,255,0.1);
+  border-radius: 6px;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.btn-edit { background: rgba(138,99,255,0.2); }
+.btn-edit:hover { background: rgba(138,99,255,0.4); transform: scale(1.05); }
+
+.btn-toggle { background: rgba(0,200,150,0.2); }
+.btn-toggle:hover { background: rgba(0,200,150,0.4); transform: scale(1.05); }
+
+.btn-delete { background: rgba(255,71,87,0.2); }
+.btn-delete:hover { background: rgba(255,71,87,0.4); transform: scale(1.05); }
+
+.empty-row {
+  text-align: center;
+  padding: 40px !important;
+  color: var(--text-muted);
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--bg-card);
+  margin: 5% auto;
+  padding: 0;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-close {
+  font-size: 28px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: #ff4757;
+}
+
+#busForm {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.checkbox-group input {
+  width: auto;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn-cancel, .btn-save {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.btn-save {
+  background: #ff4757;
+  border: none;
+  color: white;
+}
+
+.btn-cancel:hover, .btn-save:hover {
+  transform: translateY(-1px);
+}
+
+.btn-save:hover {
+  background: #ff6b6b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .search-filter-section {
+    flex-direction: column;
+  }
+
+  .search-wrapper {
+    width: 100%;
+  }
+
+  .filter-select, .clear-filter-btn {
+    width: 100%;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+
+  .btn-add-bus {
+    padding: 6px 16px;
+    height: 36px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn-add-bus {
+    align-self: flex-start;
+  }
+}
+</style>
+
+<script>
+// Filter table function
+function filterTable() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  const statusFilter = document.getElementById('statusFilter').value;
+  const rows = document.querySelectorAll('#busesTableBody tr');
+  let visibleCount = 0;
+
+  rows.forEach(row => {
+    if (row.classList.contains('empty-row')) return;
+
+    const busId = row.cells[0]?.innerText.toLowerCase() || '';
+    const driver = row.cells[3]?.innerText.toLowerCase() || '';
+    const status = row.getAttribute('data-status');
+
+    const matchesSearch = busId.includes(searchTerm) || driver.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+    if (matchesSearch && matchesStatus) {
+      row.style.display = '';
+      visibleCount++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  // Show "no results" message if needed
+  const tbody = document.getElementById('busesTableBody');
+  const existingNoResult = document.getElementById('noResultRow');
+
+  if (visibleCount === 0 && rows.length > 0 && !rows[0].classList.contains('empty-row')) {
+    if (!existingNoResult) {
+      const noResultRow = document.createElement('tr');
+      noResultRow.id = 'noResultRow';
+      noResultRow.innerHTML = '<td colspan="7" class="empty-row">No buses match your search criteria.</td>';
+      tbody.appendChild(noResultRow);
+    }
+  } else if (existingNoResult) {
+    existingNoResult.remove();
+  }
+}
+
+// Clear all filters
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('statusFilter').value = 'all';
+  filterTable();
+}
+
+// Open modal for adding bus
+function openAddBusModal() {
+  document.getElementById('modalTitle').innerText = 'Add New Bus';
+  document.getElementById('busForm').reset();
+  document.getElementById('busId').value = '';
+  document.getElementById('busModal').style.display = 'block';
+}
+
+// Edit bus
+function editBus(busId) {
+  fetch(`/admin_page/api/get-bus/${busId}/`)
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('modalTitle').innerText = 'Edit Bus';
+      document.getElementById('busId').value = data.id;
+      document.getElementById('busNumber').value = data.bus_number;
+      document.getElementById('capacity').value = data.capacity;
+      document.getElementById('driverName').value = data.driver_name;
+      document.getElementById('driverPhone').value = data.driver_phone;
+      document.getElementById('hasAc').checked = data.has_ac;
+      document.getElementById('hasWifi').checked = data.has_wifi;
+      document.getElementById('isActive').value = data.is_active ? 'true' : 'false';
+      document.getElementById('busModal').style.display = 'block';
+    })
+    .catch(error => {
+      showToast('Error loading bus data', true);
+    });
+}
+
+// Save bus (add or edit)
+function saveBus(event) {
+  event.preventDefault();
+
+  const busId = document.getElementById('busId').value;
+  const url = busId ? `/admin_page/api/update-bus/${busId}/` : '/admin_page/api/add-bus/';
+  const method = busId ? 'PUT' : 'POST';
+
+  const formData = {
+    bus_number: document.getElementById('busNumber').value,
+    capacity: parseInt(document.getElementById('capacity').value),
+    driver_name: document.getElementById('driverName').value,
+    driver_phone: document.getElementById('driverPhone').value,
+    has_ac: document.getElementById('hasAc').checked,
+    has_wifi: document.getElementById('hasWifi').checked,
+    is_active: document.getElementById('isActive').value === 'true'
+  };
+
+  fetch(url, {
+    method: method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: JSON.stringify(formData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast(data.message);
+      closeModal();
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showToast(data.message, true);
+    }
+  })
+  .catch(error => {
+    showToast('Error saving bus', true);
+  });
+}
+
+// Toggle bus status
+function toggleBusStatus(busId) {
+  fetch(`/admin_page/api/toggle-bus/${busId}/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCookie('csrftoken'),
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    showToast(data.message);
+    setTimeout(() => location.reload(), 1000);
+  });
+}
+
+// Delete bus
+function deleteBus(busId) {
+  if (confirm('Are you sure you want to delete this bus? This action cannot be undone.')) {
+    fetch(`/admin_page/api/delete-bus/${busId}/`, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken')
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      showToast(data.message);
+      setTimeout(() => location.reload(), 1000);
+    });
+  }
+}
+
+// Close modal
+function closeModal() {
+  document.getElementById('busModal').style.display = 'none';
+}
+
+// Show toast notification
+function showToast(message, isError = false) {
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMessage');
+  if (toast && toastMsg) {
+    toastMsg.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  } else {
+    alert(message);
+  }
+}
+
+// Get CSRF token
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById('busModal');
+  if (event.target === modal) {
+    closeModal();
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,224 @@
+<div class="dashboard">
+  <div class="page-header">
+    <h1 class="page-title">Dashboard Overview</h1>
+    <p class="page-subtitle">Monitor your transport system at a glance</p>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(138,99,255,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="stat-badge badge-green">+12.5%</div>
+      </div>
+      <div>
+        <p class="stat-label">Total Users</p>
+        <p class="stat-value">{{ total_users }}</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(255,71,87,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/>
+          </svg>
+        </div>
+        <div class="stat-badge badge-green">+3</div>
+      </div>
+      <div>
+        <p class="stat-label">Active Buses</p>
+        <p class="stat-value">{{ active_buses }}</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(0,200,150,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+        </div>
+        <div class="stat-badge badge-red">-5.2%</div>
+      </div>
+      <div>
+        <p class="stat-label">Today's Bookings</p>
+        <p class="stat-value">{{ today_bookings }}</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <div class="stat-icon-wrap" style="background:rgba(255,184,0,0.13)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+          </svg>
+        </div>
+        <div class="stat-badge badge-green">+18.3%</div>
+      </div>
+      <div>
+        <p class="stat-label">Revenue (Today)</p>
+        <p class="stat-value">৳{{ today_revenue|floatformat:0 }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="card-title">Revenue Overview</p>
+          <p class="card-subtitle">Last 6 months performance</p>
+        </div>
+      </div>
+      <canvas id="revenueChart" height="300"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="card-title">Route Popularity</p>
+          <p class="card-subtitle">Top performing routes</p>
+        </div>
+      </div>
+      <canvas id="routeChart" height="250"></canvas>
+      <div class="route-legend" style="margin-top: 20px;">
+        {% for route in route_stats %}
+        <div class="route-row" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <div class="route-dot-label">
+            <div class="route-dot" style="width: 12px; height: 12px; border-radius: 50%; background: {% cycle '#ff4757' '#8a63ff' '#00c896' '#ffb800' '#5a5470' %}; display: inline-block; margin-right: 8px;"></div>
+            Route {{ route.schedule__route__code }}
+          </div>
+          <span class="route-count">{{ route.total }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Row -->
+  <div class="bottom-row">
+    <div class="card">
+      <div class="section-header">
+        <p class="card-title">Recent Bookings</p>
+        <a class="view-all" href="{% url 'admin_bookings' %}">View All →</a>
+      </div>
+      <div class="booking-list">
+        {% for booking in recent_bookings %}
+        <div class="booking-row">
+          <div class="booking-info">
+            <div class="booking-name-row">
+              <span class="booking-name">{{ booking.user.get_full_name|default:booking.user.username }}</span>
+              <span class="booking-sep">•</span>
+              <span class="booking-id">#{{ booking.booking_id }}</span>
+            </div>
+            <span class="booking-route">{{ booking.schedule.route.code }} • {{ booking.schedule.departure_time|time:"g:i A" }}</span>
+          </div>
+          <div class="booking-right">
+            <span class="booking-amount">৳{{ booking.total_amount }}</span>
+            <span class="status-badge status-{{ booking.status }}">{{ booking.status }}</span>
+          </div>
+        </div>
+        {% empty %}
+        <p>No recent bookings</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <p class="card-title">Emergency Alerts</p>
+        <a class="view-all" href="{% url 'admin_alerts' %}">View All →</a>
+      </div>
+      <div class="alert-list">
+        {% for alert in alerts %}
+        <div class="alert-row severity-{{ alert.severity }}">
+          <div class="alert-icon-wrap" style="background:rgba(255,184,0,0.1)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">{{ alert.title }}</span>
+            <span class="alert-person">{{ alert.person }}</span>
+            <span class="alert-time">{{ alert.time }}</span>
+          </div>
+          <span class="severity-pill pill-{{ alert.severity }}">{{ alert.severity }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Revenue Chart
+  const months = {{ months|safe }};
+  const revenueData = {{ revenue_data|safe }};
+  const bookingsData = {{ bookings_data|safe }};
+
+  new Chart(document.getElementById('revenueChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: 'Revenue (৳)',
+          data: revenueData,
+          borderColor: '#ff4757',
+          backgroundColor: 'rgba(255,71,87,0.1)',
+          tension: 0.3,
+          fill: true
+        },
+        {
+          label: 'Bookings',
+          data: bookingsData,
+          borderColor: '#8a63ff',
+          backgroundColor: 'rgba(138,99,255,0.1)',
+          tension: 0.3,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { labels: { color: '#a09ab8' } }
+      },
+      scales: {
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a09ab8' } },
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a09ab8' } }
+      }
+    }
+  });
+
+  // Route Chart
+  const routeLabels = [{% for route in route_stats %}'{{ route.schedule__route__code }}',{% endfor %}];
+  const routeCounts = [{% for route in route_stats %}{{ route.total }},{% endfor %}];
+  const routeColors = ['#ff4757', '#8a63ff', '#00c896', '#ffb800', '#5a5470'];
+
+  new Chart(document.getElementById('routeChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: routeLabels,
+      datasets: [{
+        data: routeCounts,
+        backgroundColor: routeColors.slice(0, routeLabels.length),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#a09ab8' } }
+      }
+    }
+  });
+</script>

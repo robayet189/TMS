@@ -60,6 +60,7 @@ class Bus(models.Model):
     driver_phone = models.CharField(max_length=15, blank=True)
     has_ac = models.BooleanField(default=False)
     has_wifi = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.bus_number} - {self.driver_name}"

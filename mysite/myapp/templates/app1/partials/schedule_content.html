@@ -1,22 +1,44 @@
+{% load static %}
+
 <h2>Routes & Schedule</h2>
+
 <div class="filters-bar">
-    <input type="date" id="travel_date" name="date">
-    <input type="text" placeholder="Search route or stop...">
-    <select name="time_filter">
-        <option>All Times</option>
-        <option>Morning (Before 12 PM)</option>
-        <option>Afternoon (12-4 PM)</option>
-        <option>Evening (After 4 PM)</option>
+    <input type="date" id="travel_date" name="date" onchange="filterSchedules()">
+    <input type="text" id="searchInput" placeholder="Search route or stop..." onkeyup="filterSchedules()">
+    <select id="timeFilter" name="time_filter" onchange="filterSchedules()">
+        <option value="all">All Times</option>
+        <option value="morning">Morning (Before 12 PM)</option>
+        <option value="afternoon">Afternoon (12-4 PM)</option>
+        <option value="evening">Evening (After 4 PM)</option>
     </select>
 </div>
 
-<div class="routes-grid">
-    {% for route in routes %}
-    <div class="route-card">
-        <div class="route-code">Route {{ route.route.code }}</div>
-        <div class="route-path">{{ route.route.start }} → {{ route.route.end }}</div>
-        <div class="route-time">Departure: {{ route.departure_time|time:"g:i A" }}</div>
-        <button class="btn-book">Book Now</button>
+<div class="routes-grid" id="routesGrid">
+    {% for schedule in routes %}
+    <div class="route-card"
+         data-route-code="{{ schedule.route.code|lower }}"
+         data-date="{{ schedule.travel_date|date:'Y-m-d' }}"
+         data-time-hour="{{ schedule.departure_time|time:'H' }}">
+
+        <div class="route-code">Route {{ schedule.route.code }}</div>
+        <div class="route-path">{{ schedule.route.start }} → {{ schedule.route.end }}</div>
+        <div class="route-info">
+            <span>📅 {{ schedule.travel_date|date:"M d, Y" }}</span>
+            <span>⏰ {{ schedule.departure_time|time:"g:i A" }}</span>
+            <span>🚌 Bus: {{ schedule.bus.bus_number }}</span>
+            <span>💺 Available: {{ schedule.available_seats }}/{{ schedule.bus.capacity }}</span>
+        </div>
+        <div class="route-time">Fare: ৳{{ schedule.fare }}</div>
+
+        <button class="btn-book"
+                onclick="openBookingModal({{ schedule.id }})"
+                {% if schedule.available_seats == 0 %}disabled{% endif %}>
+            {% if schedule.available_seats > 0 %}
+                Book Now →
+            {% else %}
+                Sold Out
+            {% endif %}
+        </button>
     </div>
     {% empty %}
     <div class="no-trip-card">
@@ -25,3 +47,580 @@
     </div>
     {% endfor %}
 </div>
+
+<!-- Booking Modal -->
+<div id="bookingModal" class="booking-modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Book Your Trip</h3>
+            <span class="close-modal" onclick="closeBookingModal()">&times;</span>
+        </div>
+
+        <div class="modal-body">
+            <div id="bookingDetails" class="booking-details">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+
+            <form id="bookingForm" onsubmit="submitBooking(event)">
+                <input type="hidden" id="schedule_id">
+                {% csrf_token %}
+
+                <div class="form-group">
+                    <label>Number of Seats:</label>
+                    <input type="number" id="seatCount" min="1" max="10" value="1" onchange="updateTotal()">
+                </div>
+
+                <div class="form-group">
+                    <label>Passenger Name (Optional):</label>
+                    <input type="text" id="passengerName" placeholder="Your full name">
+                </div>
+
+                <div class="form-group">
+                    <label>Phone Number (Optional):</label>
+                    <input type="tel" id="passengerPhone" placeholder="Your contact number">
+                </div>
+
+                <div class="total-fare">
+                    <strong>Total: ৳<span id="totalAmount">0</span></strong>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeBookingModal()">Cancel</button>
+                    <button type="submit" class="btn-confirm">Confirm Booking</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="bookingToast" class="booking-toast" style="display: none;">
+    <span id="toastMessage"></span>
+</div>
+
+<style>
+/* Schedule Page Styles */
+.schedule-container {
+    width: 100%;
+}
+
+.filters-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.filters-bar input,
+.filters-bar select {
+    padding: 10px 16px;
+    background: var(--input-bg, #1a1a2e);
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    border-radius: 8px;
+    color: var(--text, #fff);
+    font-size: 14px;
+}
+
+.filters-bar input:focus,
+.filters-bar select:focus {
+    outline: none;
+    border-color: #ff4757;
+}
+
+.routes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.route-card {
+    background: var(--card-bg, #1e1e2e);
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    border-radius: 12px;
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.route-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    border-color: #ff4757;
+}
+
+.route-code {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ff4757;
+    margin-bottom: 8px;
+}
+
+.route-path {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--text, #fff);
+}
+
+.route-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-muted, #a09ab8);
+    margin-bottom: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border, rgba(255,255,255,0.1));
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+}
+
+.route-time {
+    font-size: 18px;
+    font-weight: bold;
+    color: #00c896;
+    margin-bottom: 16px;
+}
+
+.btn-book {
+    width: 100%;
+    padding: 12px;
+    background: #ff4757;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.btn-book:hover:not(:disabled) {
+    background: #ff6b6b;
+    transform: translateY(-1px);
+}
+
+.btn-book:disabled {
+    background: #5a5470;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.no-trip-card {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted, #a09ab8);
+    grid-column: 1 / -1;
+}
+
+/* Modal Styles */
+.booking-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background: var(--card-bg, #1e1e2e);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #ff4757;
+}
+
+.close-modal {
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-muted, #a09ab8);
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: #ff4757;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.booking-details {
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.detail-label {
+    color: var(--text-muted, #a09ab8);
+}
+
+.detail-value {
+    font-weight: bold;
+    color: var(--text, #fff);
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--text-muted, #a09ab8);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    border-radius: 8px;
+    color: var(--text, #fff);
+    font-size: 14px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #ff4757;
+}
+
+.total-fare {
+    text-align: right;
+    font-size: 18px;
+    padding: 16px;
+    background: rgba(255,71,87,0.1);
+    border-radius: 8px;
+    margin: 16px 0;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-cancel,
+.btn-confirm {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel {
+    background: transparent;
+    border: 1px solid var(--border, rgba(255,255,255,0.2));
+    color: var(--text-muted, #a09ab8);
+}
+
+.btn-cancel:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: #ff4757;
+}
+
+.btn-confirm {
+    background: #ff4757;
+    color: white;
+}
+
+.btn-confirm:hover {
+    background: #ff6b6b;
+    transform: translateY(-1px);
+}
+
+/* Toast Notification */
+.booking-toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: #00c896;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 10001;
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .routes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filters-bar {
+        flex-direction: column;
+    }
+
+    .filters-bar input,
+    .filters-bar select {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+let currentScheduleId = null;
+let currentFare = 0;
+
+// Filter schedules
+function filterSchedules() {
+    const dateInput = document.getElementById('travel_date').value;
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const timeFilter = document.getElementById('timeFilter').value;
+    const cards = document.querySelectorAll('.route-card');
+
+    cards.forEach(card => {
+        const routeCode = card.getAttribute('data-route-code') || '';
+        const cardDate = card.getAttribute('data-date') || '';
+        const timeHour = parseInt(card.getAttribute('data-time-hour') || '0');
+
+        let show = true;
+
+        // Filter by date
+        if (dateInput && cardDate !== dateInput) {
+            show = false;
+        }
+
+        // Filter by search
+        if (searchTerm && !routeCode.includes(searchTerm)) {
+            show = false;
+        }
+
+        // Filter by time
+        if (timeFilter !== 'all') {
+            if (timeFilter === 'morning' && (timeHour < 6 || timeHour >= 12)) show = false;
+            else if (timeFilter === 'afternoon' && (timeHour < 12 || timeHour >= 16)) show = false;
+            else if (timeFilter === 'evening' && (timeHour < 16 || timeHour >= 20)) show = false;
+        }
+
+        card.style.display = show ? '' : 'none';
+    });
+}
+
+// Open booking modal
+function openBookingModal(scheduleId) {
+    // Fetch schedule details
+    fetch(`/schedule/${scheduleId}/details/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentScheduleId = scheduleId;
+            currentFare = data.schedule.fare;
+
+            const detailsHtml = `
+                <div class="detail-row">
+                    <span class="detail-label">Route:</span>
+                    <span class="detail-value">${data.schedule.route_code}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">From:</span>
+                    <span class="detail-value">${data.schedule.start}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">To:</span>
+                    <span class="detail-value">${data.schedule.end}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Date:</span>
+                    <span class="detail-value">${data.schedule.date}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Time:</span>
+                    <span class="detail-value">${data.schedule.time}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Bus:</span>
+                    <span class="detail-value">${data.schedule.bus_number}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Available Seats:</span>
+                    <span class="detail-value">${data.schedule.available_seats}</span>
+                </div>
+            `;
+
+            document.getElementById('bookingDetails').innerHTML = detailsHtml;
+            document.getElementById('schedule_id').value = scheduleId;
+            document.getElementById('seatCount').max = data.schedule.available_seats;
+            document.getElementById('seatCount').value = 1;
+            document.getElementById('seatCount').max = Math.min(data.schedule.available_seats, 10);
+            document.getElementById('totalAmount').innerText = currentFare;
+
+            document.getElementById('bookingModal').style.display = 'flex';
+        }
+    })
+    .catch(error => {
+        showToast('Error loading schedule details', true);
+    });
+}
+
+// Close booking modal
+function closeBookingModal() {
+    document.getElementById('bookingModal').style.display = 'none';
+}
+
+// Update total amount
+function updateTotal() {
+    const seats = parseInt(document.getElementById('seatCount').value);
+    const total = seats * currentFare;
+    document.getElementById('totalAmount').innerText = total;
+}
+
+// Submit booking
+function submitBooking(event) {
+    event.preventDefault();
+
+    const scheduleId = document.getElementById('schedule_id').value;
+    const seats = document.getElementById('seatCount').value;
+    const passengerName = document.getElementById('passengerName').value;
+    const passengerPhone = document.getElementById('passengerPhone').value;
+
+    const submitBtn = document.querySelector('.btn-confirm');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+
+    fetch('/book-ticket/' + scheduleId + '/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            seats: seats,
+            passenger_name: passengerName,
+            passenger_phone: passengerPhone
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Confirm Booking';
+
+        if (data.success) {
+            showToast(data.message);
+            closeBookingModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast(data.error || 'Booking failed', true);
+        }
+    })
+    .catch(error => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Confirm Booking';
+        showToast('Network error. Please try again.', true);
+    });
+}
+
+// Show toast notification
+function showToast(message, isError = false) {
+    const toast = document.getElementById('bookingToast');
+    const toastMsg = document.getElementById('toastMessage');
+
+    toastMsg.textContent = message;
+    toast.style.backgroundColor = isError ? '#ff4757' : '#00c896';
+    toast.style.display = 'flex';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
+}
+
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('bookingModal');
+    if (event.target === modal) {
+        closeBookingModal();
+    }
+});
+
+// Set today's date as default in date picker
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('travel_date');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = today;
+        filterSchedules();
+    }
+});
+</script>
