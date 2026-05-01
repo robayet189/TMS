@@ -25,5 +25,8 @@ urlpatterns = [
     path('schedule/', views.schedule, name='schedule'),
     path('book-ticket/<int:schedule_id>/', views.book_ticket, name='book_ticket'),
     path('edit-profile/', views.edit_profile, name='edit_profile'),
-
+    path('select-seats/<int:schedule_id>/', views.select_seats, name='select_seats'),
+    path('confirm-booking/', views.confirm_booking, name='confirm_booking'),
+    path('booking-confirmation/<str:booking_id>/', views.booking_confirmation, name='booking_confirmation'),
+    path('bus-schedule/', views.bus_schedule, name='bus_schedule'),
 ]
