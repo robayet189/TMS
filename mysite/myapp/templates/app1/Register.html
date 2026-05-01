@@ -794,62 +794,63 @@
     setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
-  function handleRegister() {
-    const fullName = document.getElementById('fullName').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const pwd = document.getElementById('password').value;
-    const cpwd = document.getElementById('confirmPwd').value;
-    const phone = document.getElementById('phone').value.trim();
-    const instId = document.getElementById('institutionId').value.trim();
+function handleRegister() {
+  const fullName = document.getElementById('fullName').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const pwd = document.getElementById('password').value;
+  const cpwd = document.getElementById('confirmPwd').value;
+  const phone = document.getElementById('phone').value.trim();
+  const instId = document.getElementById('institutionId').value.trim();
 
-    if (!fullName) { showToast('Please enter your full name', true); return; }
-    if (!email) { showToast('Institution email required', true); return; }
-    if (pwd.length < 6) { showToast('Password must be at least 6 characters', true); return; }
-    if (pwd !== cpwd) { showToast('Passwords do not match', true); return; }
-    if (!phone) { showToast('Phone number is required', true); return; }
-    if (!selectedInstType) { showToast('Please select institution type', true); return; }
-    if (!selectedUserType) { showToast('Please select your user type', true); return; }
-    if (!instId) { showToast('Please enter your Institution/Employee ID', true); return; }
+  if (!fullName) { showToast('Please enter your full name', true); return; }
+  if (!email) { showToast('Institution email required', true); return; }
+  if (pwd.length < 6) { showToast('Password must be at least 6 characters', true); return; }
+  if (pwd !== cpwd) { showToast('Passwords do not match', true); return; }
+  if (!phone) { showToast('Phone number is required', true); return; }
+  if (!selectedInstType) { showToast('Please select institution type', true); return; }
+  if (!selectedUserType) { showToast('Please select your user type', true); return; }
+  if (!instId) { showToast('Please enter your Institution/Employee ID', true); return; }
 
-    // Create form data for submission
-    const formData = new FormData();
-    formData.append('full_name', fullName);
-    formData.append('email', email);
-    formData.append('password', pwd);
-    formData.append('phone', phone);
-    formData.append('institution_type', selectedInstType);
-    formData.append('user_type', selectedUserType);
-    formData.append('institution_id', instId);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  const formData = new FormData();
+  formData.append('full_name', fullName);
+  formData.append('email', email);
+  formData.append('password', pwd);
+  formData.append('phone', phone);
+  formData.append('institution_type', selectedInstType);
+  formData.append('user_type', selectedUserType);
+  formData.append('institution_id', instId);
+  formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
 
-    const btn = document.getElementById('registerBtn');
-    btn.classList.add('loading');
+  const btn = document.getElementById('registerBtn');
+  btn.classList.add('loading');
 
-    // Submit to Django backend
-    fetch('/api/register/', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      btn.classList.remove('loading');
-      if (data.success) {
-        showToast(data.message);
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 1500);
-      } else {
-        showToast(data.message, true);
-      }
-    })
-    .catch(error => {
-      btn.classList.remove('loading');
-      showToast('Registration failed. Please try again.', true);
-    });
-  }
+  fetch('/api/register/', {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(response => response.json())
+  .then(data => {
+    btn.classList.remove('loading');
+    if (data.success) {
+      showToast(data.message);
+      setTimeout(() => {
+        // ✅ Proper redirect handling
+        if (data.redirect_url) {
+          window.location.href = data.redirect_url;
+        } else {
+          window.location.href = '/account-created/';
+        }
+      }, 1500);
+    } else {
+      showToast(data.message, true);
+    }
+  })
+  .catch(error => {
+    btn.classList.remove('loading');
+    showToast('Registration failed. Please try again.', true);
+  });
+}
 </script>
 </body>
 </html>

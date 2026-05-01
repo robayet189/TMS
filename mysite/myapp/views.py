@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.urls import reverse
@@ -11,26 +11,22 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import UserProfile, Route, Bus, Schedule, Booking
-from django.shortcuts import get_object_or_404
-from .models import Booking, Schedule
-import json
 from django.contrib.auth.tokens import default_token_generator
+import json
 import re
 
-from .models import UserProfile, Schedule
+from .models import UserProfile, Route, Bus, Schedule, Booking
 
 
 def is_ajax(request):
     """Check if request is AJAX (supports both jQuery & Fetch API)"""
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
-        request.headers.get('Accept') == 'text/html, */*; q=0.01'
+           request.headers.get('Accept') == 'text/html, */*; q=0.01'
 
 
 def get_profile_context(user):
     """Helper to get profile context data - Safe & Optimized"""
     profile, created = UserProfile.objects.get_or_create(user=user)
-
     is_active = getattr(profile, 'is_pass_active', False)
     pass_date = getattr(profile, 'pass_valid_until', None)
     pass_valid_until_str = pass_date.strftime("%b %d, %Y") if pass_date else "Not active"
@@ -98,7 +94,12 @@ def register_user(request):
             )
 
             login(request, user)
-            return JsonResponse({'success': True, 'message': f'Welcome {full_name}!'})
+            # ✅ Added redirect_url so frontend can navigate to success page
+            return JsonResponse({
+                'success': True, 
+                'message': f'Welcome {full_name}!',
+                'redirect_url': reverse('account_created')
+            })
         except Exception as e:
             return JsonResponse({'success': False, 'message': f'Registration failed: {str(e)}'})
 
@@ -224,8 +225,7 @@ def dashboard(request):
 def schedule(request):
     try:
         today = timezone.now().date()
-        routes = Schedule.objects.filter(is_active=True, travel_date__gte=today).select_related('route',
-                                                                                                'bus').order_by(
+        routes = Schedule.objects.filter(is_active=True, travel_date__gte=today).select_related('route', 'bus').order_by(
             'travel_date', 'departure_time')
         morning_routes = routes.filter(departure_time__hour__lt=12)
         evening_routes = routes.filter(departure_time__hour__gte=12)
@@ -339,10 +339,10 @@ def renew_pass(request):
             return render(request, 'app1/partials/profile_content.html', get_profile_context(user))
         return redirect('profile')
 
-
     return redirect('profile')
 
 
+# ================= BOOKING & TICKETS =================
 
 @login_required
 def book_ticket(request, schedule_id):
@@ -350,8 +350,7 @@ def book_ticket(request, schedule_id):
     if request.method == 'POST':
         try:
             schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
-            
-            # Get data from request
+
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
                 number_of_seats = int(data.get('seats', 1))
@@ -361,18 +360,21 @@ def book_ticket(request, schedule_id):
                 number_of_seats = int(request.POST.get('seats', 1))
                 passenger_name = request.POST.get('passenger_name', '')
                 passenger_phone = request.POST.get('passenger_phone', '')
-            
-            # Check seat availability
+
             if number_of_seats > schedule.available_seats:
                 return JsonResponse({
                     'success': False, 
                     'error': f'Sorry, only {schedule.available_seats} seats available'
                 }, status=400)
-            
-            # Calculate total amount
+
             total_amount = schedule.fare * number_of_seats
-            
-            # Create booking
+
+            # ✅ Safe profile access to avoid AttributeError
+            try:
+                user_profile = request.user.userprofile
+            except UserProfile.DoesNotExist:
+                user_profile = None
+
             booking = Booking.objects.create(
                 user=request.user,
                 schedule=schedule,
@@ -381,13 +383,12 @@ def book_ticket(request, schedule_id):
                 status='confirmed',
                 payment_status='paid',
                 passenger_name=passenger_name or request.user.get_full_name(),
-                passenger_phone=passenger_phone or getattr(request.user.profile, 'phone', '')
+                passenger_phone=passenger_phone or (user_profile.phone if user_profile else '')
             )
-            
-            # Update available seats
+
             schedule.available_seats -= number_of_seats
             schedule.save()
-            
+
             return JsonResponse({
                 'success': True,
                 'booking_id': booking.booking_id,
@@ -401,12 +402,12 @@ def book_ticket(request, schedule_id):
                     'total': f"৳{total_amount}"
                 }
             })
-            
+
         except Schedule.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Schedule not found'}, status=404)
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
-    
+
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
 
 
@@ -418,9 +419,9 @@ def my_bookings(request):
     context = {
         'bookings': bookings,
         'active_count': bookings.filter(status='confirmed').count(),
-        'total_spent': sum(b.total_amount for b in bookings.filter(status='confirmed'))
+        'total_spent': sum(b.total_amount for b in bookings.filter(status='confirmed') if b.total_amount)
     }
-    
+
     if is_ajax(request):
         return render(request, 'app1/partials/bookings_content.html', context)
     return render(request, 'app1/my_bookings.html', context)
@@ -430,11 +431,8 @@ def my_bookings(request):
 def booking_detail(request, booking_id):
     """View single booking details"""
     booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
-    
-    context = {
-        'booking': booking,
-    }
-    
+    context = {'booking': booking}
+
     if is_ajax(request):
         return render(request, 'app1/partials/booking_detail_content.html', context)
     return render(request, 'app1/booking_detail.html', context)
@@ -450,12 +448,10 @@ def cancel_booking(request, booking_id):
             return JsonResponse({'success': False, 'error': 'Booking already cancelled'}, status=400)
         
         if booking.status == 'confirmed':
-            # Restore seats
             schedule = booking.schedule
             schedule.available_seats += booking.number_of_seats
             schedule.save()
             
-            # Update booking status
             booking.status = 'cancelled'
             booking.save()
             
@@ -464,7 +460,7 @@ def cancel_booking(request, booking_id):
                 'message': 'Booking cancelled successfully',
                 'refund_amount': f"৳{booking.total_amount}"
             })
-    
+
     return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
 
 
@@ -478,5 +474,9 @@ def check_seat_availability(request, schedule_id):
         'fare': float(schedule.fare)
     })
 
-    return redirect('profile')
 
+# ================= SUCCESS PAGES =================
+
+def account_created(request):
+    """Account successfully created page"""
+    return render(request, 'app1/account_created.html')
