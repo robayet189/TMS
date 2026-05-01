@@ -636,3 +636,105 @@ def bus_schedule(request):
     return render(request, 'app1/bus_schedule.html')
     return redirect('profile')
 
+    # ================= 2-STEP BOOKING SYSTEM (NEW) =================
+
+@login_required
+def trip_summary(request, schedule_id):
+    """Step 1: Trip Summary Page"""
+    schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
+    context = {
+        'schedule': schedule,
+        'route': {
+            'id': schedule.id,
+            'code': schedule.route.code,
+            'from': schedule.route.start,
+            'to': schedule.route.end,
+            'departure': schedule.departure_time.strftime('%I:%M %p'),
+            'fare': schedule.fare,
+            'seats': schedule.available_seats,
+            'bus': schedule.bus.bus_number,
+            'ac': schedule.bus.has_ac,
+        }
+    }
+    return render(request, 'app1/trip_summary.html', context)
+
+
+@login_required
+def seat_selection(request, schedule_id):
+    """Step 2: Seat Selection Page with Visual Layout"""
+    schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
+    total_seats = schedule.bus.capacity
+    rows = total_seats // 4
+    
+    # Get already booked seats
+    booked_seats = Booking.objects.filter(
+        schedule=schedule, 
+        status='confirmed'
+    ).values_list('seat_numbers', flat=True)
+    
+    booked_seat_list = []
+    for seats in booked_seats:
+        if seats:
+            booked_seat_list.extend([s.strip() for s in seats.split(',')])
+    
+    context = {
+        'schedule': schedule,
+        'route': {
+            'code': schedule.route.code,
+            'from': schedule.route.start,
+            'to': schedule.route.end,
+            'departure': schedule.departure_time.strftime('%I:%M %p'),
+            'date': schedule.travel_date.strftime('%A, %B %d, %Y'),
+            'fare': schedule.fare,
+            'bus': schedule.bus.bus_number,
+            'ac': schedule.bus.has_ac,
+        },
+        'rows': range(rows),
+        'seats_per_row': range(4),
+        'booked_seats': booked_seat_list,
+    }
+    return render(request, 'app1/seat_selection.html', context)
+
+
+@login_required
+def confirm_booking_seat(request):
+    """Step 3: Confirm Booking after seat selection"""
+    if request.method == 'POST':
+        schedule_id = request.POST.get('schedule_id')
+        seat_numbers = request.POST.get('seat_numbers')
+        passenger_name = request.POST.get('passenger_name')
+        passenger_phone = request.POST.get('passenger_phone')
+        
+        schedule = get_object_or_404(Schedule, id=schedule_id)
+        seats_list = [s.strip() for s in seat_numbers.split(',')]
+        total_amount = schedule.fare * len(seats_list)
+        
+        booking = Booking.objects.create(
+            user=request.user,
+            schedule=schedule,
+            number_of_seats=len(seats_list),
+            seat_numbers=seat_numbers,
+            total_amount=total_amount,
+            passenger_name=passenger_name,
+            passenger_phone=passenger_phone,
+            travel_date=schedule.travel_date,
+            status='confirmed',
+            payment_status='paid'
+        )
+        
+        # Update available seats
+        schedule.available_seats -= len(seats_list)
+        schedule.save()
+        
+        messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
+        return redirect('booking_confirmation_seat', booking_id=booking.booking_id)
+    
+    return redirect('schedule')
+
+
+@login_required
+def booking_confirmation_seat(request, booking_id):
+    """Step 4: Final Booking Confirmation Page"""
+    booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
+    return render(request, 'app1/booking_confirmation_seat.html', {'booking': booking})
+

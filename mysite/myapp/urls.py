@@ -61,4 +61,9 @@ urlpatterns = [
          name='admin_toggle_schedule'),
     path('admin_page/api/delete-schedule/<int:schedule_id>/', views_admin.admin_delete_schedule,
          name='admin_delete_schedule'),
+         # ================= 2-STEP BOOKING SYSTEM URLs =================
+    path('trip-summary/<int:schedule_id>/', views.trip_summary, name='trip_summary'),
+    path('seat-selection/<int:schedule_id>/', views.seat_selection, name='seat_selection'),
+    path('confirm-booking-seat/', views.confirm_booking_seat, name='confirm_booking_seat'),
+    path('booking-confirmation-seat/<str:booking_id>/', views.booking_confirmation_seat, name='booking_confirmation_seat'),
 ]
