@@ -478,5 +478,77 @@ def check_seat_availability(request, schedule_id):
         'fare': float(schedule.fare)
     })
 
+   # ================= BUS BOOKING FUNCTIONS (নতুন) =================
+
+@login_required
+def select_seats(request, schedule_id):
+    """Seat selection page"""
+    from .models import Schedule, Booking
+    schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
+    
+    # Get booked seats
+    booked_seats = Booking.objects.filter(
+        schedule=schedule, status='confirmed'
+    ).values_list('seat_numbers', flat=True)
+    
+    booked_seat_list = []
+    for seats in booked_seats:
+        if seats:
+            booked_seat_list.extend([s.strip() for s in seats.split(',')])
+    
+    # Seat layout (40 seats: 5 rows x 8 seats)
+    context = {
+        'schedule': schedule,
+        'rows': range(5),
+        'seats_per_row': range(8),
+        'booked_seats': booked_seat_list,
+    }
+    return render(request, 'app1/select_seats.html', context)
+
+
+@login_required
+def confirm_booking(request):
+    """Confirm booking"""
+    if request.method == 'POST':
+        from .models import Schedule, Booking
+        schedule_id = request.POST.get('schedule_id')
+        seat_numbers = request.POST.get('seat_numbers')
+        passenger_name = request.POST.get('passenger_name')
+        passenger_phone = request.POST.get('passenger_phone')
+        
+        schedule = get_object_or_404(Schedule, id=schedule_id)
+        seats_list = [s.strip() for s in seat_numbers.split(',')]
+        total_amount = schedule.fare * len(seats_list)
+        
+        booking = Booking.objects.create(
+            user=request.user,
+            schedule=schedule,
+            number_of_seats=len(seats_list),
+            seat_numbers=seat_numbers,
+            total_amount=total_amount,
+            passenger_name=passenger_name,
+            passenger_phone=passenger_phone,
+            travel_date=schedule.travel_date,
+            status='confirmed'
+        )
+        
+        schedule.available_seats -= len(seats_list)
+        schedule.save()
+        
+        messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
+        return redirect('booking_confirmation', booking_id=booking.booking_id)
+    
+    return redirect('schedule')
+
+
+@login_required
+def booking_confirmation(request, booking_id):
+    """Booking confirmation page"""
+    from .models import Booking
+    booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
+    return render(request, 'app1/booking_confirmation.html', {'booking': booking})
+
+def bus_schedule(request):
+    return render(request, 'app1/bus_schedule.html')
     return redirect('profile')
 

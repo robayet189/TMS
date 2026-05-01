@@ -1,0 +1,110 @@
+{% extends 'app1/base.html' %}
+{% block content %}
+<h2>Routes & Schedule</h2>
+
+<div class="filters-bar">
+    <input type="date" id="travel_date" name="date" value="{{ selected_date|default:'' }}">
+    <input type="text" id="search_route" placeholder="Search route or stop..." value="{{ search_query|default:'' }}">
+    <select id="time_filter" name="time_filter">
+        <option value="">All Times</option>
+        <option value="morning">Morning (Before 12 PM)</option>
+        <option value="afternoon">Afternoon (12-4 PM)</option>
+        <option value="evening">Evening (After 4 PM)</option>
+    </select>
+</div>
+
+<div class="routes-grid">
+    {% for schedule in routes %}
+    <div class="route-card">
+        <div class="route-code">Route {{ schedule.route.code }}</div>
+        <div class="route-path">{{ schedule.route.start }} → {{ schedule.route.end }}</div>
+        <div class="route-time">⏰ {{ schedule.departure_time|time:"g:i A" }}</div>
+        <div class="route-date">📅 {{ schedule.travel_date|date:"M d, Y" }}</div>
+        <div class="route-fare">💰 ৳{{ schedule.fare }}</div>
+        <div class="seats-available">🪑 {{ schedule.available_seats }}/{{ schedule.bus.capacity }} seats</div>
+        {% if schedule.available_seats > 0 %}
+        <a href="{% url 'select_seats' schedule.id %}" class="btn-book">Select Seats</a>
+        {% else %}
+        <button class="btn-book disabled" disabled>Fully Booked</button>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="no-trip-card">
+        <strong>No routes available</strong>
+        <p>No routes found for selected criteria.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.filters-bar {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+.filters-bar input, .filters-bar select {
+    padding: 10px 15px;
+    background: #1c1c2e;
+    border: 1px solid #ff6b6b;
+    border-radius: 8px;
+    color: #fff;
+    flex: 1;
+}
+.routes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+.route-card {
+    background: #1c1c2e;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255,107,107,0.3);
+    transition: transform 0.3s;
+}
+.route-card:hover {
+    transform: translateY(-5px);
+    border-color: #ff6b6b;
+}
+.route-code {
+    font-size: 22px;
+    font-weight: bold;
+    color: #ff6b6b;
+    margin-bottom: 10px;
+}
+.route-path {
+    font-size: 18px;
+    color: #fff;
+    margin-bottom: 10px;
+}
+.route-time, .route-date, .route-fare, .seats-available {
+    color: #ccc;
+    margin: 8px 0;
+    font-size: 14px;
+}
+.btn-book {
+    display: inline-block;
+    width: 100%;
+    padding: 12px;
+    background: #ff6b6b;
+    color: #fff;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 8px;
+    margin-top: 15px;
+    font-weight: bold;
+}
+.btn-book.disabled {
+    background: #555;
+    cursor: not-allowed;
+}
+.no-trip-card {
+    text-align: center;
+    padding: 50px;
+    background: #1c1c2e;
+    border-radius: 16px;
+    color: #ccc;
+}
+</style>
+{% endblock %}
