@@ -10,9 +10,15 @@ class UserProfile(models.Model):
         ('admin', 'Admin'),
         ('driver', 'Driver'),
     ]
+    INSTITUTION_TYPES = [
+        ('educational', 'Educational'),
+        ('industrial', 'Industrial'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     phone = models.CharField(max_length=15, blank=True)
     user_type = models.CharField(max_length=20, choices=USER_TYPES, default='student')
+    institution_type = models.CharField(max_length=50, blank=True, null=True)
     institution_id = models.CharField(max_length=50, blank=True)
     department = models.CharField(max_length=100, blank=True)
     is_pass_active = models.BooleanField(default=False)
@@ -60,7 +66,13 @@ class Schedule(models.Model):
         return f"{self.route.code} on {self.travel_date}"
 
 class Booking(models.Model):
-    STATUS_CHOICES = [('pending', 'Pending'), ('confirmed', 'Confirmed'), ('cancelled', 'Cancelled'), ('completed', 'Completed')]
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
+    ]
     PAYMENT_CHOICES = [('bkash', 'bKash'), ('sslcommerz', 'SSLCommerz'), ('cash', 'Cash')]
 
     booking_id = models.CharField(max_length=20, unique=True, editable=False)
@@ -72,6 +84,9 @@ class Booking(models.Model):
     payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     passenger_name = models.CharField(max_length=100)
+    admin_remarks = models.TextField(blank=True, null=True, help_text="Admin approval/rejection remarks")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_bookings')
 
     def save(self, *args, **kwargs):
         if not self.booking_id:
@@ -80,4 +95,4 @@ class Booking(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.booking_id
+        return f"{self.booking_id} - {self.passenger_name}"

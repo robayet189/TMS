@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -68,17 +68,27 @@
                 const res = await fetch('/api/login/', { method:'POST', body:data, headers:{'X-Requested-With':'XMLHttpRequest'} });
                 const json = await res.json();
                 const msg = document.getElementById('msg');
+                
                 if(json.success) {
-                    msg.textContent = json.message;
+                    msg.textContent = json.message || 'Login successful!';
                     msg.className = 'msg success';
                     msg.style.display = 'block';
-                    setTimeout(() => window.location.href = json.redirect_url, 500);
+                    setTimeout(() => {
+                        // ✅ Use server redirect_url (preferred)
+                        if (json.redirect_url) {
+                            window.location.href = json.redirect_url;
+                        } else {
+                            // ✅ Fallback redirect
+                            window.location.href = '/dashboard/';
+                        }
+                    }, 500);
                 } else {
-                    msg.textContent = json.message;
+                    msg.textContent = json.message || 'Invalid credentials';
                     msg.className = 'msg error';
                     msg.style.display = 'block';
                 }
             } catch(err) {
+                console.error('Login error:', err);
                 document.getElementById('msg').textContent = 'Connection failed';
                 document.getElementById('msg').className = 'msg error';
                 document.getElementById('msg').style.display = 'block';

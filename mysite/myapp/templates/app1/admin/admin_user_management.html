@@ -1,5 +1,9 @@
 {% extends 'app1/admin/admin_base.html' %}
+
 {% block content %}
+<!-- ✅ Hidden CSRF Token for JavaScript -->
+<div style="display:none;">{% csrf_token %}</div>
+
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <h1>User Management</h1>
 </div>
@@ -34,7 +38,12 @@
                 <td style="padding:12px;">{{ user.profile.user_type|title }}</td>
                 <td style="padding:12px;">{% if user.is_active %}✅ Active{% else %}❌ Inactive{% endif %}</td>
                 <td style="padding:12px;">
-                    <button onclick="deleteUser({{ user.id }})" style="padding:6px 12px; background:rgba(255,71,87,0.2); color:#ff4757; border:none; border-radius:6px; cursor:pointer;">Delete</button>
+                    <!-- ✅ FIXED: Using data attribute instead of inline onclick -->
+                    <button class="delete-btn" 
+                            data-user-id="{{ user.id }}" 
+                            style="padding:6px 12px; background:rgba(255,71,87,0.2); color:#ff4757; border:none; border-radius:6px; cursor:pointer;">
+                        Delete
+                    </button>
                 </td>
             </tr>
             {% empty %}
@@ -50,15 +59,50 @@
         const role = document.getElementById('roleFilter').value;
         window.location.href = `?search=${search}&role=${role}`;
     }
-    function deleteUser(id) {
-        if(!confirm('Delete this user?')) return;
-        fetch(`/admin_page/api/delete-user/${id}/`, {
-            method:'POST',
-            headers:{'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value}
-        }).then(res=>res.json()).then(data=>{
-            if(data.success) location.reload();
-            else alert(data.message);
-        });
+
+    // ✅ Robust CSRF Token Getter
+    function getCSRFToken() {
+        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        return tokenInput ? tokenInput.value : null;
     }
+
+    // ✅ Event Delegation for Delete Button - No more inline onclick!
+    document.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (deleteBtn) {
+            const userId = deleteBtn.dataset.userId;
+            if(!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+            
+            const csrfToken = getCSRFToken();
+            if (!csrfToken) {
+                alert('Security token missing. Please refresh the page and try again.');
+                return;
+            }
+
+            fetch(`/admin_page/api/delete-user/${userId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
+            .then(data => {
+                if(data.success) {
+                    alert('User deleted successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete user. Check console for details.');
+            });
+        }
+    });
 </script>
 {% endblock %}

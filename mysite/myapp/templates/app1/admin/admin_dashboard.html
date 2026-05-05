@@ -1,50 +1,132 @@
 {% extends 'app1/admin/admin_base.html' %}
 
-{% block title %}Dashboard - Easy Transport{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+{% block page_subtitle %}Real-time statistics and system overview{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mt-4">Dashboard Overview</h1>
-            <p class="lead">Welcome to Easy Transport Admin Panel</p>
-        </div>
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value">{{ total_users|default:0 }}</div>
+        <div class="stat-change positive">↑ 12% from last month</div>
     </div>
-
-    <!-- Statistics Cards -->
-    <div class="row mt-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white mb-4">
-                <div class="card-body">
-                    <h3>{{ total_users|default:0 }}</h3>
-                    <p>Total Users</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white mb-4">
-                <div class="card-body">
-                    <h3>{{ active_buses|default:0 }}</h3>
-                    <p>Active Buses</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white mb-4">
-                <div class="card-body">
-                    <h3>{{ today_bookings|default:0 }}</h3>
-                    <p>Today's Bookings</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white mb-4">
-                <div class="card-body">
-                    <h3>৳{{ today_revenue|default:0 }}</h3>
-                    <p>Today's Revenue</p>
-                </div>
-            </div>
-        </div>
+    
+    <div class="stat-card">
+        <div class="stat-label">Active Buses</div>
+        <div class="stat-value" style="color:var(--success)">{{ active_buses|default:0 }}</div>
+        <div class="stat-change positive">All systems operational</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-label">Pending Bookings</div>
+        <div class="stat-value" style="color:var(--warning)">{{ pending_bookings|default:0 }}</div>
+        <div class="stat-change negative">Needs attention</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-label">Today's Revenue</div>
+        <div class="stat-value" style="color:var(--info)">৳{{ today_revenue|default:0 }}</div>
+        <div class="stat-change positive">↑ 8% from yesterday</div>
     </div>
 </div>
+
+<!-- Recent Bookings -->
+<div class="content-card">
+    <div class="card-header">
+        <h3 class="card-title">Recent Bookings</h3>
+        <a href="{% url 'admin_bookings' %}" class="btn">View All</a>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Booking ID</th>
+                <th>Passenger</th>
+                <th>Route</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in recent_bookings %}
+            <tr>
+                <td><strong>{{ booking.booking_id }}</strong></td>
+                <td>{{ booking.passenger_name }}</td>
+                <td>{{ booking.schedule.route.code }}</td>
+                <td>{{ booking.schedule.travel_date|date:"M d, Y" }}</td>
+                <td>৳{{ booking.amount }}</td>
+                <td>
+                    <span class="badge badge-{{ booking.status }}">
+                        {{ booking.get_status_display }}
+                    </span>
+                </td>
+                <td>
+                    {% if booking.status == 'pending' %}
+                    <button onclick="approveBooking('{{ booking.booking_id }}')" class="btn btn-primary" style="padding:6px 12px; font-size:12px;">Approve</button>
+                    <button onclick="rejectBooking('{{ booking.booking_id }}')" class="btn" style="padding:6px 12px; font-size:12px; margin-left:4px;">Reject</button>
+                    {% else %}
+                    <span style="color:var(--text-muted); font-size:12px;">{{ booking.status|title }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align:center; padding:40px; color:var(--text-muted);">
+                    No bookings found
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function approveBooking(bookingId) {
+    if(!confirm('Approve this booking?')) return;
+    
+    fetch(`/admin_page/bookings/${bookingId}/approve/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({remarks: 'Approved by admin'})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function rejectBooking(bookingId) {
+    const reason = prompt('Reason for rejection:');
+    if(!reason) return;
+    
+    fetch(`/admin_page/bookings/${bookingId}/reject/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({remarks: reason})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
 {% endblock %}

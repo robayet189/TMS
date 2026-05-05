@@ -4,38 +4,300 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Easy Transport</title>
+    <title>Admin Dashboard - Easy Transport</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root, [data-theme="dark"] { --bg:#0f0f1a; --sidebar:#12121f; --card:#1c1c2e; --border:rgba(255,255,255,0.07); --text:#fff; --muted:#a09ab8; --accent:#ff4757; }
-        [data-theme="light"] { --bg:#f8fafc; --sidebar:#fff; --card:#fff; --border:rgba(0,0,0,0.1); --text:#1e293b; --muted:#64748b; --accent:#ef4444; }
+        :root, [data-theme="dark"] {
+            --bg: #0f0f1a;
+            --sidebar: #12121f;
+            --card: #1c1c2e;
+            --border: rgba(255,255,255,0.07);
+            --text: #ffffff;
+            --text-muted: #a09ab8;
+            --accent: #ff4757;
+            --success: #00c896;
+            --warning: #ffb800;
+            --info: #8a63ff;
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --sidebar: #ffffff;
+            --card: #ffffff;
+            --border: rgba(0,0,0,0.1);
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --accent: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --info: #8b5cf6;
+        }
         * { box-sizing:border-box; margin:0; padding:0; }
-        body { background:var(--bg); color:var(--text); font-family:sans-serif; display:flex; min-height:100vh; }
-        .sidebar { width:260px; background:var(--sidebar); border-right:1px solid var(--border); padding:20px 0; position:fixed; height:100vh; }
-        .logo { padding:0 20px 20px; border-bottom:1px solid var(--border); margin-bottom:10px; }
-        .nav a { display:flex; align-items:center; gap:12px; padding:12px 20px; color:var(--muted); text-decoration:none; transition:0.2s; }
-        .nav a:hover, .nav a.active { background:rgba(255,71,87,0.1); color:var(--accent); border-left:3px solid var(--accent); }
-        .main { flex:1; margin-left:260px; padding:30px; }
-        .theme-btn { position:absolute; top:20px; right:20px; background:var(--card); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; cursor:pointer; }
-        .content-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:20px; }
+        body {
+            background:var(--bg);
+            color:var(--text);
+            font-family:'Inter', sans-serif;
+            display:flex;
+            min-height:100vh;
+        }
+        .sidebar {
+            width:280px;
+            background:var(--sidebar);
+            border-right:1px solid var(--border);
+            padding:0;
+            position:fixed;
+            height:100vh;
+            overflow-y:auto;
+            z-index:100;
+        }
+        .logo {
+            padding:24px 20px;
+            border-bottom:1px solid var(--border);
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+        .logo h2 {
+            font-size:20px;
+            font-weight:700;
+            color:var(--accent);
+        }
+        .logo small {
+            display:block;
+            font-size:11px;
+            color:var(--text-muted);
+            margin-top:2px;
+        }
+        .nav { padding:20px 0; }
+        .nav-section { margin-bottom:8px; }
+        .nav-label {
+            padding:8px 20px;
+            font-size:11px;
+            font-weight:600;
+            color:var(--text-muted);
+            text-transform:uppercase;
+            letter-spacing:0.5px;
+        }
+        .nav a {
+            display:flex;
+            align-items:center;
+            gap:12px;
+            padding:12px 20px;
+            color:var(--text-muted);
+            text-decoration:none;
+            transition:all 0.2s;
+            font-size:14px;
+            font-weight:500;
+        }
+        .nav a:hover {
+            background:rgba(255,71,87,0.08);
+            color:var(--accent);
+        }
+        .nav a.active {
+            background:rgba(255,71,87,0.12);
+            color:var(--accent);
+            border-left:3px solid var(--accent);
+        }
+        .nav a svg {
+            width:20px;
+            height:20px;
+            opacity:0.8;
+        }
+        .main {
+            flex:1;
+            margin-left:280px;
+            padding:32px;
+            min-height:100vh;
+        }
+        .header {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:32px;
+            padding-bottom:24px;
+            border-bottom:1px solid var(--border);
+        }
+        .header h1 {
+            font-size:28px;
+            font-weight:700;
+        }
+        .header-actions {
+            display:flex;
+            gap:12px;
+            align-items:center;
+        }
+        .theme-btn, .btn {
+            background:var(--card);
+            border:1px solid var(--border);
+            color:var(--text);
+            padding:10px 16px;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:14px;
+            font-weight:500;
+            transition:all 0.2s;
+        }
+        .theme-btn:hover, .btn:hover {
+            background:var(--accent);
+            border-color:var(--accent);
+            color:white;
+        }
+        .btn-primary {
+            background:var(--accent);
+            color:white;
+            border:none;
+        }
+        .btn-primary:hover {
+            opacity:0.9;
+        }
+        .stats-grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+            gap:20px;
+            margin-bottom:32px;
+        }
+        .stat-card {
+            background:var(--card);
+            border:1px solid var(--border);
+            border-radius:12px;
+            padding:24px;
+        }
+        .stat-label {
+            font-size:13px;
+            color:var(--text-muted);
+            margin-bottom:8px;
+        }
+        .stat-value {
+            font-size:32px;
+            font-weight:700;
+            color:var(--text);
+        }
+        .stat-change {
+            font-size:12px;
+            margin-top:8px;
+        }
+        .stat-change.positive { color:var(--success); }
+        .stat-change.negative { color:var(--accent); }
+        .content-card {
+            background:var(--card);
+            border:1px solid var(--border);
+            border-radius:12px;
+            padding:24px;
+            margin-top:20px;
+        }
+        .card-header {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:20px;
+        }
+        .card-title {
+            font-size:18px;
+            font-weight:600;
+        }
+        table {
+            width:100%;
+            border-collapse:collapse;
+        }
+        th, td {
+            padding:12px;
+            text-align:left;
+            border-bottom:1px solid var(--border);
+        }
+        th {
+            font-size:12px;
+            font-weight:600;
+            color:var(--text-muted);
+            text-transform:uppercase;
+        }
+        .badge {
+            display:inline-flex;
+            align-items:center;
+            padding:4px 12px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:600;
+        }
+        .badge-pending { background:rgba(255,184,0,0.15); color:var(--warning); }
+        .badge-approved { background:rgba(0,200,150,0.15); color:var(--success); }
+        .badge-rejected { background:rgba(255,71,87,0.15); color:var(--accent); }
+        .badge-cancelled { background:rgba(160,154,184,0.15); color:var(--text-muted); }
+        
+        @media (max-width: 768px) {
+            .sidebar { transform:translateX(-100%); }
+            .main { margin-left:0; }
+        }
     </style>
 </head>
 <body>
     <aside class="sidebar">
-        <div class="logo"><h2>🚌 Next Route</h2><small>Admin Panel</small></div>
+        <div class="logo">
+            <div>
+                <h2>🚌 Next Route</h2>
+                <small>Admin Dashboard</small>
+            </div>
+        </div>
         <nav class="nav">
-            <a href="{% url 'admin_dashboard' %}" class="{% if active == 'overview' %}active{% endif %}">📊 Overview</a>
-            <a href="{% url 'admin_users' %}" class="{% if active == 'users' %}active{% endif %}">👥 Users</a>
-            <a href="{% url 'admin_fleet' %}" class="{% if active == 'fleet' %}active{% endif %}">🚍 Fleet</a>
-            <a href="{% url 'admin_routes' %}" class="{% if active == 'routes' %}active{% endif %}">🗺️ Routes</a>
-            <a href="{% url 'admin_bookings' %}" class="{% if active == 'bookings' %}active{% endif %}"> Bookings</a>
-            <a href="{% url 'admin_revenue' %}" class="{% if active == 'revenue' %}active{% endif %}">💰 Revenue</a>
-            <a href="{% url 'admin_alerts' %}" class="{% if active == 'alerts' %}active{% endif %}">🚨 Alerts</a>
-            <a href="{% url 'logout' %}">🚪 Logout</a>
+            <div class="nav-section">
+                <div class="nav-label">Main</div>
+                <a href="{% url 'admin_dashboard' %}" class="{% if active == 'overview' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    Overview
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-label">Management</div>
+                <a href="{% url 'admin_users' %}" class="{% if active == 'users' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    Users
+                </a>
+                <a href="{% url 'admin_bookings' %}" class="{% if active == 'bookings' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    Bookings
+                </a>
+                <a href="{% url 'admin_fleet' %}" class="{% if active == 'fleet' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    Fleet
+                </a>
+                <a href="{% url 'admin_routes' %}" class="{% if active == 'routes' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 5.618L15 7m0 13V7"/></svg>
+                    Routes
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-label">Analytics</div>
+                <a href="{% url 'admin_revenue' %}" class="{% if active == 'revenue' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Revenue
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-label">System</div>
+                <a href="{% url 'admin_alerts' %}" class="{% if active == 'alerts' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    Alerts
+                </a>
+                <a href="{% url 'logout' %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    Logout
+                </a>
+            </div>
         </nav>
     </aside>
 
     <main class="main">
-        <button class="theme-btn" onclick="toggleTheme()">🌓 Theme</button>
+        <div class="header">
+            <div>
+                <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                <p style="color:var(--text-muted); margin-top:4px;">{% block page_subtitle %}Welcome back, Admin{% endblock %}</p>
+            </div>
+            <div class="header-actions">
+                <button class="theme-btn" onclick="toggleTheme()">🌓 Theme</button>
+            </div>
+        </div>
+        
         {% block content %}{% endblock %}
     </main>
 
@@ -43,6 +305,7 @@
         const html = document.documentElement;
         const saved = localStorage.getItem('admin_theme') || 'dark';
         html.setAttribute('data-theme', saved);
+        
         function toggleTheme() {
             const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             html.setAttribute('data-theme', next);
