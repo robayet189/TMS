@@ -91,7 +91,7 @@
         {% for route in route_stats %}
         <div class="route-row" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
           <div class="route-dot-label">
-            <div class="route-dot" style="width: 12px; height: 12px; border-radius: 50%; background: {% cycle '#ff4757' '#8a63ff' '#00c896' '#ffb800' '#5a5470' %}; display: inline-block; margin-right: 8px;"></div>
+            <div class="route-dot" style="width: 12px; height: 12px; border-radius: 50%; background: #5a5470; display: inline-block; margin-right: 8px;"></div>
             Route {{ route.schedule__route__code }}
           </div>
           <span class="route-count">{{ route.total }}</span>
@@ -158,9 +158,9 @@
 
 <script>
   // Revenue Chart
-  const months = {{ months|safe }};
-  const revenueData = {{ revenue_data|safe }};
-  const bookingsData = {{ bookings_data|safe }};
+  const months = JSON.parse('{{ months|safe|escapejs }}');
+  const revenueData = JSON.parse('{{ revenue_data|safe|escapejs }}');
+  const bookingsData = JSON.parse('{{ bookings_data|safe|escapejs }}');
 
   new Chart(document.getElementById('revenueChart').getContext('2d'), {
     type: 'line',
@@ -199,8 +199,8 @@
   });
 
   // Route Chart
-  const routeLabels = [{% for route in route_stats %}'{{ route.schedule__route__code }}',{% endfor %}];
-  const routeCounts = [{% for route in route_stats %}{{ route.total }},{% endfor %}];
+  const routeLabels = JSON.parse('{{ route_labels|safe|escapejs }}');
+  const routeCounts = JSON.parse('{{ route_counts|safe|escapejs }}');
   const routeColors = ['#ff4757', '#8a63ff', '#00c896', '#ffb800', '#5a5470'];
 
   new Chart(document.getElementById('routeChart').getContext('2d'), {
