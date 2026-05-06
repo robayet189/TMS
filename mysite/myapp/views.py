@@ -20,16 +20,30 @@ def register_page(request):
 
 @require_http_methods(["POST"])
 def login_user(request):
-    username = request.POST.get('username', '').strip()
+    """Handle user login via AJAX - supports login with email OR username"""
+    username_or_email = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
     
-    if not username or not password:
-        return JsonResponse({'success': False, 'message': 'Please enter username and password'}, status=400)
+    if not username_or_email or not password:
+        return JsonResponse({'success': False, 'message': 'Please enter username/email and password'}, status=400)
     
-    user = authenticate(request, username=username, password=password)
+    user = None
+    
+    # ✅ Try to find user by email first (case-insensitive)
+    if '@' in username_or_email:
+        try:
+            user_obj = User.objects.get(email__iexact=username_or_email)
+            user = authenticate(request, username=user_obj.username, password=password)
+        except User.DoesNotExist:
+            user = None
+    else:
+        # ✅ Try to authenticate with username directly
+        user = authenticate(request, username=username_or_email, password=password)
     
     if user is not None:
         login(request, user)
+        
+        # ✅ Safe admin detection (case-insensitive)
         is_admin = False
         try:
             if hasattr(user, 'profile'):
@@ -43,7 +57,7 @@ def login_user(request):
         
         return JsonResponse({'success': True, 'message': msg, 'redirect_url': redirect_url})
     
-    return JsonResponse({'success': False, 'message': 'Invalid username or password'}, status=401)
+    return JsonResponse({'success': False, 'message': 'Invalid username/email or password'}, status=401)
 
 def register_user(request):
     if request.method != 'POST':
@@ -84,12 +98,12 @@ def register_user(request):
             user_type=user_type, institution_id=institution_id
         )
         
-        login(request, user)
-        is_admin = (user_type == 'admin')
-        redirect_url = '/admin_page/dashboard/' if is_admin else '/dashboard/'
-        msg = f'Welcome Admin, {full_name}!' if is_admin else f'Welcome, {full_name}!'
-        
-        return JsonResponse({'success': True, 'message': msg, 'redirect_url': redirect_url})
+        # ✅ FIXED: No auto-login after registration. Redirect to login page.
+        return JsonResponse({
+            'success': True, 
+            'message': 'Account created successfully! Please login to continue.',
+            'redirect_url': '/login/'  # ✅ Redirect to login page
+        })
         
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Registration failed: {str(e)}'}, status=500)

@@ -381,7 +381,7 @@
   ];
   const INDUSTRIAL_ROLES = [
     { icon: '👔', label: 'executive' },
-    { icon: '👩‍💼', label: 'staff' },
+    { icon: '👩‍', label: 'staff' },
     { icon: '🛡️', label: 'admin' },
     { icon: '🚌', label: 'driver' }
   ];
@@ -520,6 +520,7 @@
     setTimeout(() => { toast.classList.remove('show'); }, 3500);
   }
 
+  // ✅ FIXED: Redirect to login page after successful registration
   function handleRegister() {
     const fullName = document.getElementById('fullName').value.trim();
     const email = document.getElementById('email').value.trim();
@@ -543,7 +544,7 @@
     formData.append('password', pwd);
     formData.append('phone', phone);
     formData.append('institution_type', selectedInstType);
-    formData.append('user_type', selectedUserType); // Already lowercase
+    formData.append('user_type', selectedUserType);
     formData.append('institution_id', instId);
     formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
 
@@ -559,20 +560,10 @@
     .then(data => {
         btn.classList.remove('loading');
         if (data.success) {
-            showToast(data.message || 'Registration successful!');
+            showToast(data.message || 'Registration successful! Redirecting to login...');
             setTimeout(() => {
-                // ✅ Use server redirect_url (preferred)
-                if (data.redirect_url) {
-                    window.location.href = data.redirect_url;
-                } else {
-                    // ✅ Fallback: case-insensitive admin check
-                    const userType = (selectedUserType || '').toLowerCase();
-                    if (userType === 'admin') {
-                        window.location.href = '/admin_page/dashboard/';
-                    } else {
-                        window.location.href = '/dashboard/';
-                    }
-                }
+                // ✅ Always redirect to login page after registration
+                window.location.href = data.redirect_url || '/login/';
             }, 1500);
         } else {
             showToast(data.message || 'Registration failed', true);
