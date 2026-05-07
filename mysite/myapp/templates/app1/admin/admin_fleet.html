@@ -73,9 +73,9 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn-icon btn-edit" onclick="editBus(this.dataset.busId)" data-bus-id="{{ bus.id }}" title="Edit">✏️</button>
-                            <button class="btn-icon btn-toggle" onclick="toggleBusStatus(this.dataset.busId)" data-bus-id="{{ bus.id }}" title="Toggle Status">🔄</button>
-                            <button class="btn-icon btn-delete" onclick="deleteBus(this.dataset.busId)" data-bus-id="{{ bus.id }}" title="Delete">🗑️</button>
+                            <button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')" data-bus-id="{{ bus.id }}" title="Edit">✏️</button>
+                            <button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')" data-bus-id="{{ bus.id }}" title="Toggle Status">🔄</button>
+                            <button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')" data-bus-id="{{ bus.id }}" title="Delete">🗑️</button>
                         </div>
                     </td>
                 </tr>
@@ -104,7 +104,7 @@
             </div>
             <div class="form-group">
                 <label>Capacity *</label>
-                <input type="number" id="capacity" name="capacity" required placeholder="Number of seats">
+                <input type="number" id="capacity" name="capacity" required placeholder="Number of seats" min="1" max="100">
             </div>
             <div class="form-group">
                 <label>Driver Name</label>
@@ -208,9 +208,33 @@ function openAddBusModal() {
     document.getElementById('busModal').style.display = 'flex';
 }
 
+// ✅ FIXED: Proper editBus function that fetches data and populates form
 function editBus(busId) {
-    // Fetch bus data via API and populate form
-    showToast('Edit functionality - fetch bus data from API');
+    fetch(`/admin_page/api/get-bus/${busId}/`, {
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            const bus = data.bus;
+            document.getElementById('modalTitle').textContent = 'Edit Bus';
+            document.getElementById('busId').value = bus.id;
+            document.getElementById('busNumber').value = bus.bus_number;
+            document.getElementById('capacity').value = bus.capacity;
+            document.getElementById('driverName').value = bus.driver_name || '';
+            document.getElementById('driverPhone').value = bus.driver_phone || '';
+            document.getElementById('hasAc').checked = bus.has_ac;
+            document.getElementById('hasWifi').checked = bus.has_wifi;
+            document.getElementById('isActive').value = bus.is_active ? 'true' : 'false';
+            document.getElementById('busModal').style.display = 'flex';
+        } else {
+            showToast(data.message, true);
+        }
+    })
+    .catch(error => {
+        showToast('Failed to load bus data', true);
+        console.error('Error:', error);
+    });
 }
 
 function saveBus(e) {
@@ -236,8 +260,17 @@ function saveBus(e) {
     })
     .then(res => res.json())
     .then(data => {
-        if(data.success) { showToast(data.message); closeModal(); setTimeout(() => location.reload(), 1000); }
-        else { showToast(data.message, true); }
+        if(data.success) { 
+            showToast(data.message); 
+            closeModal(); 
+            setTimeout(() => location.reload(), 1000); 
+        } else { 
+            showToast(data.message, true); 
+        }
+    })
+    .catch(error => {
+        showToast('An error occurred', true);
+        console.error('Error:', error);
     });
 }
 
@@ -247,7 +280,14 @@ function toggleBusStatus(busId) {
         headers: { 'X-CSRFToken': getCookie('csrftoken') }
     })
     .then(res => res.json())
-    .then(data => { showToast(data.message); setTimeout(() => location.reload(), 1000); });
+    .then(data => { 
+        showToast(data.message); 
+        setTimeout(() => location.reload(), 1000); 
+    })
+    .catch(error => {
+        showToast('Failed to toggle status', true);
+        console.error('Error:', error);
+    });
 }
 
 function deleteBus(busId) {
@@ -257,10 +297,19 @@ function deleteBus(busId) {
         headers: { 'X-CSRFToken': getCookie('csrftoken') }
     })
     .then(res => res.json())
-    .then(data => { showToast(data.message); setTimeout(() => location.reload(), 1000); });
+    .then(data => { 
+        showToast(data.message); 
+        if(data.success) setTimeout(() => location.reload(), 1000); 
+    })
+    .catch(error => {
+        showToast('Failed to delete bus', true);
+        console.error('Error:', error);
+    });
 }
 
-function closeModal() { document.getElementById('busModal').style.display = 'none'; }
+function closeModal() { 
+    document.getElementById('busModal').style.display = 'none'; 
+}
 
 function showToast(msg, isError = false) {
     const toast = document.createElement('div');
@@ -276,12 +325,17 @@ function getCookie(name) {
     if(document.cookie) {
         for(let c of document.cookie.split(';')) {
             c = c.trim();
-            if(c.startsWith(name + '=')) { cookieValue = decodeURIComponent(c.substring(name.length + 1)); break; }
+            if(c.startsWith(name + '=')) { 
+                cookieValue = decodeURIComponent(c.substring(name.length + 1)); 
+                break; 
+            }
         }
     }
     return cookieValue;
 }
 
-document.getElementById('busModal').addEventListener('click', function(e) { if(e.target === this) closeModal(); });
+document.getElementById('busModal').addEventListener('click', function(e) { 
+    if(e.target === this) closeModal(); 
+});
 </script>
 {% endblock %}
