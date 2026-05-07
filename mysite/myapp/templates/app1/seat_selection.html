@@ -1,0 +1,129 @@
+{% extends 'app1/base.html' %}
+
+{% block content %}
+<style>
+    body { background: #f0f2f5; }
+    .seat-container { max-width: 800px; margin: 40px auto; padding: 20px; }
+    .page-title { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px; }
+    .steps { display: flex; justify-content: space-between; margin: 30px 0; }
+    .step { text-align: center; flex: 1; }
+    .step-number { width: 40px; height: 40px; background: #e0e0e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: bold; }
+    .step.completed .step-number { background: #28a745; color: white; }
+    .step.active .step-number { background: #ff4757; color: white; }
+    .step-label { font-size: 12px; color: #666; }
+    .step.active .step-label { color: #ff4757; font-weight: bold; }
+    
+    .bus-layout { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: 30px 0; }
+    .driver-area { background: #333; color: white; text-align: center; padding: 10px; border-radius: 8px; width: 100px; margin: 0 auto 30px; }
+    .seats-grid { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; }
+    .seat-row { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+    .row-label { width: 50px; color: #666; font-weight: bold; }
+    .seat { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
+    .seat.available { background: #e0e0e0; color: #333; border: 2px solid #28a745; }
+    .seat.available:hover { background: #28a745; color: white; transform: scale(1.05); }
+    .seat.selected { background: #ff4757; color: white; border: 2px solid #ff4757; }
+    .seat.booked { background: #aaa; color: #666; cursor: not-allowed; border: 2px solid #999; }
+    
+    .legend { display: flex; justify-content: center; gap: 30px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+    .legend div { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .legend .seat { width: 25px; height: 25px; pointer-events: none; }
+    
+    .booking-summary { background: white; border-radius: 20px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-top: 20px; }
+    .selected-seats { display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0; }
+    .seat-badge { background: #ff4757; color: white; padding: 5px 12px; border-radius: 20px; font-size: 14px; }
+    .total-fare { font-size: 24px; font-weight: bold; color: #ff4757; margin: 15px 0; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; color: #666; margin-bottom: 5px; }
+    .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .btn-confirm { width: 100%; padding: 14px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .btn-confirm:disabled { background: #ccc; cursor: not-allowed; }
+    
+    @media (max-width: 600px) {
+        .seat { width: 40px; height: 40px; font-size: 12px; }
+        .seat-row { gap: 8px; }
+        .row-label { width: 40px; font-size: 12px; }
+    }
+</style>
+
+<div class="seat-container">
+    <h1 class="page-title">Book Your Seat</h1>
+    <p>Complete your reservation in a few simple steps.</p>
+    
+    <div class="steps">
+        <div class="step completed"><div class="step-number">✓</div><div class="step-label">Select Trip</div></div>
+        <div class="step active"><div class="step-number">2</div><div class="step-label">Choose Seat</div></div>
+        <div class="step"><div class="step-number">3</div><div class="step-label">Confirm & Pay</div></div>
+    </div>
+    
+    <div class="bus-layout">
+        <div class="driver-area">🚌 DRIVER</div>
+        <div class="seats-grid">
+            {% for row in rows %}
+            <div class="seat-row">
+                <span class="row-label">Row {{ row|add:1 }}</span>
+                {% for seat in seats_per_row %}
+                    {% with seat_num=row|add:1|stringformat:"s"|add:seat|add:1|stringformat:"s" %}
+                    <div class="seat {% if seat_num in booked_seats %}booked{% else %}available{% endif %}" data-seat="{{ row|add:1 }}{% if seat < 2 %}L{% else %}R{% endif %}{{ seat|add:1 }}">
+                        {{ row|add:1 }}{% if seat < 2 %}{{ seat|add:1 }}{% else %}{{ seat|add:1 }}{% endif %}
+                    </div>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="legend">
+            <div><div class="seat available"></div> Available</div>
+            <div><div class="seat selected"></div> Selected</div>
+            <div><div class="seat booked"></div> Booked</div>
+        </div>
+    </div>
+    
+    <div class="booking-summary">
+        <h3>Selection</h3>
+        <div id="selectedSeatsList" class="selected-seats"></div>
+        <div class="total-fare">Total: ৳<span id="totalAmount">0</span></div>
+        
+        <form method="POST" action="{% url 'confirm_booking_seat' %}">
+            {% csrf_token %}
+            <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+            <input type="hidden" name="seat_numbers" id="seatNumbers">
+            
+            <div class="form-group">
+                <label>Passenger Name *</label>
+                <input type="text" name="passenger_name" id="passengerName" required>
+            </div>
+            <div class="form-group">
+                <label>Phone Number *</label>
+                <input type="text" name="passenger_phone" id="passengerPhone" required>
+            </div>
+            <button type="submit" class="btn-confirm" id="confirmBtn" disabled>Confirm Booking →</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let selectedSeats = [];
+    const fare = {{ route.fare }};
+    
+    document.querySelectorAll('.seat.available').forEach(seat => {
+        seat.addEventListener('click', function() {
+            const seatNum = this.dataset.seat;
+            if(this.classList.contains('selected')) {
+                this.classList.remove('selected');
+                selectedSeats = selectedSeats.filter(s => s !== seatNum);
+            } else {
+                this.classList.add('selected');
+                selectedSeats.push(seatNum);
+            }
+            updateSummary();
+        });
+    });
+    
+    function updateSummary() {
+        document.getElementById('seatNumbers').value = selectedSeats.join(', ');
+        document.getElementById('totalAmount').innerText = selectedSeats.length * fare;
+        document.getElementById('selectedSeatsList').innerHTML = selectedSeats.map(s => `<div class="seat-badge">Seat ${s}</div>`).join('');
+        document.getElementById('confirmBtn').disabled = selectedSeats.length === 0;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'app1/base.html' %}
+
+{% block content %}
+<style>
+    .confirmation-card {
+        max-width: 500px;
+        margin: 60px auto;
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    .success-icon {
+        width: 70px;
+        height: 70px;
+        background: #28a745;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 35px;
+        margin: 0 auto 20px;
+        color: white;
+    }
+    h1 { color: #28a745; margin-bottom: 20px; }
+    .booking-details {
+        text-align: left;
+        margin: 25px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+    }
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .detail-label { color: #666; }
+    .detail-value { font-weight: bold; color: #333; }
+    .btn-schedule {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 30px;
+        background: #ff4757;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+    }
+</style>
+
+<div class="confirmation-card">
+    <div class="success-icon">✓</div>
+    <h1>Booking Confirmed!</h1>
+    <p>Your ticket has been booked successfully.</p>
+    
+    <div class="booking-details">
+        <div class="detail-row"><span class="detail-label">Booking ID:</span><span class="detail-value">{{ booking.booking_id }}</span></div>
+        <div class="detail-row"><span class="detail-label">Route:</span><span class="detail-value">{{ booking.schedule.route.start }} → {{ booking.schedule.route.end }}</span></div>
+        <div class="detail-row"><span class="detail-label">Date:</span><span class="detail-value">{{ booking.travel_date|date:"M d, Y" }}</span></div>
+        <div class="detail-row"><span class="detail-label">Time:</span><span class="detail-value">{{ booking.schedule.departure_time|time:"g:i A" }}</span></div>
+        <div class="detail-row"><span class="detail-label">Seats:</span><span class="detail-value">{{ booking.seat_numbers }}</span></div>
+        <div class="detail-row"><span class="detail-label">Total:</span><span class="detail-value">৳{{ booking.total_amount }}</span></div>
+    </div>
+    
+    <a href="{% url 'schedule' %}" class="btn-schedule">Back to Schedule</a>
+</div>
+{% endblock %}

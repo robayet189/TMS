@@ -30,8 +30,7 @@
         </div>
         <div class="route-time">Fare: ৳{{ schedule.fare }}</div>
 
-        <button class="btn-book"
-                onclick="openBookingModal({{ schedule.id }})"
+        <button class="btn-book" onclick="window.location.href='/trip-summary/{{ schedule.id }}/'">
                 {% if schedule.available_seats == 0 %}disabled{% endif %}>
             {% if schedule.available_seats > 0 %}
                 Book Now →

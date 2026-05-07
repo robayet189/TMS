@@ -1,0 +1,43 @@
+{% extends 'app1/base.html' %}
+
+{% block content %}
+<style>
+    body { background: #f0f2f5; font-family: 'DM Sans', sans-serif; }
+    .summary-container { max-width: 600px; margin: 40px auto; padding: 20px; }
+    .page-title { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px; }
+    .steps { display: flex; justify-content: space-between; margin: 30px 0; }
+    .step { text-align: center; flex: 1; }
+    .step-number { width: 40px; height: 40px; background: #e0e0e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: bold; color: #666; }
+    .step.active .step-number { background: #ff4757; color: white; }
+    .step-label { font-size: 12px; color: #666; }
+    .step.active .step-label { color: #ff4757; font-weight: bold; }
+    .summary-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: 30px 0; }
+    .summary-title { font-size: 20px; font-weight: bold; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ff4757; }
+    .summary-row { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #eee; }
+    .summary-label { color: #666; font-weight: 500; }
+    .summary-value { color: #333; font-weight: bold; }
+    .btn-continue { width: 100%; padding: 15px; background: #ff4757; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; text-align: center; display: inline-block; text-decoration: none; }
+</style>
+
+<div class="summary-container">
+    <h1 class="page-title">Book Your Seat</h1>
+    <p>Complete your reservation in a few simple steps.</p>
+    
+    <div class="steps">
+        <div class="step active"><div class="step-number">1</div><div class="step-label">Select Trip</div></div>
+        <div class="step"><div class="step-number">2</div><div class="step-label">Choose Seat</div></div>
+        <div class="step"><div class="step-number">3</div><div class="step-label">Confirm & Pay</div></div>
+    </div>
+    
+    <div class="summary-card">
+        <div class="summary-title">Trip Summary</div>
+        <div class="summary-row"><span class="summary-label">ROUTE</span><span class="summary-value">{{ route.from }} → {{ route.to }} ({{ route.code }})</span></div>
+        <div class="summary-row"><span class="summary-label">TIME</span><span class="summary-value">{{ schedule.travel_date|date:"l, F d, Y" }}, {{ route.departure }}</span></div>
+        <div class="summary-row"><span class="summary-label">BUS</span><span class="summary-value">{{ route.bus }} {% if route.ac %}(AC){% else %}(Non-AC){% endif %}</span></div>
+        <div class="summary-row"><span class="summary-label">FARE</span><span class="summary-value">৳ {{ route.fare }} per seat</span></div>
+        <div class="summary-row"><span class="summary-label">AVAILABLE SEATS</span><span class="summary-value">{{ route.seats }} seats left</span></div>
+    </div>
+    
+    <a href="{% url 'seat_selection' schedule.id %}" class="btn-continue">Continue to Seat Selection →</a>
+</div>
+{% endblock %}
