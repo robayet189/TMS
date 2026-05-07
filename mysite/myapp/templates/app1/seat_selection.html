@@ -102,38 +102,46 @@
 </div>
 
 <script>
-
-    let selectedSeats = [];
-    const fareAmount = Number('{{ route.fare|default:"0"|escapejs }}');
-
     let selectedSeat = null;
     const seatFare = Number("{{ route.fare|default:0 }}");
 
-    
+    // Make available seats clickable
     document.querySelectorAll('.seat.available').forEach(seat => {
         seat.addEventListener('click', function() {
-            // Deselect previous
-            document.querySelectorAll('.seat.selected').forEach(s => s.classList.remove('selected'));
-            
-            // Select new
+            // Deselect previous seat
+            if (selectedSeat) {
+                const prevSeat = document.querySelector(`.seat[data-seat="${selectedSeat}"]`);
+                if (prevSeat) prevSeat.classList.remove('selected');
+            }
+
+            // Select new seat
             this.classList.add('selected');
             selectedSeat = this.dataset.seat;
             updateSummary();
         });
     });
-    
+
     function updateSummary() {
-
-        document.getElementById('seatNumbers').value = selectedSeats.join(', ');
-        document.getElementById('totalAmount').innerText = selectedSeats.length * fareAmount;
-        document.getElementById('selectedSeatsList').innerHTML = selectedSeats.map(s => `<div class="seat-badge">Seat ${s}</div>`).join('');
-        document.getElementById('confirmBtn').disabled = selectedSeats.length === 0;
-
+        // Update hidden input
         document.getElementById('seatNumber').value = selectedSeat || '';
-        document.getElementById('totalAmount').innerText = selectedSeat ? seatFare : 0;
-        document.getElementById('selectedSeatsList').innerHTML = selectedSeat ? `<div class="seat-badge">Seat ${selectedSeat}</div>` : '';
-        document.getElementById('confirmBtn').disabled = !selectedSeat;
 
+        // Update total amount
+        const total = selectedSeat ? seatFare : 0;
+        document.getElementById('totalAmount').innerText = total;
+
+        // Update selected seats display
+        const selectedSeatsList = document.getElementById('selectedSeatsList');
+        if (selectedSeat) {
+            selectedSeatsList.innerHTML = `<div class="seat-badge">Seat ${selectedSeat}</div>`;
+        } else {
+            selectedSeatsList.innerHTML = '';
+        }
+
+        // Enable/disable confirm button
+        document.getElementById('confirmBtn').disabled = !selectedSeat;
     }
+
+    // Initialize (in case no seat is selected)
+    updateSummary();
 </script>
 {% endblock %}
