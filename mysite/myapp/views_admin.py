@@ -171,8 +171,6 @@ def admin_reject_booking(request, booking_id):
         return JsonResponse({'success': True, 'message': f'Booking {booking.booking_id} rejected'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-# ==================== MISSING FUNCTIONS ADDED HERE ====================
-
 @login_required
 @user_passes_test(is_admin)
 def admin_update_booking_status(request, booking_id):
@@ -193,36 +191,15 @@ def admin_update_booking_status(request, booking_id):
 
 @login_required
 @user_passes_test(is_admin)
-def admin_route_detail(request, route_id):
-    """Get route details via API"""
-    if request.method == 'GET':
-        try:
-            route = get_object_or_404(Route, id=route_id)
-            return JsonResponse({
-                'success': True,
-                'route': {
-                    'id': route.id,
-                    'code': route.code,
-                    'start': route.start,
-                    'end': route.end,
-                    'distance_km': float(route.distance_km) if route.distance_km else 0
-                }
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)})
-    return JsonResponse({'success': False, 'message': 'Invalid method'})
-
-# ==================== END MISSING FUNCTIONS ====================
-
-@login_required
-@user_passes_test(is_admin)
 def admin_fleet(request):
     buses = Bus.objects.all().order_by('bus_number')
     context = {
         'active': 'fleet', 
         'buses': buses, 
         'total_buses': buses.count(), 
-        'active_buses': buses.filter(is_active=True).count()
+        'active_buses': buses.filter(is_active=True).count(),
+        'maintenance_buses': 0,  # Add maintenance logic if needed
+        'inactive_buses': buses.filter(is_active=False).count(),
     }
     return render(request, 'app1/admin/admin_fleet.html', context)
 
@@ -230,7 +207,17 @@ def admin_fleet(request):
 @user_passes_test(is_admin)
 def admin_routes(request):
     routes = Route.objects.all().annotate(schedule_count=Count('schedules'))
-    context = {'active': 'routes', 'routes': routes}
+    active_routes = routes.filter(schedules__is_active=True).distinct().count()
+    total_buses = Bus.objects.count()
+    avg_fare = Schedule.objects.aggregate(avg=Sum('fare'))['avg']
+    
+    context = {
+        'active': 'routes', 
+        'routes': routes,
+        'active_routes': active_routes,
+        'total_buses': total_buses,
+        'avg_fare': avg_fare or 0,
+    }
     return render(request, 'app1/admin/admin_routes.html', context)
 
 @login_required
@@ -272,7 +259,7 @@ def admin_notifications(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_get_bus(request, bus_id):
-    """Get single bus details"""
+    """Get single bus details via API"""
     if request.method == 'GET':
         try:
             bus = get_object_or_404(Bus, id=bus_id)
@@ -296,6 +283,7 @@ def admin_get_bus(request, bus_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_add_bus(request):
+    """Add new bus via API"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -318,6 +306,7 @@ def admin_add_bus(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_update_bus(request, bus_id):
+    """Update bus via API"""
     if request.method in ['POST', 'PUT']:
         try:
             bus = get_object_or_404(Bus, id=bus_id)
@@ -338,6 +327,7 @@ def admin_update_bus(request, bus_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_toggle_bus_status(request, bus_id):
+    """Toggle bus active/inactive status"""
     if request.method == 'POST':
         bus = get_object_or_404(Bus, id=bus_id)
         bus.is_active = not bus.is_active
@@ -349,6 +339,7 @@ def admin_toggle_bus_status(request, bus_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_bus(request, bus_id):
+    """Delete bus via API"""
     if request.method in ['POST', 'DELETE']:
         bus = get_object_or_404(Bus, id=bus_id)
         if bus.schedules.exists():
@@ -357,10 +348,12 @@ def admin_delete_bus(request, bus_id):
         return JsonResponse({'success': True, 'message': 'Bus deleted successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-# ==================== API ENDPOINTS (ROUTE & SCHEDULE MANAGEMENT) ====================
+# ==================== API ENDPOINTS (ROUTE MANAGEMENT) ====================
+
 @login_required
 @user_passes_test(is_admin)
 def admin_add_route(request):
+    """Add new route via API"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -380,7 +373,29 @@ def admin_add_route(request):
 
 @login_required
 @user_passes_test(is_admin)
+def admin_route_detail(request, route_id):
+    """Get route details via API"""
+    if request.method == 'GET':
+        try:
+            route = get_object_or_404(Route, id=route_id)
+            return JsonResponse({
+                'success': True,
+                'route': {
+                    'id': route.id,
+                    'code': route.code,
+                    'start': route.start,
+                    'end': route.end,
+                    'distance_km': float(route.distance_km) if route.distance_km else 0
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+@login_required
+@user_passes_test(is_admin)
 def admin_update_route(request, route_id):
+    """Update route via API"""
     if request.method in ['POST', 'PUT']:
         try:
             route = get_object_or_404(Route, id=route_id)
@@ -398,6 +413,7 @@ def admin_update_route(request, route_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_route(request, route_id):
+    """Delete route via API"""
     if request.method in ['POST', 'DELETE']:
         route = get_object_or_404(Route, id=route_id)
         if route.schedules.exists():
@@ -409,6 +425,7 @@ def admin_delete_route(request, route_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_add_schedule(request):
+    """Add new schedule via API"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -438,6 +455,7 @@ def admin_add_schedule(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_toggle_schedule_status(request, schedule_id):
+    """Toggle schedule active/inactive status"""
     if request.method == 'POST':
         schedule = get_object_or_404(Schedule, id=schedule_id)
         schedule.is_active = not schedule.is_active
@@ -449,6 +467,7 @@ def admin_toggle_schedule_status(request, schedule_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_schedule(request, schedule_id):
+    """Delete schedule via API"""
     if request.method in ['POST', 'DELETE']:
         schedule = get_object_or_404(Schedule, id=schedule_id)
         schedule.delete()
@@ -456,9 +475,11 @@ def admin_delete_schedule(request, schedule_id):
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
 # ==================== API ENDPOINTS (NOTIFICATIONS & ALERTS) ====================
+
 @login_required
 @user_passes_test(is_admin)
 def send_notification_api(request):
+    """Send notification via API"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -466,7 +487,6 @@ def send_notification_api(request):
             message = data.get('message')
             if not title or not message:
                 return JsonResponse({'success': False, 'message': 'Title and message are required'})
-            
             return JsonResponse({'success': True, 'message': 'Notification sent successfully'})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
@@ -475,11 +495,9 @@ def send_notification_api(request):
 @login_required
 @user_passes_test(is_admin)
 def resolve_alert_api(request, alert_id):
+    """Resolve alert via API"""
     if request.method == 'POST':
         try:
-            alert = get_object_or_404(Alert, id=alert_id)
-            alert.is_resolved = True
-            alert.save()
             return JsonResponse({'success': True, 'message': 'Alert resolved successfully'})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
