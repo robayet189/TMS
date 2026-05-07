@@ -171,6 +171,49 @@ def admin_reject_booking(request, booking_id):
         return JsonResponse({'success': True, 'message': f'Booking {booking.booking_id} rejected'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
+# ==================== MISSING FUNCTIONS ADDED HERE ====================
+
+@login_required
+@user_passes_test(is_admin)
+def admin_update_booking_status(request, booking_id):
+    """Update booking status via API"""
+    if request.method == 'POST':
+        try:
+            booking = get_object_or_404(Booking, booking_id=booking_id)
+            data = json.loads(request.body)
+            new_status = data.get('status')
+            if new_status and new_status in dict(Booking.STATUS_CHOICES):
+                booking.status = new_status
+                booking.save()
+                return JsonResponse({'success': True, 'message': 'Booking status updated successfully'})
+            return JsonResponse({'success': False, 'message': 'Invalid status provided'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+@login_required
+@user_passes_test(is_admin)
+def admin_route_detail(request, route_id):
+    """Get route details via API"""
+    if request.method == 'GET':
+        try:
+            route = get_object_or_404(Route, id=route_id)
+            return JsonResponse({
+                'success': True,
+                'route': {
+                    'id': route.id,
+                    'code': route.code,
+                    'start': route.start,
+                    'end': route.end,
+                    'distance_km': float(route.distance_km) if route.distance_km else 0
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+# ==================== END MISSING FUNCTIONS ====================
+
 @login_required
 @user_passes_test(is_admin)
 def admin_fleet(request):
@@ -434,6 +477,9 @@ def send_notification_api(request):
 def resolve_alert_api(request, alert_id):
     if request.method == 'POST':
         try:
+            alert = get_object_or_404(Alert, id=alert_id)
+            alert.is_resolved = True
+            alert.save()
             return JsonResponse({'success': True, 'message': 'Alert resolved successfully'})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
