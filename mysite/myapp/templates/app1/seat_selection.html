@@ -62,9 +62,9 @@
             <div class="seat-row">
                 <span class="row-label">Row {{ row|add:1 }}</span>
                 {% for seat in seats_per_row %}
-                    {% with seat_num=row|add:1|stringformat:"s"|add:seat|add:1|stringformat:"s" %}
-                    <div class="seat {% if seat_num in booked_seats %}booked{% else %}available{% endif %}" data-seat="{{ row|add:1 }}{% if seat < 2 %}L{% else %}R{% endif %}{{ seat|add:1 }}">
-                        {{ row|add:1 }}{% if seat < 2 %}{{ seat|add:1 }}{% else %}{{ seat|add:1 }}{% endif %}
+                    {% with seat_num=row|add:1|stringformat:"d"|add:seat|add:1|stringformat:"d" %}
+                    <div class="seat {% if seat_num in booked_seats %}booked{% else %}available{% endif %}" data-seat="{{ seat_num }}">
+                        {{ seat_num }}
                     </div>
                     {% endwith %}
                 {% endfor %}
@@ -86,7 +86,7 @@
         <form method="POST" action="{% url 'confirm_booking_seat' %}">
             {% csrf_token %}
             <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
-            <input type="hidden" name="seat_numbers" id="seatNumbers">
+            <input type="hidden" name="seat_number" id="seatNumber">
             
             <div class="form-group">
                 <label>Passenger Name *</label>
@@ -102,28 +102,38 @@
 </div>
 
 <script>
+
     let selectedSeats = [];
     const fareAmount = Number('{{ route.fare|default:"0"|escapejs }}');
+
+    let selectedSeat = null;
+    const seatFare = Number("{{ route.fare|default:0 }}");
+
     
     document.querySelectorAll('.seat.available').forEach(seat => {
         seat.addEventListener('click', function() {
-            const seatNum = this.dataset.seat;
-            if(this.classList.contains('selected')) {
-                this.classList.remove('selected');
-                selectedSeats = selectedSeats.filter(s => s !== seatNum);
-            } else {
-                this.classList.add('selected');
-                selectedSeats.push(seatNum);
-            }
+            // Deselect previous
+            document.querySelectorAll('.seat.selected').forEach(s => s.classList.remove('selected'));
+            
+            // Select new
+            this.classList.add('selected');
+            selectedSeat = this.dataset.seat;
             updateSummary();
         });
     });
     
     function updateSummary() {
+
         document.getElementById('seatNumbers').value = selectedSeats.join(', ');
         document.getElementById('totalAmount').innerText = selectedSeats.length * fareAmount;
         document.getElementById('selectedSeatsList').innerHTML = selectedSeats.map(s => `<div class="seat-badge">Seat ${s}</div>`).join('');
         document.getElementById('confirmBtn').disabled = selectedSeats.length === 0;
+
+        document.getElementById('seatNumber').value = selectedSeat || '';
+        document.getElementById('totalAmount').innerText = selectedSeat ? seatFare : 0;
+        document.getElementById('selectedSeatsList').innerHTML = selectedSeat ? `<div class="seat-badge">Seat ${selectedSeat}</div>` : '';
+        document.getElementById('confirmBtn').disabled = !selectedSeat;
+
     }
 </script>
 {% endblock %}

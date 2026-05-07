@@ -26,10 +26,11 @@
     </div>
 </div>
 
-<!-- Search -->
+<!-- Search + Add Button -->
 <div class="search-wrap">
     <span class="search-icon">🔍</span>
     <input type="text" id="searchInput" class="search-input" placeholder="Search routes by code or location..." onkeyup="filterRoutes()">
+    <button class="btn-add" onclick="openAddRouteModal()" style="margin-left:10px; padding:10px 20px; background:var(--accent-red); color:white; border:none; border-radius:12px; cursor:pointer; font-weight:600;">➕ Add New Route</button>
 </div>
 
 <!-- Routes Grid -->
@@ -68,7 +69,8 @@
         <div class="card-footer">
             <span class="buses-text"><strong>{{ route.schedule_count|default:0 }}</strong> schedule(s)</span>
             <div class="card-actions">
-                <button class="action-btn edit" data-route-id="{{ route.id }}" onclick="addSchedule(this.dataset.routeId)" title="Add Schedule">➕</button>
+                <button class="action-btn edit" data-route-id="{{ route.id }}" onclick="editRoute(this.dataset.routeId)" title="Edit Route">✏️</button>
+                <button class="action-btn add-schedule" data-route-id="{{ route.id }}" onclick="openAddScheduleModal(this.dataset.routeId)" title="Add Schedule">➕</button>
                 <button class="action-btn del" data-route-id="{{ route.id }}" data-route-code="{{ route.code|escapejs }}" onclick="deleteRoute(this.dataset.routeId, this.dataset.routeCode)" title="Delete Route">🗑️</button>
             </div>
         </div>
@@ -92,7 +94,7 @@
             <div class="form-fields">
                 <div class="field">
                     <label>Route Code *</label>
-                    <input type="text" id="routeCode" required placeholder="e.g., A1, B3, C2">
+                    <input type="text" id="routeCode" required placeholder="e.g., A1, B3, C2" pattern="[A-Za-z0-9]+" title="Only letters and numbers">
                 </div>
                 <div class="form-row">
                     <div class="field">
@@ -106,7 +108,7 @@
                 </div>
                 <div class="field">
                     <label>Distance (km)</label>
-                    <input type="number" id="routeDistance" step="0.1" placeholder="e.g., 18.5">
+                    <input type="number" id="routeDistance" step="0.1" min="0" placeholder="e.g., 18.5">
                 </div>
             </div>
 
@@ -118,13 +120,81 @@
     </div>
 </div>
 
+<!-- ✅ NEW: Add Schedule Modal -->
+<div id="scheduleModal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="scheduleModalTitle">Add New Schedule</h2>
+            <button class="modal-close" onclick="closeScheduleModal()">×</button>
+        </div>
+        <form id="scheduleForm" onsubmit="saveSchedule(event)">
+            {% csrf_token %}
+            <input type="hidden" id="scheduleRouteId">
+            
+            <div class="form-fields">
+                <div class="field">
+                    <label>Route</label>
+                    <input type="text" id="scheduleRouteDisplay" readonly style="background:rgba(255,255,255,0.1);">
+                </div>
+                
+                <div class="form-row">
+                    <div class="field">
+                        <label>Bus *</label>
+                        <select id="scheduleBus" required>
+                            <option value="">Select Bus</option>
+                            {% for bus in buses|default:"" %}
+                            <option value="{{ bus.id }}">{{ bus.bus_number }} ({{ bus.capacity }} seats)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Travel Date *</label>
+                        <input type="date" id="scheduleDate" required min="{{ today|date:'Y-m-d' }}">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="field">
+                        <label>Departure Time *</label>
+                        <input type="time" id="departureTime" required>
+                    </div>
+                    <div class="field">
+                        <label>Arrival Time</label>
+                        <input type="time" id="arrivalTime">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="field">
+                        <label>Fare (৳) *</label>
+                        <input type="number" id="scheduleFare" step="0.01" min="0" required placeholder="e.g., 60.00">
+                    </div>
+                    <div class="field">
+                        <label>Available Seats</label>
+                        <input type="number" id="availableSeats" min="1" placeholder="Auto-filled from bus">
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label><input type="checkbox" id="scheduleActive" checked> Active Schedule</label>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeScheduleModal()">Cancel</button>
+                <button type="submit" class="btn-submit">Save Schedule</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
 .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:20px; }
 .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; }
 .stat-label { font-size:13px; color:var(--text-muted); margin-bottom:6px; }
 .stat-value { font-size:28px; font-weight:700; }
 
-.search-wrap { position:relative; margin-bottom:20px; }
+.search-wrap { position:relative; margin-bottom:20px; display:flex; align-items:center; }
 .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-muted); }
 .search-input { width:100%; padding:10px 14px 10px 42px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:14px; }
 
@@ -156,19 +226,21 @@
 .action-btn { width:32px; height:32px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.15s; }
 .action-btn:hover { transform:scale(1.1); }
 .action-btn.edit { background:rgba(138,99,255,0.1); color:var(--accent-purple); }
+.action-btn.add-schedule { background:rgba(0,200,150,0.1); color:var(--accent-green); }
 .action-btn.del { background:rgba(255,71,87,0.1); color:var(--accent-red); }
 
 .empty { grid-column:1/-1; text-align:center; padding:60px; color:var(--text-muted); }
 
 /* Modal */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:1000; backdrop-filter:blur(4px); }
-.modal { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; width:90%; max-width:500px; padding:24px; }
+.modal { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; width:90%; max-width:550px; padding:24px; max-height:90vh; overflow-y:auto; }
 .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
 .modal-close { background:none; border:none; color:var(--text-muted); font-size:24px; cursor:pointer; }
 .form-fields { display:flex; flex-direction:column; gap:16px; }
 .form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .field label { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:6px; }
-.field input { width:100%; padding:10px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; color:var(--text-primary); font-size:14px; }
+.field input, .field select { width:100%; padding:10px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; color:var(--text-primary); font-size:14px; }
+.field input[readonly] { cursor:not-allowed; }
 .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
 .btn-cancel, .btn-submit { flex:1; padding:12px; border-radius:10px; border:none; font-weight:600; cursor:pointer; }
 .btn-cancel { background:rgba(255,255,255,0.05); color:var(--text-primary); }
@@ -182,6 +254,9 @@
 </style>
 
 <script>
+// Store buses data for schedule modal
+const busesData = JSON.parse('{{ buses|default:"[]"|escapejs }}');
+
 function filterRoutes() {
     const q = document.getElementById('searchInput').value.toLowerCase();
     document.querySelectorAll('.route-card').forEach(card => {
@@ -201,6 +276,31 @@ function closeRouteModal() {
     document.getElementById('routeModal').style.display = 'none'; 
 }
 
+function editRoute(routeId) {
+    fetch(`/admin_page/api/route/${routeId}/`, {
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            const route = data.route;
+            document.getElementById('routeModalTitle').textContent = 'Edit Route';
+            document.getElementById('editRouteId').value = route.id;
+            document.getElementById('routeCode').value = route.code;
+            document.getElementById('routeStart').value = route.start;
+            document.getElementById('routeEnd').value = route.end;
+            document.getElementById('routeDistance').value = route.distance_km || '';
+            document.getElementById('routeModal').style.display = 'flex';
+        } else {
+            showToast(data.message, true);
+        }
+    })
+    .catch(error => {
+        showToast('Failed to load route data', true);
+        console.error('Error:', error);
+    });
+}
+
 function saveRoute(e) {
     e.preventDefault();
     const routeId = document.getElementById('editRouteId').value;
@@ -211,7 +311,7 @@ function saveRoute(e) {
         code: document.getElementById('routeCode').value.trim().toUpperCase(),
         start: document.getElementById('routeStart').value.trim(),
         end: document.getElementById('routeEnd').value.trim(),
-        distance_km: document.getElementById('routeDistance').value || null
+        distance_km: document.getElementById('routeDistance').value ? parseFloat(document.getElementById('routeDistance').value) : null
     };
     
     fetch(url, {
@@ -256,10 +356,109 @@ function deleteRoute(routeId, routeCode) {
     });
 }
 
-function addSchedule(routeId) {
-    showToast(`Add schedule for Route ${routeId}`);
-    // You can redirect to schedule creation page or open a modal
-    // window.location.href = `/admin_page/schedules/new/?route=${routeId}`;
+// ✅ FIXED: Modal-based Schedule Creation
+function openAddScheduleModal(routeId) {
+    // Fetch route details to display in modal
+    fetch(`/admin_page/api/route/${routeId}/`, {
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            const route = data.route;
+            document.getElementById('scheduleModalTitle').textContent = 'Add Schedule for Route ' + route.code;
+            document.getElementById('scheduleRouteId').value = routeId;
+            document.getElementById('scheduleRouteDisplay').value = `${route.code}: ${route.start} → ${route.end}`;
+            
+            // Reset form
+            document.getElementById('scheduleForm').reset();
+            document.getElementById('scheduleDate').min = new Date().toISOString().split('T')[0];
+            
+            // Set today as default date
+            document.getElementById('scheduleDate').value = new Date().toISOString().split('T')[0];
+            
+            // Populate bus dropdown if not already populated
+            const busSelect = document.getElementById('scheduleBus');
+            if(busSelect.options.length <= 1) {
+                // Fetch buses if not available in context
+                fetch('/admin_page/api/get-buses/', {
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                })
+                .then(res => res.json())
+                .then(busData => {
+                    if(busData.success) {
+                        busData.buses.forEach(bus => {
+                            const option = document.createElement('option');
+                            option.value = bus.id;
+                            option.textContent = `${bus.bus_number} (${bus.capacity} seats)`;
+                            option.dataset.capacity = bus.capacity;
+                            busSelect.appendChild(option);
+                        });
+                    }
+                });
+            }
+            
+            // Add event listener to update available seats when bus changes
+            busSelect.onchange = function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const capacity = selectedOption.dataset.capacity;
+                if(capacity) {
+                    document.getElementById('availableSeats').value = capacity;
+                }
+            };
+            
+            document.getElementById('scheduleModal').style.display = 'flex';
+        } else {
+            showToast('Failed to load route details', true);
+        }
+    })
+    .catch(error => {
+        showToast('Failed to load route', true);
+        console.error('Error:', error);
+    });
+}
+
+function closeScheduleModal() {
+    document.getElementById('scheduleModal').style.display = 'none';
+    document.getElementById('scheduleForm').reset();
+}
+
+function saveSchedule(e) {
+    e.preventDefault();
+    
+    const formData = {
+        route: parseInt(document.getElementById('scheduleRouteId').value),
+        bus: parseInt(document.getElementById('scheduleBus').value),
+        travel_date: document.getElementById('scheduleDate').value,
+        departure_time: document.getElementById('departureTime').value,
+        arrival_time: document.getElementById('arrivalTime').value || null,
+        fare: parseFloat(document.getElementById('scheduleFare').value),
+        available_seats: parseInt(document.getElementById('availableSeats').value) || null,
+        is_active: document.getElementById('scheduleActive').checked
+    };
+    
+    fetch('/admin_page/api/add-schedule/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            showToast(data.message);
+            closeScheduleModal();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message, true);
+        }
+    })
+    .catch(error => {
+        showToast('Failed to create schedule', true);
+        console.error('Error:', error);
+    });
 }
 
 function showToast(msg, isError = false) {
@@ -292,9 +491,19 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// Close modal when clicking outside
-document.getElementById('routeModal').addEventListener('click', function(e) { 
+// Close modals when clicking outside
+document.getElementById('routeModal')?.addEventListener('click', function(e) { 
     if(e.target === this) closeRouteModal(); 
+});
+document.getElementById('scheduleModal')?.addEventListener('click', function(e) { 
+    if(e.target === this) closeScheduleModal(); 
+});
+
+// Initialize: Set min date for schedule
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('scheduleDate');
+    if(dateInput) dateInput.min = today;
 });
 </script>
 {% endblock %}

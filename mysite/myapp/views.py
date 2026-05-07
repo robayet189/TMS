@@ -13,6 +13,7 @@ from django.contrib.auth.hashers import check_password
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
+from django.urls import reverse
 from .models import UserProfile, Route, Bus, Schedule, Booking
 import json, random, string, re
 from datetime import datetime, timedelta
@@ -98,7 +99,6 @@ def register_user(request):
             user_type=user_type, institution_id=institution_id
         )
         
-        # ✅ FIXED: No auto-login. Redirect to account_created page.
         return JsonResponse({
             'success': True, 
             'message': 'Account created successfully! Please login to continue.',
@@ -119,7 +119,6 @@ def login_user(request):
     
     user = None
     
-    # ✅ Try to find user by email first (case-insensitive)
     if '@' in username_or_email:
         try:
             user_obj = User.objects.get(email__iexact=username_or_email)
@@ -127,13 +126,11 @@ def login_user(request):
         except User.DoesNotExist:
             user = None
     else:
-        # ✅ Try to authenticate with username directly
         user = authenticate(request, username=username_or_email, password=password)
     
     if user is not None:
         login(request, user)
         
-        # ✅ Safe admin detection (case-insensitive)
         is_admin = False
         try:
             if hasattr(user, 'profile'):
@@ -261,7 +258,7 @@ def password_reset_request(request):
     except User.DoesNotExist:
         return JsonResponse({'success': True, 'message': 'If an account exists, a reset link has been sent.'})
 
-# ==================== DASHBOARD & SCHEDULE (With AJAX Support) ====================
+# ==================== DASHBOARD & SCHEDULE ====================
 
 @login_required
 def dashboard(request):
@@ -278,7 +275,7 @@ def dashboard(request):
     ).select_related('schedule__route', 'schedule__bus').order_by('-schedule__travel_date')[:3]
     
     total_bookings = Booking.objects.filter(user=user, status='confirmed').count()
-    total_spent = Booking.objects.filter(user=user, status='confirmed').aggregate(total=Sum('total_amount'))['total'] or 0
+    total_spent = Booking.objects.filter(user=user, status='confirmed').aggregate(total=Sum('amount'))['total'] or 0
     
     context = {
         'first_name': user.first_name,
@@ -325,7 +322,7 @@ def schedule_details(request, schedule_id):
         }
     })
 
-# ==================== PROFILE & EDIT PROFILE (With AJAX Support) ====================
+# ==================== PROFILE & EDIT PROFILE ====================
 
 @login_required
 def profile(request):
@@ -415,7 +412,6 @@ def renew_pass(request):
         profile.is_pass_active = True
         profile.pass_valid_until = new_expiry
         
-        # ✅ Use random pass ID for uniqueness
         if not profile.pass_id:
             profile.pass_id = f"PASS-{random.randint(100000, 999999)}"
         
@@ -426,7 +422,7 @@ def renew_pass(request):
         return redirect('profile')
     return redirect('profile')
 
-# ==================== BOOKING SYSTEM (Merged: Simple + Advanced) ====================
+# ==================== BOOKING SYSTEM ====================
 
 @login_required
 def book_ticket(request, schedule_id):
@@ -435,7 +431,6 @@ def book_ticket(request, schedule_id):
         try:
             schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
             
-            # Get data from request (support both JSON & form)
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
                 number_of_seats = int(data.get('seats', 1))
@@ -452,10 +447,11 @@ def book_ticket(request, schedule_id):
             total_amount = schedule.fare * number_of_seats
             
             booking = Booking.objects.create(
-                user=request.user, schedule=schedule, number_of_seats=number_of_seats,
-                total_amount=total_amount, status='confirmed', payment_status='paid',
+                user=request.user, schedule=schedule, 
+                seat_number=f"A{number_of_seats}",
+                amount=total_amount,
+                status='confirmed', payment_method='cash',
                 passenger_name=passenger_name or request.user.get_full_name(),
-                passenger_phone=passenger_phone or getattr(request.user.profile, 'phone', '')
             )
             
             schedule.available_seats -= number_of_seats
@@ -485,7 +481,7 @@ def my_bookings(request):
     context = {
         'bookings': bookings,
         'active_count': bookings.filter(status='confirmed').count(),
-        'total_spent': sum(b.total_amount for b in bookings.filter(status='confirmed'))
+        'total_spent': sum(b.amount for b in bookings.filter(status='confirmed'))
     }
     if is_ajax(request):
         return render(request, 'app1/partials/bookings_content.html', context)
@@ -509,11 +505,11 @@ def cancel_booking(request, booking_id):
             return JsonResponse({'success': False, 'error': 'Booking already cancelled'}, status=400)
         if booking.status == 'confirmed':
             schedule = booking.schedule
-            schedule.available_seats += booking.number_of_seats
+            schedule.available_seats += 1
             schedule.save()
             booking.status = 'cancelled'
             booking.save()
-            return JsonResponse({'success': True, 'message': 'Booking cancelled successfully', 'refund_amount': f"৳{booking.total_amount}"})
+            return JsonResponse({'success': True, 'message': 'Booking cancelled successfully', 'refund_amount': f"৳{booking.amount}"})
     return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
 
 @login_required
@@ -526,17 +522,14 @@ def check_seat_availability(request, schedule_id):
         'fare': float(schedule.fare)
     })
 
-# ==================== BUS BOOKING FUNCTIONS (From Incoming) ====================
+# ==================== BUS BOOKING FUNCTIONS ====================
 
 @login_required
 def select_seats(request, schedule_id):
     """Seat selection page"""
     schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
-    booked_seats = Booking.objects.filter(schedule=schedule, status='confirmed').values_list('seat_numbers', flat=True)
-    booked_seat_list = []
-    for seats in booked_seats:
-        if seats:
-            booked_seat_list.extend([s.strip() for s in seats.split(',')])
+    booked_seats = Booking.objects.filter(schedule=schedule, status='confirmed').values_list('seat_number', flat=True)
+    booked_seat_list = [s for s in booked_seats if s]
     context = {
         'schedule': schedule, 'rows': range(5), 'seats_per_row': range(8), 'booked_seats': booked_seat_list,
     }
@@ -544,23 +537,25 @@ def select_seats(request, schedule_id):
 
 @login_required
 def confirm_booking(request):
-    """Confirm booking"""
+    """Confirm booking - FIXED: Removed travel_date"""
     if request.method == 'POST':
         schedule_id = request.POST.get('schedule_id')
-        seat_numbers = request.POST.get('seat_numbers')
+        seat_number = request.POST.get('seat_number')
         passenger_name = request.POST.get('passenger_name')
         passenger_phone = request.POST.get('passenger_phone')
         schedule = get_object_or_404(Schedule, id=schedule_id)
-        seats_list = [s.strip() for s in seat_numbers.split(',')]
-        total_amount = schedule.fare * len(seats_list)
+        total_amount = schedule.fare
         
+        # ✅ FIXED: Removed travel_date (not a Booking model field)
         booking = Booking.objects.create(
-            user=request.user, schedule=schedule, number_of_seats=len(seats_list),
-            seat_numbers=seat_numbers, total_amount=total_amount,
-            passenger_name=passenger_name, passenger_phone=passenger_phone,
-            travel_date=schedule.travel_date, status='confirmed'
+            user=request.user, schedule=schedule,
+            seat_number=seat_number,
+            amount=total_amount,
+            passenger_name=passenger_name,
+            payment_method='cash',
+            status='confirmed'
         )
-        schedule.available_seats -= len(seats_list)
+        schedule.available_seats -= 1
         schedule.save()
         messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
         return redirect('booking_confirmation', booking_id=booking.booking_id)
@@ -575,7 +570,7 @@ def booking_confirmation(request, booking_id):
 def bus_schedule(request):
     return render(request, 'app1/bus_schedule.html')
 
-# ==================== 2-STEP BOOKING SYSTEM (From Incoming) ====================
+# ==================== 2-STEP BOOKING SYSTEM ====================
 
 @login_required
 def trip_summary(request, schedule_id):
@@ -599,11 +594,8 @@ def seat_selection(request, schedule_id):
     schedule = get_object_or_404(Schedule, id=schedule_id, is_active=True)
     total_seats = schedule.bus.capacity
     rows = total_seats // 4
-    booked_seats = Booking.objects.filter(schedule=schedule, status='confirmed').values_list('seat_numbers', flat=True)
-    booked_seat_list = []
-    for seats in booked_seats:
-        if seats:
-            booked_seat_list.extend([s.strip() for s in seats.split(',')])
+    booked_seats = Booking.objects.filter(schedule=schedule, status='confirmed').values_list('seat_number', flat=True)
+    booked_seat_list = [s for s in booked_seats if s]
     context = {
         'schedule': schedule,
         'route': {
@@ -618,23 +610,25 @@ def seat_selection(request, schedule_id):
 
 @login_required
 def confirm_booking_seat(request):
-    """Step 3: Confirm Booking after seat selection"""
+    """Step 3: Confirm Booking after seat selection - FIXED: Removed travel_date"""
     if request.method == 'POST':
         schedule_id = request.POST.get('schedule_id')
-        seat_numbers = request.POST.get('seat_numbers')
+        seat_number = request.POST.get('seat_number')
         passenger_name = request.POST.get('passenger_name')
         passenger_phone = request.POST.get('passenger_phone')
         schedule = get_object_or_404(Schedule, id=schedule_id)
-        seats_list = [s.strip() for s in seat_numbers.split(',')]
-        total_amount = schedule.fare * len(seats_list)
+        total_amount = schedule.fare
         
+        # ✅ FIXED: Removed travel_date (not a Booking model field)
         booking = Booking.objects.create(
-            user=request.user, schedule=schedule, number_of_seats=len(seats_list),
-            seat_numbers=seat_numbers, total_amount=total_amount,
-            passenger_name=passenger_name, passenger_phone=passenger_phone,
-            travel_date=schedule.travel_date, status='confirmed', payment_status='paid'
+            user=request.user, schedule=schedule,
+            seat_number=seat_number,
+            amount=total_amount,
+            passenger_name=passenger_name,
+            payment_method='cash',
+            status='confirmed'
         )
-        schedule.available_seats -= len(seats_list)
+        schedule.available_seats -= 1
         schedule.save()
         messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
         return redirect('booking_confirmation_seat', booking_id=booking.booking_id)

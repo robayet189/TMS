@@ -36,7 +36,7 @@ urlpatterns = [
     path('cancel-booking/<str:booking_id>/', views.cancel_booking, name='cancel_booking'),
     path('check-seats/<int:schedule_id>/', views.check_seat_availability, name='check_seat_availability'),
 
-    # ================= ADVANCED / 2-STEP BOOKING SYSTEM (From Incoming) =================
+    # ================= ADVANCED / 2-STEP BOOKING SYSTEM =================
     path('select-seats/<int:schedule_id>/', views.select_seats, name='select_seats'),
     path('confirm-booking/', views.confirm_booking, name='confirm_booking'),
     path('booking-confirmation/<str:booking_id>/', views.booking_confirmation, name='booking_confirmation'),
@@ -64,6 +64,7 @@ urlpatterns = [
     # Admin Fleet Management
     path('admin_page/fleet/', views_admin.admin_fleet, name='admin_fleet'),
     path('admin_page/api/get-bus/<int:bus_id>/', views_admin.admin_get_bus, name='admin_get_bus'),
+    path('admin_page/api/get-buses/', views_admin.admin_get_buses, name='admin_get_buses'),  # ✅ NEW: For schedule modal bus dropdown
     path('admin_page/api/add-bus/', views_admin.admin_add_bus, name='admin_add_bus'),
     path('admin_page/api/update-bus/<int:bus_id>/', views_admin.admin_update_bus, name='admin_update_bus'),
     path('admin_page/api/toggle-bus/<int:bus_id>/', views_admin.admin_toggle_bus_status, name='admin_toggle_bus'),
