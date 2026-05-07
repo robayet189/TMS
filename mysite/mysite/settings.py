@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,6 +49,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'myapp.middleware.AdminRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'mysite.urls'
@@ -55,7 +57,7 @@ ROOT_URLCONF = 'mysite.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -117,21 +119,11 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-import os
-
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# Email Configuration (for testing - prints to console)
+
+# Authentication
 LOGIN_URL = '/login/'
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Next Route Transport <noreply@nextroute.com>'
 
-# Make sure templates directory is included
-import os
-TEMPLATES[0]['DIRS'] = [os.path.join(BASE_DIR, 'templates')]
-
-
-# Email Configuration
+# Email Configuration (Console backend for development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'Next Route <noreply@nextroute.com>'
-
