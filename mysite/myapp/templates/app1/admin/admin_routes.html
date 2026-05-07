@@ -26,10 +26,11 @@
     </div>
 </div>
 
-<!-- Search -->
+<!-- Search + Add Button -->
 <div class="search-wrap">
     <span class="search-icon">🔍</span>
     <input type="text" id="searchInput" class="search-input" placeholder="Search routes by code or location..." onkeyup="filterRoutes()">
+    <button class="btn-add" onclick="openAddRouteModal()" style="margin-left:10px; padding:10px 20px; background:var(--accent-red); color:white; border:none; border-radius:12px; cursor:pointer; font-weight:600;">➕ Add New Route</button>
 </div>
 
 <!-- Routes Grid -->
@@ -68,7 +69,8 @@
         <div class="card-footer">
             <span class="buses-text"><strong>{{ route.schedule_count|default:0 }}</strong> schedule(s)</span>
             <div class="card-actions">
-                <button class="action-btn edit" data-route-id="{{ route.id }}" onclick="addSchedule(this.dataset.routeId)" title="Add Schedule">➕</button>
+                <button class="action-btn edit" data-route-id="{{ route.id }}" onclick="editRoute(this.dataset.routeId)" title="Edit Route">✏️</button>
+                <button class="action-btn add-schedule" data-route-id="{{ route.id }}" onclick="addSchedule(this.dataset.routeId)" title="Add Schedule">➕</button>
                 <button class="action-btn del" data-route-id="{{ route.id }}" data-route-code="{{ route.code|escapejs }}" onclick="deleteRoute(this.dataset.routeId, this.dataset.routeCode)" title="Delete Route">🗑️</button>
             </div>
         </div>
@@ -92,7 +94,7 @@
             <div class="form-fields">
                 <div class="field">
                     <label>Route Code *</label>
-                    <input type="text" id="routeCode" required placeholder="e.g., A1, B3, C2">
+                    <input type="text" id="routeCode" required placeholder="e.g., A1, B3, C2" pattern="[A-Za-z0-9]+" title="Only letters and numbers">
                 </div>
                 <div class="form-row">
                     <div class="field">
@@ -106,7 +108,7 @@
                 </div>
                 <div class="field">
                     <label>Distance (km)</label>
-                    <input type="number" id="routeDistance" step="0.1" placeholder="e.g., 18.5">
+                    <input type="number" id="routeDistance" step="0.1" min="0" placeholder="e.g., 18.5">
                 </div>
             </div>
 
@@ -124,7 +126,7 @@
 .stat-label { font-size:13px; color:var(--text-muted); margin-bottom:6px; }
 .stat-value { font-size:28px; font-weight:700; }
 
-.search-wrap { position:relative; margin-bottom:20px; }
+.search-wrap { position:relative; margin-bottom:20px; display:flex; align-items:center; }
 .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-muted); }
 .search-input { width:100%; padding:10px 14px 10px 42px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:14px; }
 
@@ -156,6 +158,7 @@
 .action-btn { width:32px; height:32px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.15s; }
 .action-btn:hover { transform:scale(1.1); }
 .action-btn.edit { background:rgba(138,99,255,0.1); color:var(--accent-purple); }
+.action-btn.add-schedule { background:rgba(0,200,150,0.1); color:var(--accent-green); }
 .action-btn.del { background:rgba(255,71,87,0.1); color:var(--accent-red); }
 
 .empty { grid-column:1/-1; text-align:center; padding:60px; color:var(--text-muted); }
@@ -201,6 +204,32 @@ function closeRouteModal() {
     document.getElementById('routeModal').style.display = 'none'; 
 }
 
+// ✅ FIXED: Proper editRoute function that fetches data and populates form
+function editRoute(routeId) {
+    fetch(`/admin_page/api/route/${routeId}/`, {
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            const route = data.route;
+            document.getElementById('routeModalTitle').textContent = 'Edit Route';
+            document.getElementById('editRouteId').value = route.id;
+            document.getElementById('routeCode').value = route.code;
+            document.getElementById('routeStart').value = route.start;
+            document.getElementById('routeEnd').value = route.end;
+            document.getElementById('routeDistance').value = route.distance_km || '';
+            document.getElementById('routeModal').style.display = 'flex';
+        } else {
+            showToast(data.message, true);
+        }
+    })
+    .catch(error => {
+        showToast('Failed to load route data', true);
+        console.error('Error:', error);
+    });
+}
+
 function saveRoute(e) {
     e.preventDefault();
     const routeId = document.getElementById('editRouteId').value;
@@ -211,7 +240,7 @@ function saveRoute(e) {
         code: document.getElementById('routeCode').value.trim().toUpperCase(),
         start: document.getElementById('routeStart').value.trim(),
         end: document.getElementById('routeEnd').value.trim(),
-        distance_km: document.getElementById('routeDistance').value || null
+        distance_km: document.getElementById('routeDistance').value ? parseFloat(document.getElementById('routeDistance').value) : null
     };
     
     fetch(url, {
@@ -257,9 +286,8 @@ function deleteRoute(routeId, routeCode) {
 }
 
 function addSchedule(routeId) {
-    showToast(`Add schedule for Route ${routeId}`);
-    // You can redirect to schedule creation page or open a modal
-    // window.location.href = `/admin_page/schedules/new/?route=${routeId}`;
+    showToast(`Redirecting to schedule creation for Route ${routeId}`);
+    window.location.href = `/admin_page/schedules/new/?route=${routeId}`;
 }
 
 function showToast(msg, isError = false) {
