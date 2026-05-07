@@ -103,7 +103,7 @@
 
 <script>
     let selectedSeats = [];
-    const fare = {{ route.fare }};
+    const fareAmount = Number('{{ route.fare|default:"0"|escapejs }}');
     
     document.querySelectorAll('.seat.available').forEach(seat => {
         seat.addEventListener('click', function() {
@@ -121,7 +121,7 @@
     
     function updateSummary() {
         document.getElementById('seatNumbers').value = selectedSeats.join(', ');
-        document.getElementById('totalAmount').innerText = selectedSeats.length * fare;
+        document.getElementById('totalAmount').innerText = selectedSeats.length * fareAmount;
         document.getElementById('selectedSeatsList').innerHTML = selectedSeats.map(s => `<div class="seat-badge">Seat ${s}</div>`).join('');
         document.getElementById('confirmBtn').disabled = selectedSeats.length === 0;
     }
