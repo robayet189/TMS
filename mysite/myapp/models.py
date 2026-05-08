@@ -28,6 +28,7 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username} ({self.user_type})"
 
+
 class Bus(models.Model):
     bus_number = models.CharField(max_length=20, unique=True)
     capacity = models.IntegerField(default=40)
@@ -40,6 +41,7 @@ class Bus(models.Model):
     def __str__(self):
         return self.bus_number
 
+
 class Route(models.Model):
     code = models.CharField(max_length=10, unique=True)
     start = models.CharField(max_length=100)
@@ -48,6 +50,7 @@ class Route(models.Model):
 
     def __str__(self):
         return f"{self.code}: {self.start} → {self.end}"
+
 
 class Schedule(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='schedules')
@@ -64,6 +67,7 @@ class Schedule(models.Model):
 
     def __str__(self):
         return f"{self.route.code} on {self.travel_date}"
+
 
 class Booking(models.Model):
     STATUS_CHOICES = [
@@ -112,13 +116,11 @@ class BusLocation(models.Model):
         return f"{self.bus.bus_number} - {self.latitude}, {self.longitude}"
 
 
-
-
-        # ==================== PAYMENT MODELS ====================
+# ==================== PAYMENT MODELS ====================
 
 class PaymentMethod(models.Model):
     """Available payment methods"""
-    name = models.CharField(max_length=50)  # bKash, Nagad, Card, Bank
+    name = models.CharField(max_length=50)
     code = models.CharField(max_length=20, unique=True)
     is_active = models.BooleanField(default=True)
     icon = models.CharField(max_length=50, blank=True)
@@ -146,19 +148,17 @@ class PaymentTransaction(models.Model):
     booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     
     transaction_id = models.CharField(max_length=100, unique=True, blank=True)
-    payment_method = models.CharField(max_length=50)  # bkash, nagad, card, bank
+    payment_method = models.CharField(max_length=50)
     payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES, default='pass')
     
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
-    # For pass purchases
-    pass_type = models.CharField(max_length=20, blank=True)  # monthly, semester
+    pass_type = models.CharField(max_length=20, blank=True)
     pass_valid_from = models.DateField(null=True, blank=True)
     pass_valid_until = models.DateField(null=True, blank=True)
     
-    # Payment details
-    payment_details = models.JSONField(default=dict, blank=True)  # Store gateway response
+    payment_details = models.JSONField(default=dict, blank=True)
     remarks = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -194,7 +194,7 @@ class UserPass(models.Model):
     is_active = models.BooleanField(default=True)
     
     total_rides = models.IntegerField(default=0)
-    remaining_rides = models.IntegerField(default=0)  # For limited rides
+    remaining_rides = models.IntegerField(default=0)
     
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -203,3 +203,58 @@ class UserPass(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+
+
+# ==================== EMERGENCY MODELS ====================
+
+class EmergencyAlert(models.Model):
+    """Emergency alerts from users"""
+    
+    ALERT_TYPES = [
+        ('accident', 'Accident'),
+        ('medical', 'Medical Emergency'),
+        ('breakdown', 'Vehicle Breakdown'),
+        ('security', 'Security Threat'),
+        ('other', 'Other Emergency'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('acknowledged', 'Acknowledged'),
+        ('resolved', 'Resolved'),
+        ('false_alarm', 'False Alarm'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='emergency_alerts')
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, default='other')
+    message = models.TextField()
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    location_name = models.CharField(max_length=255, blank=True)
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    priority = models.IntegerField(default=1)
+    responded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='responded_alerts')
+    response_message = models.TextField(blank=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        sender = self.user.username if self.user else 'Unknown'
+        return f"Emergency #{self.id} - {sender} - {self.get_alert_type_display()}"
+    
+    class Meta:
+        ordering = ['-created_at', '-priority']
+
+
+class EmergencyContact(models.Model):
+    """Emergency contacts for alerts"""
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20)
+    email = models.CharField(max_length=100, blank=True)
+    is_primary = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"{self.name} - {self.phone}"

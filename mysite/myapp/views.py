@@ -729,3 +729,228 @@ def track_bus_api(request):
     """Bus tracking page with Leaflet map and DRF API"""
     buses = Bus.objects.filter(is_active=True)
     return render(request, 'app1/track_bus_api.html', {'buses': buses})
+
+
+
+    # ==================== PAYMENT SYSTEM ====================
+
+from django.utils import timezone
+from datetime import timedelta
+from .models import PaymentTransaction, UserPass, PaymentMethod
+import json
+
+@login_required
+def payment_page(request):
+    """Main payment page with pass options"""
+    payment_methods = PaymentMethod.objects.filter(is_active=True)
+    
+    # Get user's current active pass
+    current_pass = UserPass.objects.filter(
+        user=request.user, 
+        is_active=True, 
+        end_date__gte=timezone.now().date()
+    ).first()
+    
+    # Get payment history
+    payment_history = PaymentTransaction.objects.filter(user=request.user)[:10]
+    
+    context = {
+        'current_pass': current_pass,
+        'payment_methods': payment_methods,
+        'payment_history': payment_history,
+    }
+    return render(request, 'app1/payments.html', context)
+
+
+@login_required
+def purchase_pass(request):
+    """Purchase a transport pass (Monthly or Semester)"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
+            pass_type = data.get('pass_type')
+            payment_method = data.get('payment_method')
+            
+            if pass_type not in ['monthly', 'semester']:
+                return JsonResponse({'success': False, 'error': 'Invalid pass type'})
+            
+            # Set price and validity
+            if pass_type == 'monthly':
+                amount = 1200
+                validity_days = 30
+            else:
+                amount = 5500
+                validity_days = 120  # Approximately 4 months
+            
+            start_date = timezone.now().date()
+            end_date = start_date + timedelta(days=validity_days)
+            
+            # Create transaction
+            transaction = PaymentTransaction.objects.create(
+                user=request.user,
+                payment_method=payment_method,
+                payment_type='pass',
+                amount=amount,
+                status='pending',
+                pass_type=pass_type,
+                pass_valid_from=start_date,
+                pass_valid_until=end_date,
+            )
+            
+            # In demo, mark as completed immediately
+            transaction.status = 'completed'
+            transaction.save()
+            
+            # Create user pass
+            UserPass.objects.create(
+                user=request.user,
+                pass_type=pass_type,
+                transaction=transaction,
+                start_date=start_date,
+                end_date=end_date,
+                is_active=True
+            )
+            
+            # Update UserProfile pass info
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            profile.is_pass_active = True
+            profile.pass_valid_until = end_date
+            profile.pass_id = f"PASS-{request.user.id}-{timezone.now().year}"
+            profile.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'{pass_type.capitalize()} Pass purchased successfully!',
+                'transaction_id': transaction.transaction_id,
+                'valid_until': end_date.strftime('%Y-%m-%d')
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+
+@login_required
+def payment_history(request):
+    """View all payment transactions"""
+    transactions = PaymentTransaction.objects.filter(user=request.user).order_by('-created_at')
+    
+    context = {
+        'transactions': transactions,
+        'total_spent': sum(t.amount for t in transactions if t.status == 'completed'),
+        'active_count': transactions.filter(status='completed').count(),
+    }
+    return render(request, 'app1/payment_history.html', context)
+
+
+@login_required
+def payment_success(request, transaction_id):
+    """Payment success page"""
+    transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id, user=request.user)
+    return render(request, 'app1/payment_success.html', {'transaction': transaction})
+
+
+@login_required
+def invoice_download(request, transaction_id):
+    """Download payment invoice as PDF"""
+    transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id, user=request.user)
+    
+    # Simple HTML invoice (can be converted to PDF later)
+    context = {'transaction': transaction}
+    return render(request, 'app1/invoice.html', context)
+
+
+    # ==================== EMERGENCY SYSTEM ====================
+
+from .models import EmergencyAlert, EmergencyContact
+from django.utils import timezone
+import json
+
+@login_required
+def emergency_page(request):
+    """Emergency alert page for users"""
+    return render(request, 'app1/emergency.html')
+
+
+@login_required
+def send_emergency_alert(request):
+    """Send emergency alert (AJAX)"""
+    if request.method == 'POST':
+        try:
+            # Get data from request
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+            else:
+                data = request.POST
+            
+            alert_type = data.get('alert_type', 'other')
+            message = data.get('message', '')
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+            location_name = data.get('location_name', '')
+            booking_id = data.get('booking_id')
+            
+            # Create alert
+            alert = EmergencyAlert.objects.create(
+                user=request.user,
+                alert_type=alert_type,
+                message=message or f"Emergency reported by {request.user.get_full_name()}",
+                latitude=latitude,
+                longitude=longitude,
+                location_name=location_name,
+                priority=1,  # High priority
+                status='pending'
+            )
+            
+            if booking_id:
+                from .models import Booking
+                try:
+                    alert.booking = Booking.objects.get(id=booking_id)
+                    alert.save()
+                except:
+                    pass
+            
+            # In production, send SMS/Email to emergency contacts
+            contacts = EmergencyContact.objects.filter(is_active=True)
+            for contact in contacts:
+                # Send SMS/Email here
+                print(f"EMERGENCY ALERT sent to {contact.name} - {contact.phone}")
+            
+            return JsonResponse({
+                'success': True,
+                'alert_id': alert.id,
+                'message': 'Emergency alert sent! Admin has been notified.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+
+@login_required
+def driver_emergency(request):
+    """Driver emergency alert page"""
+    return render(request, 'app1/driver_emergency.html')
+
+
+@login_required
+def emergency_status(request, alert_id):
+    """Check emergency alert status"""
+    alert = get_object_or_404(EmergencyAlert, id=alert_id)
+    return JsonResponse({
+        'id': alert.id,
+        'status': alert.status,
+        'responded_by': alert.responded_by.username if alert.responded_by else None,
+        'response_message': alert.response_message,
+        'responded_at': alert.responded_at,
+    })
+
+
+@login_required
+def emergency_history(request):
+    """View user's emergency alert history"""
+    alerts = EmergencyAlert.objects.filter(user=request.user).order_by('-created_at')
+    context = {'alerts': alerts}
+    return render(request, 'app1/emergency_history.html', context)

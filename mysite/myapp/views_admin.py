@@ -518,3 +518,109 @@ def resolve_alert_api(request, alert_id):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+
+
+# ==================== ADMIN EMERGENCY MANAGEMENT ====================
+
+from .models import EmergencyAlert, EmergencyContact
+from django.utils import timezone
+
+@login_required
+@user_passes_test(is_admin)
+def admin_emergency_dashboard(request):
+    """Admin emergency management dashboard"""
+    pending_alerts = EmergencyAlert.objects.filter(status='pending').order_by('-priority', '-created_at')
+    acknowledged_alerts = EmergencyAlert.objects.filter(status='acknowledged').order_by('-created_at')[:20]
+    resolved_alerts = EmergencyAlert.objects.filter(status='resolved').order_by('-created_at')[:20]
+    
+    recent_alerts = EmergencyAlert.objects.all().order_by('-created_at')[:50]
+    
+    emergency_contacts = EmergencyContact.objects.filter(is_active=True)
+    
+    # Statistics
+    total_today = EmergencyAlert.objects.filter(created_at__date=timezone.now().date()).count()
+    pending_count = pending_alerts.count()
+    resolved_today = EmergencyAlert.objects.filter(
+        status='resolved',
+        resolved_at__date=timezone.now().date()
+    ).count()
+    
+    context = {
+        'active': 'emergency',
+        'pending_alerts': pending_alerts,
+        'acknowledged_alerts': acknowledged_alerts,
+        'resolved_alerts': resolved_alerts,
+        'recent_alerts': recent_alerts,
+        'emergency_contacts': emergency_contacts,
+        'total_today': total_today,
+        'pending_count': pending_count,
+        'resolved_today': resolved_today,
+    }
+    return render(request, 'app1/admin/admin_emergency.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_acknowledge_alert(request, alert_id):
+    """Admin acknowledge an emergency alert"""
+    if request.method == 'POST':
+        alert = get_object_or_404(EmergencyAlert, id=alert_id)
+        alert.status = 'acknowledged'
+        alert.responded_by = request.user
+        alert.responded_at = timezone.now()
+        alert.response_message = request.POST.get('response_message', 'Alert acknowledged')
+        alert.save()
+        
+        return JsonResponse({'success': True, 'message': 'Alert acknowledged'})
+    return JsonResponse({'success': False, 'error': 'Invalid method'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_resolve_alert(request, alert_id):
+    """Admin resolve an emergency alert"""
+    if request.method == 'POST':
+        alert = get_object_or_404(EmergencyAlert, id=alert_id)
+        alert.status = 'resolved'
+        alert.resolved_at = timezone.now()
+        alert.response_message = request.POST.get('response_message', alert.response_message)
+        alert.save()
+        
+        return JsonResponse({'success': True, 'message': 'Alert resolved'})
+    return JsonResponse({'success': False, 'error': 'Invalid method'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_add_emergency_contact(request):
+    """Add emergency contact via API"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            contact = EmergencyContact.objects.create(
+                name=data.get('name'),
+                phone=data.get('phone'),
+                email=data.get('email', ''),
+                is_primary=data.get('is_primary', False),
+                is_active=True
+            )
+            
+            if contact.is_primary:
+                EmergencyContact.objects.exclude(id=contact.id).update(is_primary=False)
+            
+            return JsonResponse({'success': True, 'message': 'Contact added', 'contact_id': contact.id})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid method'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_delete_emergency_contact(request, contact_id):
+    """Delete emergency contact"""
+    if request.method == 'POST':
+        contact = get_object_or_404(EmergencyContact, id=contact_id)
+        contact.delete()
+        return JsonResponse({'success': True, 'message': 'Contact deleted'})
+    return JsonResponse({'success': False, 'error': 'Invalid method'})

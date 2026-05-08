@@ -1,0 +1,201 @@
+{% extends 'app1/base.html' %}
+
+{% block content %}
+<style>
+    .emergency-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .emergency-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .emergency-icon {
+        width: 80px;
+        height: 80px;
+        background: #ff4757;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        margin: 0 auto 20px;
+        color: white;
+        animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+    
+    .emergency-title {
+        font-size: 28px;
+        color: #ff4757;
+        margin-bottom: 10px;
+    }
+    
+    .alert-types {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin: 30px 0;
+    }
+    
+    .alert-type-btn {
+        padding: 20px;
+        background: white;
+        border: 2px solid #ddd;
+        border-radius: 16px;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s;
+    }
+    
+    .alert-type-btn.selected {
+        border-color: #ff4757;
+        background: #fff5f5;
+    }
+    
+    .alert-type-icon {
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+    
+    .message-box {
+        width: 100%;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        font-size: 14px;
+        margin: 20px 0;
+        resize: vertical;
+    }
+    
+    .send-btn {
+        width: 100%;
+        padding: 16px;
+        background: #ff4757;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .send-btn:hover {
+        background: #e63946;
+        transform: scale(1.02);
+    }
+    
+    .warning-text {
+        color: #666;
+        font-size: 12px;
+        text-align: center;
+        margin-top: 20px;
+    }
+</style>
+
+<div class="emergency-container">
+    <div class="emergency-header">
+        <div class="emergency-icon">🚨</div>
+        <h1 class="emergency-title">Emergency Alert</h1>
+        <p style="color: #666">In case of emergency, send an alert to admin immediately</p>
+    </div>
+    
+    <div class="alert-types">
+        <div class="alert-type-btn" onclick="selectType('accident')">
+            <div class="alert-type-icon">💥</div>
+            <div>Accident</div>
+        </div>
+        <div class="alert-type-btn" onclick="selectType('medical')">
+            <div class="alert-type-icon">🏥</div>
+            <div>Medical Emergency</div>
+        </div>
+        <div class="alert-type-btn" onclick="selectType('breakdown')">
+            <div class="alert-type-icon">🔧</div>
+            <div>Vehicle Breakdown</div>
+        </div>
+        <div class="alert-type-btn" onclick="selectType('security')">
+            <div class="alert-type-icon">🛡️</div>
+            <div>Security Threat</div>
+        </div>
+        <div class="alert-type-btn" onclick="selectType('other')">
+            <div class="alert-type-icon">⚠️</div>
+            <div>Other</div>
+        </div>
+    </div>
+    
+    <textarea class="message-box" id="message" rows="4" placeholder="Describe the emergency situation..."></textarea>
+    
+    <button class="send-btn" onclick="sendEmergency()">🚨 Send Emergency Alert</button>
+    <p class="warning-text">⚠️ Only use this for genuine emergencies. False alerts may result in penalties.</p>
+</div>
+
+<script>
+    let selectedType = 'other';
+    
+    function selectType(type) {
+        selectedType = type;
+        document.querySelectorAll('.alert-type-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        event.currentTarget.classList.add('selected');
+    }
+    
+    function sendEmergency() {
+        const message = document.getElementById('message').value;
+        
+        if (!message) {
+            alert('Please describe the emergency situation');
+            return;
+        }
+        
+        if (confirm('Are you sure you want to send an emergency alert? Admin will be notified immediately.')) {
+            fetch('/send-emergency/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    alert_type: selectedType,
+                    message: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Emergency alert sent! Admin has been notified. Help is on the way.');
+                    window.location.href = '/dashboard/';
+                } else {
+                    alert('Failed to send: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Network error. Please try again.');
+            });
+        }
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

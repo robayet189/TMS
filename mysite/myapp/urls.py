@@ -97,3 +97,20 @@ urlpatterns = [
 
     path('track-bus-api/', views.track_bus_api, name='track_bus_api'),
 ]
+
+
+
+
+# ==================== EMERGENCY URLs ====================
+path('emergency/', views.emergency_page, name='emergency'),
+path('send-emergency/', views.send_emergency_alert, name='send_emergency'),
+path('emergency-status/<int:alert_id>/', views.emergency_status, name='emergency_status'),
+path('emergency-history/', views.emergency_history, name='emergency_history'),
+path('driver-emergency/', views.driver_emergency, name='driver_emergency'),
+
+# Admin emergency URLs
+path('admin_page/emergency/', views_admin.admin_emergency_dashboard, name='admin_emergency'),
+path('admin_page/acknowledge-alert/<int:alert_id>/', views_admin.admin_acknowledge_alert, name='admin_acknowledge_alert'),
+path('admin_page/resolve-alert/<int:alert_id>/', views_admin.admin_resolve_alert, name='admin_resolve_alert'),
+path('admin_page/add-emergency-contact/', views_admin.admin_add_emergency_contact, name='add_emergency_contact'),
+path('admin_page/delete-emergency-contact/<int:contact_id>/', views_admin.admin_delete_emergency_contact, name='delete_emergency_contact'),
