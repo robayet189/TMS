@@ -1,0 +1,225 @@
+{% extends 'app1/admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Revenue & Payments{% endblock %}
+{% block page_title %}Revenue & Payments{% endblock %}
+{% block page_subtitle %}Track financial performance and transactions{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon green">💵</div>
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-value">৳{{ total_revenue|default:"0" }}</div>
+        <div class="stat-change positive">↑ 18.5% from last month</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">📈</div>
+        <div class="stat-label">Total Profit</div>
+        <div class="stat-value">৳{{ total_profit|default:"0" }}</div>
+        <div class="stat-change positive">↑ 22.3% from last month</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon gold">💳</div>
+        <div class="stat-label">Avg. Monthly Revenue</div>
+        <div class="stat-value">৳{{ month_revenue|default:"0" }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">💸</div>
+        <div class="stat-label">Today's Revenue</div>
+        <div class="stat-value">৳{{ today_revenue|default:"0" }}</div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-row">
+    <!-- Revenue vs Expenses Bar Chart -->
+    <div class="chart-card">
+        <div class="card-header">
+            <h3>Revenue vs Expenses</h3>
+            <p>Last 6 months comparison</p>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="barChart" height="260"></canvas>
+        </div>
+        <div class="legend">
+            <span class="legend-item"><span class="legend-dot" style="background:#00c896"></span>Revenue (৳)</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#ff4757"></span>Expenses (৳)</span>
+        </div>
+    </div>
+
+    <!-- Payment Methods Donut -->
+    <div class="chart-card">
+        <div class="card-header">
+            <h3>Payment Methods</h3>
+            <p>Distribution by type</p>
+        </div>
+        <div class="donut-wrap">
+            <canvas id="donutChart" width="200" height="200"></canvas>
+        </div>
+        <div class="payment-list">
+            {% for item in revenue_by_route %}
+            <div class="payment-row">
+                <span class="payment-label"><span class="pay-dot" style="background:var(--accent-purple)"></span>Route {{ item.schedule__route__code }}</span>
+                <span class="payment-pct">৳{{ item.total }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Profit Trend Line Chart -->
+<div class="full-card">
+    <div class="card-header">
+        <h3>Profit Trend</h3>
+        <p>Monthly profit analysis</p>
+    </div>
+    <div class="chart-wrap">
+        <canvas id="lineChart" height="200"></canvas>
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="full-card">
+    <div class="card-header">
+        <h3>Recent Transactions</h3>
+        <p>Latest payment activities</p>
+    </div>
+    <div class="txn-list">
+        {% for booking in recent_bookings|slice:":10" %}
+        <div class="txn-row">
+            <div class="txn-left">
+                <div class="txn-icon {% if booking.status == 'approved' %}green{% else %}red{% endif %}">💳</div>
+                <div>
+                    <div class="txn-name">{{ booking.user.get_full_name|default:booking.user.username }} <span class="txn-id">#{{ booking.booking_id }}</span></div>
+                    <div class="txn-meta">{{ booking.payment_method|title }} • {{ booking.booking_date|timesince }} ago</div>
+                </div>
+            </div>
+            <div class="txn-right">
+                <div class="txn-amount {% if booking.status == 'approved' %}plus{% else %}minus{% endif %}">৳{{ booking.amount }}</div>
+                <span class="txn-badge {% if booking.status == 'approved' %}completed{% else %}pending{% endif %}">{{ booking.status|title }}</span>
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center; padding:40px; color:var(--text-muted);">No transactions yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:20px; }
+.stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:8px; }
+.stat-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; }
+.stat-icon.green { background:rgba(0,200,150,0.12); }
+.stat-icon.purple { background:rgba(138,99,255,0.12); }
+.stat-icon.gold { background:rgba(255,184,0,0.12); }
+.stat-icon.red { background:rgba(255,71,87,0.12); }
+.stat-label { font-size:13px; color:var(--text-muted); }
+.stat-value { font-size:28px; font-weight:700; }
+.stat-change { font-size:12px; }
+.stat-change.positive { color:#00c896; }
+
+.charts-row { display:grid; grid-template-columns:1fr 380px; gap:20px; margin-bottom:20px; }
+.chart-card, .full-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:24px; }
+.card-header { margin-bottom:24px; }
+.card-header h3 { font-size:18px; font-weight:600; margin:0 0 4px 0; }
+.card-header p { font-size:13px; color:var(--text-muted); margin:0; }
+.chart-wrap { position:relative; }
+.legend { display:flex; gap:24px; justify-content:center; margin-top:16px; }
+.legend-item { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted); }
+.legend-dot { width:12px; height:12px; border-radius:50%; }
+
+.donut-wrap { display:flex; justify-content:center; margin:8px 0 24px; }
+.payment-list { display:flex; flex-direction:column; gap:10px; }
+.payment-row { display:flex; align-items:center; justify-content:space-between; }
+.payment-label { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted); }
+.pay-dot { width:12px; height:12px; border-radius:50%; }
+.payment-pct { font-size:12px; font-weight:600; color:var(--text-primary); }
+
+.txn-list { display:flex; flex-direction:column; gap:10px; }
+.txn-row { display:flex; align-items:center; justify-content:space-between; padding:16px; background:rgba(255,255,255,0.02); border-radius:14px; }
+.txn-left { display:flex; align-items:center; gap:16px; }
+.txn-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.txn-icon.green { background:rgba(0,200,150,0.12); }
+.txn-icon.red { background:rgba(255,71,87,0.12); }
+.txn-name { font-size:14px; font-weight:600; }
+.txn-id { font-size:12px; color:var(--text-muted); margin-left:6px; }
+.txn-meta { font-size:12px; color:var(--text-muted); margin-top:3px; }
+.txn-right { text-align:right; }
+.txn-amount { font-size:16px; font-weight:700; }
+.txn-amount.plus { color:#00c896; }
+.txn-amount.minus { color:#ff4757; }
+.txn-badge { display:inline-block; padding:2px 10px; border-radius:50px; font-size:11px; font-weight:600; margin-top:4px; }
+.txn-badge.completed { background:rgba(0,200,150,0.12); color:#00c896; }
+.txn-badge.pending { background:rgba(255,184,0,0.12); color:#ffb800; }
+
+@media (max-width:1100px) {
+    .stats-grid { grid-template-columns:repeat(2,1fr); }
+    .charts-row { grid-template-columns:1fr; }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Bar Chart - Revenue vs Expenses
+const barCtx = document.getElementById('barChart').getContext('2d');
+new Chart(barCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Oct','Nov','Dec','Jan','Feb','Mar'],
+        datasets: [
+            { label: 'Revenue', data: [480000, 520000, 490000, 600000, 550000, 680000], backgroundColor: '#00c896', borderRadius: 6 },
+            { label: 'Expenses', data: [180000, 160000, 200000, 170000, 190000, 175000], backgroundColor: '#ff4757', borderRadius: 6 }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5a5470' } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#5a5470', callback: v => v >= 1000 ? (v/1000)+'K' : v } }
+        }
+    }
+});
+
+// Donut Chart - Payment Methods
+const donutCtx = document.getElementById('donutChart').getContext('2d');
+new Chart(donutCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['bKash','SSLCommerz','Cash','Others'],
+        datasets: [{ data: [45, 35, 15, 5], backgroundColor: ['#e2136e','#0066cc','#00c896','#5a5470'], borderColor: '#1c1c2e', borderWidth: 3 }]
+    },
+    options: { cutout: '65%', responsive: false, plugins: { legend: { display: false } } }
+});
+
+// Line Chart - Profit Trend
+const lineCtx = document.getElementById('lineChart').getContext('2d');
+const gradient = lineCtx.createLinearGradient(0, 0, 0, 200);
+gradient.addColorStop(0, 'rgba(138,99,255,0.25)');
+gradient.addColorStop(1, 'rgba(138,99,255,0.0)');
+
+new Chart(lineCtx, {
+    type: 'line',
+    data: {
+        labels: ['Oct','Nov','Dec','Jan','Feb','Mar'],
+        datasets: [{
+            label: 'Profit',
+            data: [300000, 360000, 290000, 430000, 390000, 505000],
+            borderColor: '#8a63ff', backgroundColor: gradient, borderWidth: 2.5,
+            pointBackgroundColor: '#8a63ff', pointBorderColor: '#1c1c2e', pointBorderWidth: 2,
+            pointRadius: 5, pointHoverRadius: 7, fill: true, tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5a5470' } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#5a5470', callback: v => v >= 1000 ? (v/1000)+'K' : v } }
+        }
+    }
+});
+</script>
+{% endblock %}

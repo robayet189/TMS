@@ -1,0 +1,278 @@
+{% extends 'app1/admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Bookings Management{% endblock %}
+{% block page_title %}Booking Management{% endblock %}
+{% block page_subtitle %}View and manage all bookings{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Bookings</div>
+        <div class="stat-value">{{ total|default:0 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label" style="color:#00c896">Confirmed</div>
+        <div class="stat-value" style="color:#00c896">{{ approved|default:0 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label" style="color:#ffb800">Pending</div>
+        <div class="stat-value" style="color:#ffb800">{{ pending|default:0 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label" style="color:#ff4757">Rejected</div>
+        <div class="stat-value" style="color:#ff4757">{{ rejected|default:0 }}</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search by booking ID, user, or route..." value="{{ search }}" onkeyup="filterTable()">
+    </div>
+    <select id="statusFilter" class="status-select" onchange="filterTable()">
+        <option value="">All Status</option>
+        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+    </select>
+    <input type="date" id="dateFrom" class="date-input" onchange="filterTable()">
+    <input type="date" id="dateTo" class="date-input" onchange="filterTable()">
+    <button class="btn-export" onclick="exportBookings()">📥 Export</button>
+</div>
+
+<!-- Bookings Table -->
+<div class="table-card">
+    <div class="table-wrap">
+        <table id="bookingsTable">
+            <thead>
+                <tr>
+                    <th>Booking ID</th>
+                    <th>User</th>
+                    <th>Route</th>
+                    <th>Seat</th>
+                    <th>Date & Time</th>
+                    <th>Amount</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                {% for booking in bookings %}
+                <tr data-booking-id="{{ booking.booking_id }}" data-status="{{ booking.status }}">
+                    <td><span class="booking-id">#{{ booking.booking_id }}</span></td>
+                    <td><span class="user-name">{{ booking.user.get_full_name|default:booking.user.username }}</span></td>
+                    <td><span class="route-name">{{ booking.schedule.route.code }}</span></td>
+                    <td><span class="seat-badge">{{ booking.seat_number }}</span></td>
+                    <td>
+                        <div class="date-cell">{{ booking.schedule.travel_date|date:"M d, Y" }}</div>
+                        <div class="time-cell">{{ booking.schedule.departure_time|time:"g:i A" }}</div>
+                    </td>
+                    <td><span class="amount-cell">৳{{ booking.amount }}</span></td>
+                    <td><span class="payment-cell">{{ booking.payment_method|title }}</span></td>
+                    <td>
+                        <span class="badge badge-{{ booking.status }}">{{ booking.get_status_display }}</span>
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn btn-view" onclick="viewBooking('{{ booking.booking_id }}')" title="View">👁️</button>
+                            {% if booking.status == 'pending' %}
+                            <button class="action-btn btn-approve" onclick="approveBooking('{{ booking.booking_id }}')" title="Approve">✅</button>
+                            <button class="action-btn btn-cancel" onclick="rejectBooking('{{ booking.booking_id }}')" title="Reject">❌</button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="padding:40px; text-align:center; color:var(--text-muted);">
+                        No bookings found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="table-footer">
+        <span id="showingText">Showing {{ bookings|length }} of {{ total }} bookings</span>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modalOverlay" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">Booking Details</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-content" id="modalContent"></div>
+        <div class="modal-actions" id="modalActions"></div>
+    </div>
+</div>
+
+<style>
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:20px; }
+.stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; }
+.stat-label { font-size:13px; color:var(--text-muted); margin-bottom:6px; }
+.stat-value { font-size:28px; font-weight:700; }
+
+.filter-bar { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:16px; }
+.search-wrap { flex:1; min-width:200px; position:relative; }
+.search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-muted); }
+.search-input { width:100%; padding:10px 14px 10px 42px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:14px; }
+.status-select, .date-input { padding:10px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:14px; }
+.btn-export { padding:10px 20px; background:var(--accent-red); color:white; border:none; border-radius:12px; cursor:pointer; font-weight:600; }
+
+.table-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; min-width:900px; }
+thead th { padding:16px 20px; text-align:left; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; border-bottom:1px solid var(--border); }
+tbody td { padding:14px 20px; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.03); }
+tbody tr:hover { background:rgba(255,255,255,0.02); }
+
+.booking-id { font-weight:700; color:var(--text-primary); }
+.user-name, .route-name { color:var(--text-muted); }
+.seat-badge { color:var(--accent-purple); font-weight:600; }
+.date-cell { color:var(--text-primary); }
+.time-cell { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.amount-cell { font-weight:600; }
+.payment-cell { color:var(--text-muted); }
+
+.badge { display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:600; }
+.badge-pending { background:rgba(255,184,0,0.12); color:#ffb800; }
+.badge-approved { background:rgba(0,200,150,0.12); color:#00c896; }
+.badge-rejected { background:rgba(255,71,87,0.12); color:#ff4757; }
+.badge-cancelled { background:rgba(160,154,184,0.12); color:var(--text-muted); }
+
+.action-btns { display:flex; gap:6px; }
+.action-btn { width:32px; height:32px; border-radius:10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.15s; }
+.action-btn:hover { transform:scale(1.1); }
+.btn-view { background:rgba(138,99,255,0.1); color:var(--accent-purple); }
+.btn-approve { background:rgba(0,200,150,0.1); color:var(--accent-green); }
+.btn-cancel { background:rgba(255,71,87,0.1); color:var(--accent-red); }
+
+.table-footer { display:flex; justify-content:space-between; padding:16px 20px; border-top:1px solid var(--border); font-size:13px; color:var(--text-muted); }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:1000; backdrop-filter:blur(4px); }
+.modal { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; width:90%; max-width:500px; padding:24px; }
+.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.modal-title { font-size:18px; font-weight:600; }
+.modal-close { background:none; border:none; color:var(--text-muted); font-size:24px; cursor:pointer; }
+.modal-content { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+.modal-content .detail-item { font-size:13px; }
+.modal-content .detail-item strong { color:var(--text-primary); }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; }
+.modal-btn { padding:10px 20px; border-radius:10px; border:none; font-weight:600; cursor:pointer; }
+.modal-btn.secondary { background:rgba(255,255,255,0.05); color:var(--text-primary); }
+.modal-btn.success { background:var(--accent-green); color:white; }
+.modal-btn.danger { background:var(--accent-red); color:white; }
+</style>
+
+<script>
+// Filter table
+function filterTable() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const status = document.getElementById('statusFilter').value;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    
+    document.querySelectorAll('#tableBody tr').forEach(row => {
+        if(row.querySelector('td[colspan]')) return;
+        
+        const text = row.textContent.toLowerCase();
+        const rowStatus = row.dataset.status;
+        const matchQ = !q || text.includes(q);
+        const matchS = !status || rowStatus === status;
+        
+        row.style.display = (matchQ && matchS) ? '' : 'none';
+    });
+}
+
+// View booking details
+function viewBooking(bookingId) {
+    const row = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+    if(!row) return;
+    
+    const cells = row.querySelectorAll('td');
+    document.getElementById('modalTitle').textContent = `Booking #${bookingId}`;
+    document.getElementById('modalContent').innerHTML = `
+        <div class="detail-item"><strong>User:</strong> ${cells[1].textContent}</div>
+        <div class="detail-item"><strong>Route:</strong> ${cells[2].textContent}</div>
+        <div class="detail-item"><strong>Seat:</strong> ${cells[3].textContent}</div>
+        <div class="detail-item"><strong>Date:</strong> ${cells[4].querySelector('.date-cell').textContent}</div>
+        <div class="detail-item"><strong>Time:</strong> ${cells[4].querySelector('.time-cell').textContent}</div>
+        <div class="detail-item"><strong>Amount:</strong> ${cells[5].textContent}</div>
+        <div class="detail-item"><strong>Payment:</strong> ${cells[6].textContent}</div>
+        <div class="detail-item"><strong>Status:</strong> ${cells[7].textContent}</div>
+    `;
+    
+    const status = row.dataset.status;
+    let actions = `<button class="modal-btn secondary" onclick="closeModal()">Close</button>`;
+    if(status === 'pending') {
+        actions += `<button class="modal-btn success" onclick="approveBooking('${bookingId}');closeModal()">Approve</button>`;
+        actions += `<button class="modal-btn danger" onclick="rejectBooking('${bookingId}');closeModal()">Reject</button>`;
+    }
+    document.getElementById('modalActions').innerHTML = actions;
+    document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+
+// Approve/Reject booking
+function approveBooking(bookingId) {
+    if(!confirm('Approve this booking?')) return;
+    fetch(`/admin_page/bookings/${bookingId}/approve/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => { showToast(data.message, data.success ? 'success' : 'error'); if(data.success) location.reload(); });
+}
+
+function rejectBooking(bookingId) {
+    const reason = prompt('Reason for rejection:') || 'No reason provided';
+    fetch(`/admin_page/bookings/${bookingId}/reject/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remarks: reason })
+    })
+    .then(res => res.json())
+    .then(data => { showToast(data.message, data.success ? 'success' : 'error'); if(data.success) location.reload(); });
+}
+
+// Export bookings
+function exportBookings() {
+    showToast('Exporting bookings report...');
+    // Add actual export logic here
+}
+
+// Toast notification
+function showToast(msg, type = 'success') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ${type==='success'?'#00c896':'#ff4757'}; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; }, 10);
+    setTimeout(() => { toast.style.transform = 'translateY(60px)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 250); }, 2800);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if(document.cookie) {
+        for(let c of document.cookie.split(';')) {
+            c = c.trim();
+            if(c.startsWith(name + '=')) { cookieValue = decodeURIComponent(c.substring(name.length + 1)); break; }
+        }
+    }
+    return cookieValue;
+}
+
+// Close modal on outside click
+document.getElementById('modalOverlay').addEventListener('click', function(e) { if(e.target === this) closeModal(); });
+</script>
+{% endblock %}

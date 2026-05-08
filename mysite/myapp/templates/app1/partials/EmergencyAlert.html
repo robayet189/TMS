@@ -1,0 +1,10 @@
+<h2>Emergency Alert</h2>
+{% if user.is_authenticated %}
+<form method="POST" action="admin/admin_alert">
+    {% csrf_token %}
+    <input type="hidden" value="name" />
+    <input type="hidden" value="id" />
+    <input type="hidden" value="route"/>
+     <input type="submit" name="Emergency" value="Send Alert" />
+{% endfor %}
+</form>
