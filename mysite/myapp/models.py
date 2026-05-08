@@ -129,4 +129,87 @@ class Booking(models.Model):
         return f"Booking {self.booking_id} - {self.passenger_name or self.user.username}{seat_info}"
     
     class Meta:
+<<<<<<< Updated upstream
         ordering = ['-booking_date']  
+=======
+        ordering = ['-created_at']
+
+
+class UserPass(models.Model):
+    """User's active passes"""
+    PASS_TYPES = [
+        ('monthly', 'Monthly Pass'),
+        ('semester', 'Semester Pass'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='passes')
+    pass_type = models.CharField(max_length=20, choices=PASS_TYPES)
+    transaction = models.OneToOneField(PaymentTransaction, on_delete=models.CASCADE, related_name='user_pass')
+    
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    
+    total_rides = models.IntegerField(default=0)
+    remaining_rides = models.IntegerField(default=0)  # For limited rides
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.pass_type} (Valid until {self.end_date})"
+    
+    class Meta:
+        ordering = ['-created_at']
+
+
+
+
+        # ==================== CHAT MODELS ====================
+
+class ChatRoom(models.Model):
+    """Chat room for user-admin or driver-admin conversations"""
+    ROOM_TYPES = [
+        ('user_admin', 'User-Admin'),
+        ('driver_admin', 'Driver-Admin'),
+    ]
+    
+    room_id = models.CharField(max_length=100, unique=True)
+    room_type = models.CharField(max_length=20, choices=ROOM_TYPES)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='chat_rooms')
+    admin = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='admin_chat_rooms')
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_message = models.TextField(blank=True)
+    last_message_time = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Room: {self.room_id}"
+    
+    class Meta:
+        ordering = ['-last_message_time']
+
+
+class ChatMessage(models.Model):
+    """Individual chat messages"""
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages', null=True, blank=True)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.sender.username}: {self.message[:50]}"
+    
+    class Meta:
+        ordering = ['created_at']
+
+
+class UserOnlineStatus(models.Model):
+    """Track user online status"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='online_status')
+    is_online = models.BooleanField(default=False)
+    last_seen = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {'Online' if self.is_online else 'Offline'}"
+>>>>>>> Stashed changes

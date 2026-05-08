@@ -1,0 +1,191 @@
+{% extends 'app1/base.html' %}
+
+{% block content %}
+<style>
+    .chat-container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .chat-header {
+        background: #ff4757;
+        color: white;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .online-status {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #4ade80;
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .messages-area {
+        height: 500px;
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+    }
+    
+    .message {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .message.sent {
+        align-items: flex-end;
+    }
+    
+    .message.received {
+        align-items: flex-start;
+    }
+    
+    .message-bubble {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 18px;
+        margin: 5px 0;
+    }
+    
+    .message.sent .message-bubble {
+        background: #ff4757;
+        color: white;
+    }
+    
+    .message.received .message-bubble {
+        background: white;
+        border: 1px solid #ddd;
+    }
+    
+    .message-time {
+        font-size: 11px;
+        color: #999;
+        margin-top: 5px;
+    }
+    
+    .input-area {
+        display: flex;
+        padding: 20px;
+        background: white;
+        border-top: 1px solid #eee;
+    }
+    
+    .input-area input {
+        flex: 1;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+        outline: none;
+    }
+    
+    .send-btn {
+        background: #ff4757;
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 25px;
+        margin-left: 10px;
+        cursor: pointer;
+    }
+</style>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <div class="online-status" id="onlineStatus"></div>
+        <div>
+            <h3>Support Chat</h3>
+            <small id="statusText">Connecting...</small>
+        </div>
+    </div>
+    
+    <div class="messages-area" id="messagesArea">
+        {% for msg in messages %}
+        <div class="message {% if msg.sender == user %}sent{% else %}received{% endif %}">
+            <div class="message-bubble">{{ msg.message }}</div>
+            <div class="message-time">{{ msg.created_at|date:"h:i A" }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="input-area">
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button class="send-btn" id="sendBtn">Send</button>
+    </div>
+</div>
+
+<script>
+    const roomName = "{{ room_name }}";
+    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsScheme}://${window.location.host}/ws/chat/${roomName}/`;
+    const ws = new WebSocket(wsUrl);
+    
+    const messagesArea = document.getElementById('messagesArea');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const onlineStatus = document.getElementById('onlineStatus');
+    const statusText = document.getElementById('statusText');
+    
+    ws.onopen = function() {
+        console.log('Connected to chat');
+        onlineStatus.style.background = '#4ade80';
+        statusText.innerHTML = 'Online';
+    };
+    
+    ws.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        
+        if (data.type === 'message') {
+            const isSent = data.sender === '{{ user.username }}';
+            addMessage(data.message, data.timestamp, isSent);
+        } else if (data.type === 'status') {
+            if (data.is_online) {
+                onlineStatus.style.background = '#4ade80';
+                statusText.innerHTML = `${data.username} is online`;
+            } else {
+                onlineStatus.style.background = '#999';
+                statusText.innerHTML = `${data.username} is offline`;
+            }
+        }
+    };
+    
+    function addMessage(message, timestamp, isSent) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+        messageDiv.innerHTML = `
+            <div class="message-bubble">${message}</div>
+            <div class="message-time">${timestamp}</div>
+        `;
+        messagesArea.appendChild(messageDiv);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+    
+    sendBtn.onclick = function() {
+        const message = messageInput.value.trim();
+        if (message) {
+            ws.send(JSON.stringify({ 'message': message }));
+            messageInput.value = '';
+        }
+    };
+    
+    messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') sendBtn.click();
+    });
+    
+    // Scroll to bottom on load
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+</script>
+{% endblock %}

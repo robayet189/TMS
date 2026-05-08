@@ -738,3 +738,165 @@ def booking_confirmation_seat(request, booking_id):
     booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
     return render(request, 'app1/booking_confirmation_seat.html', {'booking': booking})
 
+<<<<<<< Updated upstream
+=======
+
+@login_required
+def track_bus(request):
+    """Bus tracking page with mock data"""
+    return render(request, 'app1/track_bus.html')
+
+
+
+    # ================= BUS TRACKING API (DRF) =================
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .serializers import BusSerializer, BusLocationSerializer
+from .models import Bus, BusLocation
+
+@api_view(['POST'])
+def update_bus_location(request, bus_id):
+    """API for driver to update bus location"""
+    try:
+        bus = Bus.objects.get(id=bus_id)
+        lat = request.data.get('lat') or request.data.get('latitude')
+        lng = request.data.get('lng') or request.data.get('longitude')
+        
+        if lat is None or lng is None:
+            return Response({"error": "Latitude and longitude required"}, status=400)
+        
+        # Save to history
+        BusLocation.objects.create(
+            bus=bus,
+            latitude=lat,
+            longitude=lng
+        )
+        
+        # Update bus current location (if you add fields)
+        # bus.current_lat = lat
+        # bus.current_lng = lng
+        # bus.save()
+        
+        return Response({"message": "Location updated", "bus_id": bus_id, "lat": lat, "lng": lng})
+    
+    except Bus.DoesNotExist:
+        return Response({"error": "Bus not found"}, status=404)
+
+
+@api_view(['GET'])
+def get_bus_location(request, bus_id):
+    """API for frontend to get latest bus location"""
+    try:
+        bus = Bus.objects.get(id=bus_id)
+        latest_location = BusLocation.objects.filter(bus=bus).first()
+        
+        data = {
+            'id': bus.id,
+            'bus_number': bus.bus_number,
+            'latitude': latest_location.latitude if latest_location else None,
+            'longitude': latest_location.longitude if latest_location else None,
+            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+        }
+        return Response(data)
+    
+    except Bus.DoesNotExist:
+        return Response({"error": "Bus not found"}, status=404)
+
+
+@api_view(['GET'])
+def get_all_buses_location(request):
+    """API to get all buses latest locations"""
+    buses = Bus.objects.all()
+    data = []
+    
+    for bus in buses:
+        latest_location = BusLocation.objects.filter(bus=bus).first()
+        data.append({
+            'id': bus.id,
+            'bus_number': bus.bus_number,
+            'latitude': latest_location.latitude if latest_location else None,
+            'longitude': latest_location.longitude if latest_location else None,
+            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+        })
+    
+    return Response(data)
+
+
+
+@login_required
+def track_bus_api(request):
+    """Bus tracking page with Leaflet map and DRF API"""
+    buses = Bus.objects.filter(is_active=True)
+    return render(request, 'app1/track_bus_api.html', {'buses': buses})
+
+
+# ==================== CHAT SYSTEM ====================
+
+from .models import ChatRoom, ChatMessage, UserOnlineStatus
+
+@login_required
+def chat_page(request):
+    """User chat page"""
+    # Get or create chat room
+    room_name = f"user_{request.user.id}_admin"
+    room, created = ChatRoom.objects.get_or_create(
+        room_id=room_name,
+        defaults={'room_type': 'user_admin', 'user': request.user}
+    )
+    
+    # Get previous messages
+    messages = ChatMessage.objects.filter(room=room).order_by('created_at')[:50]
+    
+    context = {
+        'room_name': room_name,
+        'messages': messages,
+        'user': request.user,
+    }
+    return render(request, 'app1/chat.html', context)
+
+
+@login_required
+def admin_chat_dashboard(request):
+    """Admin chat dashboard - show all conversations"""
+    if not request.user.profile.user_type == 'admin':
+        return redirect('dashboard')
+    
+    # Get all chat rooms with users
+    chat_rooms = ChatRoom.objects.filter(room_type='user_admin').select_related('user')
+    
+    # Get online status for each user
+    for room in chat_rooms:
+        try:
+            status = UserOnlineStatus.objects.get(user=room.user)
+            room.is_online = status.is_online
+        except:
+            room.is_online = False
+    
+    context = {
+        'chat_rooms': chat_rooms,
+    }
+    return render(request, 'app1/admin/admin_chat.html', context)
+
+
+@login_required
+def admin_chat_room(request, user_id):
+    """Admin chat with specific user"""
+    if not request.user.profile.user_type == 'admin':
+        return redirect('dashboard')
+    
+    room_name = f"user_{user_id}_admin"
+    room, _ = ChatRoom.objects.get_or_create(
+        room_id=room_name,
+        defaults={'room_type': 'user_admin'}
+    )
+    
+    messages = ChatMessage.objects.filter(room=room).order_by('created_at')[:50]
+    
+    context = {
+        'room_name': room_name,
+        'user_id': user_id,
+        'messages': messages,
+    }
+    return render(request, 'app1/admin/admin_chat_room.html', context)
+>>>>>>> Stashed changes

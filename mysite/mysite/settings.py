@@ -38,6 +38,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'myapp',
+<<<<<<< Updated upstream
+=======
+    'rest_framework',
+    'channels',
+>>>>>>> Stashed changes
 ]
 
 MIDDLEWARE = [
@@ -68,6 +73,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'mysite.wsgi.application'
+ASGI_APPLICATION = 'mysite.asgi.application'
 
 
 # Database
@@ -124,6 +130,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Email Configuration (for testing - prints to console)
 LOGIN_URL = '/login/'
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+<<<<<<< Updated upstream
 DEFAULT_FROM_EMAIL = 'Next Route Transport <noreply@nextroute.com>'
 
 # Make sure templates directory is included
@@ -135,3 +142,13 @@ TEMPLATES[0]['DIRS'] = [os.path.join(BASE_DIR, 'templates')]
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'Next Route <noreply@nextroute.com>'
 
+=======
+DEFAULT_FROM_EMAIL = 'Next Route <noreply@nextroute.com>'
+
+# Redis for production (use in-memory for development)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+>>>>>>> Stashed changes
