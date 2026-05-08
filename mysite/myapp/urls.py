@@ -48,11 +48,6 @@ urlpatterns = [
     path('confirm-booking-seat/', views.confirm_booking_seat, name='confirm_booking_seat'),
     path('booking-confirmation-seat/<str:booking_id>/', views.booking_confirmation_seat, name='booking_confirmation_seat'),
 
-<<<<<<< HEAD
-    path('dashboard/emergency-alert',views.emergency, name='emergency_alert'),
-    path('admin-page/admin-alert',views_admin.admin_alert, name='admin_alert'),
-]
-=======
     # ================= ADMIN DASHBOARD & MANAGEMENT =================
     path('admin_page/dashboard/', views_admin.admin_dashboard, name='admin_dashboard'),
     
@@ -91,5 +86,14 @@ urlpatterns = [
     path('admin_page/notifications/', views_admin.admin_notifications, name='admin_notifications'),
     path('admin_page/api/send-notification/', views_admin.send_notification_api, name='send_notification_api'),
     path('admin_page/api/resolve-alert/<int:alert_id>/', views_admin.resolve_alert_api, name='resolve_alert_api'),
+
+    #tracking
+    path('track-bus/', views.track_bus, name='track_bus'),
+
+    # Bus Tracking API URLs
+    path('api/bus/<int:bus_id>/update/', views.update_bus_location, name='update_bus_location'),
+    path('api/bus/<int:bus_id>/location/', views.get_bus_location, name='get_bus_location'),
+    path('api/buses/locations/', views.get_all_buses_location, name='get_all_buses_location'),
+
+    path('track-bus-api/', views.track_bus_api, name='track_bus_api'),
 ]
->>>>>>> main

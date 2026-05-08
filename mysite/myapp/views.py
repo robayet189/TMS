@@ -638,18 +638,94 @@ def confirm_booking_seat(request):
 def booking_confirmation_seat(request, booking_id):
     """Step 4: Final Booking Confirmation Page"""
     booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
-<<<<<<< HEAD
     return render(request, 'app1/booking_confirmation_seat.html', {'booking': booking})
+
 
 @login_required
-def emergency(request):
-    if request.method=='POST':
-        name=request.POST.get('name')
-        id=request.POST.get('id')
-        route=request.POST.get('route')
+def track_bus(request):
+    """Bus tracking page with mock data"""
+    return render(request, 'app1/track_bus.html')
 
-    context={'name':name ,'id':id,'route':route}
-    return render(request,'app1/partials/EmergencyAlert.html',context )
-=======
-    return render(request, 'app1/booking_confirmation_seat.html', {'booking': booking})
->>>>>>> main
+
+
+    # ================= BUS TRACKING API (DRF) =================
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .serializers import BusSerializer, BusLocationSerializer
+from .models import Bus, BusLocation
+
+@api_view(['POST'])
+def update_bus_location(request, bus_id):
+    """API for driver to update bus location"""
+    try:
+        bus = Bus.objects.get(id=bus_id)
+        lat = request.data.get('lat') or request.data.get('latitude')
+        lng = request.data.get('lng') or request.data.get('longitude')
+        
+        if lat is None or lng is None:
+            return Response({"error": "Latitude and longitude required"}, status=400)
+        
+        # Save to history
+        BusLocation.objects.create(
+            bus=bus,
+            latitude=lat,
+            longitude=lng
+        )
+        
+        # Update bus current location (if you add fields)
+        # bus.current_lat = lat
+        # bus.current_lng = lng
+        # bus.save()
+        
+        return Response({"message": "Location updated", "bus_id": bus_id, "lat": lat, "lng": lng})
+    
+    except Bus.DoesNotExist:
+        return Response({"error": "Bus not found"}, status=404)
+
+
+@api_view(['GET'])
+def get_bus_location(request, bus_id):
+    """API for frontend to get latest bus location"""
+    try:
+        bus = Bus.objects.get(id=bus_id)
+        latest_location = BusLocation.objects.filter(bus=bus).first()
+        
+        data = {
+            'id': bus.id,
+            'bus_number': bus.bus_number,
+            'latitude': latest_location.latitude if latest_location else None,
+            'longitude': latest_location.longitude if latest_location else None,
+            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+        }
+        return Response(data)
+    
+    except Bus.DoesNotExist:
+        return Response({"error": "Bus not found"}, status=404)
+
+
+@api_view(['GET'])
+def get_all_buses_location(request):
+    """API to get all buses latest locations"""
+    buses = Bus.objects.all()
+    data = []
+    
+    for bus in buses:
+        latest_location = BusLocation.objects.filter(bus=bus).first()
+        data.append({
+            'id': bus.id,
+            'bus_number': bus.bus_number,
+            'latitude': latest_location.latitude if latest_location else None,
+            'longitude': latest_location.longitude if latest_location else None,
+            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+        })
+    
+    return Response(data)
+
+
+
+@login_required
+def track_bus_api(request):
+    """Bus tracking page with Leaflet map and DRF API"""
+    buses = Bus.objects.filter(is_active=True)
+    return render(request, 'app1/track_bus_api.html', {'buses': buses})

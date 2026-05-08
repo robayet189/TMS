@@ -1,0 +1,257 @@
+{% extends 'app1/base.html' %}
+
+{% block content %}
+<style>
+    .track-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .page-title {
+        font-size: 28px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .page-subtitle {
+        color: #666;
+        margin-bottom: 30px;
+    }
+    
+    .map-container {
+        background: #f0f2f5;
+        border-radius: 20px;
+        padding: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    #map {
+        height: 500px;
+        width: 100%;
+        border-radius: 16px;
+    }
+    
+    .bus-selector {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .bus-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .bus-btn {
+        padding: 10px 20px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .bus-btn.active {
+        background: #ff4757;
+        color: white;
+        border-color: #ff4757;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        background: #e8f5e9;
+        color: #4caf50;
+        font-size: 12px;
+    }
+    
+    @media (max-width: 768px) {
+        #map { height: 350px; }
+    }
+</style>
+
+<div class="track-container">
+    <h1 class="page-title">📍 Live Bus Tracking</h1>
+    <p class="page-subtitle">Real-time bus location tracking using GPS</p>
+    
+    <div class="bus-selector">
+        <div class="bus-buttons" id="busButtons"></div>
+    </div>
+    
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+    
+    <div class="info-card" id="infoCard">
+        <div id="busInfo"></div>
+    </div>
+</div>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    let map;
+    let currentMarker = null;
+    let currentBusId = null;
+    let updateInterval = null;
+    
+    // Dhaka center
+    const dhaka = [23.8103, 90.4125];
+    
+    // Bus list (from database)
+    const buses = [
+        {% for bus in buses %}
+        { id: {{ bus.id }}, name: "{{ bus.bus_number }}" },
+        {% endfor %}
+    ];
+    
+    function initMap() {
+        map = L.map('map').setView(dhaka, 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Create bus buttons
+        const busButtonsDiv = document.getElementById('busButtons');
+        buses.forEach((bus, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'bus-btn';
+            if (index === 0) btn.classList.add('active');
+            btn.textContent = `🚌 ${bus.name}`;
+            btn.onclick = () => selectBus(bus.id);
+            btn.setAttribute('data-bus-id', bus.id);
+            busButtonsDiv.appendChild(btn);
+        });
+        
+        // Select first bus
+        if (buses.length > 0) {
+            selectBus(buses[0].id);
+        }
+    }
+    
+    function selectBus(busId) {
+        currentBusId = busId;
+        
+        // Update button active state
+        document.querySelectorAll('.bus-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (parseInt(btn.getAttribute('data-bus-id')) === busId) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Clear previous interval
+        if (updateInterval) {
+            clearInterval(updateInterval);
+        }
+        
+        // Fetch location immediately
+        fetchBusLocation(busId);
+        
+        // Auto-update every 5 seconds
+        updateInterval = setInterval(() => {
+            fetchBusLocation(busId);
+        }, 5000);
+    }
+    
+    async function fetchBusLocation(busId) {
+        try {
+            const response = await fetch(`/api/bus/${busId}/location/`);
+            const data = await response.json();
+            
+            if (data.latitude && data.longitude) {
+                updateMap(data.latitude, data.longitude);
+                updateInfo(data);
+            } else {
+                console.log('No location data yet');
+            }
+        } catch (error) {
+            console.error('Error fetching location:', error);
+        }
+    }
+    
+    function updateMap(lat, lng) {
+        const position = [lat, lng];
+        
+        if (currentMarker) {
+            currentMarker.setLatLng(position);
+        } else {
+            currentMarker = L.marker(position, {
+                icon: L.divIcon({
+                    html: '🚌',
+                    className: 'bus-marker',
+                    iconSize: [30, 30],
+                    popupAnchor: [0, -15]
+                })
+            }).addTo(map);
+            currentMarker.bindPopup('📍 Bus Location');
+        }
+        
+        map.setView(position, 14);
+    }
+    
+    function updateInfo(data) {
+        const infoDiv = document.getElementById('busInfo');
+        const updateTime = data.updated_at || 'Just now';
+        
+        infoDiv.innerHTML = `
+            <div class="info-row">
+                <span class="info-label">Bus Number:</span>
+                <span class="info-value"><strong>${data.bus_number}</strong></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Current Location:</span>
+                <span class="info-value">Lat: ${data.latitude?.toFixed(6)}, Lng: ${data.longitude?.toFixed(6)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Last Updated:</span>
+                <span class="info-value">${updateTime}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value"><span class="status-badge">🟢 Active</span></span>
+            </div>
+        `;
+    }
+    
+    // Initialize map when page loads
+    document.addEventListener('DOMContentLoaded', initMap);
+</script>
+
+<style>
+    .bus-marker {
+        background: #ff4757;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        border: 2px solid white;
+    }
+</style>
+{% endblock %}

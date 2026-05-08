@@ -483,25 +483,6 @@ def admin_toggle_schedule_status(request, schedule_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_schedule(request, schedule_id):
-<<<<<<< HEAD
-    """Delete a schedule"""
-    schedule = get_object_or_404(Schedule, id=schedule_id)
-    route_code = schedule.route.code
-
-@login_required
-@user_passes_test(is_admin, login_url='login_page')
-@require_http_methods(["GET"])
-def admin_alert(request):
-    if request.method=='GET':
-        name=request.GET.get('name')
-        id=request.GET.get('id')
-        route=request.GET.get('route')
-
-    context={'name':name, 'id':id, 'route':route}
-    return render(request,'app1/admin/admin_alert.html', context)
-
-
-=======
     """Delete schedule via API"""
     if request.method in ['POST', 'DELETE']:
         schedule = get_object_or_404(Schedule, id=schedule_id)
@@ -537,4 +518,3 @@ def resolve_alert_api(request, alert_id):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
->>>>>>> main
