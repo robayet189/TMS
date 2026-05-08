@@ -729,3 +729,165 @@ def track_bus_api(request):
     """Bus tracking page with Leaflet map and DRF API"""
     buses = Bus.objects.filter(is_active=True)
     return render(request, 'app1/track_bus_api.html', {'buses': buses})
+
+
+# ==================== CHAT SYSTEM VIEWS ====================
+
+from .models import ChatRoom, ChatMessage
+
+@login_required
+def chat_list(request):
+    """User's chat rooms list"""
+    if request.user.profile.user_type == 'admin':
+        # Admin sees all chat rooms
+        chat_rooms = ChatRoom.objects.filter(is_active=True).select_related('user')
+    else:
+        # User sees their own chat rooms
+        chat_rooms = ChatRoom.objects.filter(user=request.user, is_active=True)
+    
+    context = {
+        'chat_rooms': chat_rooms,
+        'is_admin': request.user.profile.user_type == 'admin',
+    }
+    return render(request, 'app1/chat_list.html', context)
+
+
+@login_required
+def chat_room(request, room_id):
+    """Specific chat room view"""
+    room = get_object_or_404(ChatRoom, id=room_id)
+    
+    # Check permission
+    if request.user.profile.user_type != 'admin' and room.user != request.user:
+        messages.error(request, 'You do not have permission to view this chat.')
+        return redirect('chat_list')
+    
+    # Mark messages as read
+    ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).update(is_read=True)
+    
+    context = {
+        'room': room,
+        'messages': room.messages.all(),
+        'is_admin': request.user.profile.user_type == 'admin',
+    }
+    return render(request, 'app1/chat_room.html', context)
+
+
+@login_required
+def start_chat(request, booking_id=None):
+    """Start a new chat (for users) or create chat room (for admin)"""
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        subject = request.POST.get('subject', '')
+        
+        user = get_object_or_404(User, id=user_id)
+        
+        # Check if chat room already exists between user and admin
+        existing_room = ChatRoom.objects.filter(user=user, is_active=True).first()
+        if existing_room:
+            return redirect('chat_room', room_id=existing_room.id)
+        
+        # Create new chat room
+        room = ChatRoom.objects.create(
+            user=user,
+            admin=request.user if request.user.profile.user_type == 'admin' else None
+        )
+        
+        # Add initial message
+        ChatMessage.objects.create(
+            room=room,
+            sender=request.user,
+            message=f"📌 New chat started. Subject: {subject}" if subject else "📌 New chat started."
+        )
+        
+        return redirect('chat_room', room_id=room.id)
+    
+    return redirect('chat_list')
+
+
+@login_required
+def send_chat_message(request, room_id):
+    """Send a message via AJAX"""
+    if request.method == 'POST':
+        room = get_object_or_404(ChatRoom, id=room_id)
+        
+        # Check permission
+        if request.user.profile.user_type != 'admin' and room.user != request.user:
+            return JsonResponse({'success': False, 'error': 'Permission denied'})
+        
+        message_text = request.POST.get('message', '').strip()
+        if not message_text:
+            return JsonResponse({'success': False, 'error': 'Message cannot be empty'})
+        
+        message = ChatMessage.objects.create(
+            room=room,
+            sender=request.user,
+            message=message_text
+        )
+        
+        # Update room timestamp
+        room.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': {
+                'id': message.id,
+                'sender': message.sender.username,
+                'sender_name': message.sender.get_full_name() or message.sender.username,
+                'message': message.message,
+                'time': message.created_at.strftime('%I:%M %p'),
+                'date': message.created_at.strftime('%b %d, %Y'),
+            }
+        })
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+@login_required
+def get_chat_messages(request, room_id):
+    """Get new messages via AJAX polling"""
+    room = get_object_or_404(ChatRoom, id=room_id)
+    last_id = request.GET.get('last_id', 0)
+    
+    messages = room.messages.filter(id__gt=last_id)
+    
+    data = {
+        'success': True,
+        'messages': [
+            {
+                'id': msg.id,
+                'sender': msg.sender.username,
+                'sender_name': msg.sender.get_full_name() or msg.sender.username,
+                'message': msg.message,
+                'time': msg.created_at.strftime('%I:%M %p'),
+                'is_owner': msg.sender == request.user,
+            }
+            for msg in messages
+        ]
+    }
+    return JsonResponse(data)
+
+
+@login_required
+def close_chat(request, room_id):
+    """Close/archive a chat room"""
+    if request.method == 'POST':
+        room = get_object_or_404(ChatRoom, id=room_id)
+        
+        # Only admin can close chats
+        if request.user.profile.user_type != 'admin':
+            return JsonResponse({'success': False, 'error': 'Permission denied'})
+        
+        room.is_active = False
+        room.save()
+        
+        # Add closing message
+        ChatMessage.objects.create(
+            room=room,
+            sender=request.user,
+            message="🔒 This chat has been closed by admin."
+        )
+        
+        return JsonResponse({'success': True, 'message': 'Chat closed successfully'})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})

@@ -93,4 +93,13 @@ urlpatterns = [
     path('api/bus/<int:bus_id>/location/', views.get_bus_location, name='get_bus_location'),
     path('api/buses/locations/', views.get_all_buses_location, name='get_all_buses_location'),
     path('track-bus-api/', views.track_bus_api, name='track_bus_api'),
+
+
+    # ==================== CHAT SYSTEM URLs ====================
+    path('chat/', views.chat_list, name='chat_list'),
+    path('chat/<int:room_id>/', views.chat_room, name='chat_room'),
+    path('chat/start/', views.start_chat, name='start_chat'),
+    path('chat/send/<int:room_id>/', views.send_chat_message, name='send_chat_message'),
+    path('chat/messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
+    path('chat/close/<int:room_id>/', views.close_chat, name='close_chat'),
 ]
