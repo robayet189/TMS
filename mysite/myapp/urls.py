@@ -64,7 +64,7 @@ urlpatterns = [
     # Admin Fleet Management
     path('admin_page/fleet/', views_admin.admin_fleet, name='admin_fleet'),
     path('admin_page/api/get-bus/<int:bus_id>/', views_admin.admin_get_bus, name='admin_get_bus'),
-    path('admin_page/api/get-buses/', views_admin.admin_get_buses, name='admin_get_buses'),  # ✅ NEW: For schedule modal bus dropdown
+    path('admin_page/api/get-buses/', views_admin.admin_get_buses, name='admin_get_buses'),
     path('admin_page/api/add-bus/', views_admin.admin_add_bus, name='admin_add_bus'),
     path('admin_page/api/update-bus/<int:bus_id>/', views_admin.admin_update_bus, name='admin_update_bus'),
     path('admin_page/api/toggle-bus/<int:bus_id>/', views_admin.admin_toggle_bus_status, name='admin_toggle_bus'),
@@ -86,4 +86,11 @@ urlpatterns = [
     path('admin_page/notifications/', views_admin.admin_notifications, name='admin_notifications'),
     path('admin_page/api/send-notification/', views_admin.send_notification_api, name='send_notification_api'),
     path('admin_page/api/resolve-alert/<int:alert_id>/', views_admin.resolve_alert_api, name='resolve_alert_api'),
+
+    # ✅ Bus Tracking URLs (Already present - no changes needed)
+    path('track-bus/', views.track_bus, name='track_bus'),
+    path('api/bus/<int:bus_id>/update/', views.update_bus_location, name='update_bus_location'),
+    path('api/bus/<int:bus_id>/location/', views.get_bus_location, name='get_bus_location'),
+    path('api/buses/locations/', views.get_all_buses_location, name='get_all_buses_location'),
+    path('track-bus-api/', views.track_bus_api, name='track_bus_api'),
 ]
