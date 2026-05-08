@@ -209,7 +209,7 @@ class UserPass(models.Model):
 
 class ChatRoom(models.Model):
     """Chat room for user-admin communication"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_rooms')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_rooms', null=True, blank=True)
     admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_chat_rooms')
     booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_rooms')
     created_at = models.DateTimeField(auto_now_add=True)
