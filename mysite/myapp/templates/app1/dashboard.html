@@ -1,2 +1,96 @@
 {% extends 'app1/base.html' %}
-{% block content %}{% include 'app1/partials/dashboard_content.html' %}{% endblock %}
+
+{% block title %}My Dashboard - Easy Transport{% endblock %}
+
+{% block content %}
+<div style="max-width:1200px; margin:0 auto; padding:32px;">
+    <h1 style="font-size:32px; font-weight:700; margin-bottom:8px;">Welcome, {{ user.get_full_name|default:user.username }}!</h1>
+    <p style="color:var(--text-muted); margin-bottom:32px;">Manage your bookings and view upcoming trips</p>
+    
+    <!-- Stats -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px; margin-bottom:32px;">
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px;">
+            <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Total Bookings</div>
+            <div style="font-size:32px; font-weight:700;">{{ total_bookings }}</div>
+        </div>
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px;">
+            <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Approved</div>
+            <div style="font-size:32px; font-weight:700; color:var(--success);">{{ approved_bookings }}</div>
+        </div>
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px;">
+            <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Pending Approval</div>
+            <div style="font-size:32px; font-weight:700; color:var(--warning);">{{ pending_bookings }}</div>
+        </div>
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px;">
+            <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Total Spent</div>
+            <div style="font-size:32px; font-weight:700; color:var(--accent);">৳{{ total_spent }}</div>
+        </div>
+    </div>
+    
+    <!-- Upcoming Trips -->
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:32px;">
+        <h2 style="font-size:20px; font-weight:600; margin-bottom:20px;">Upcoming Trips</h2>
+        {% if upcoming_trips %}
+            {% for booking in upcoming_trips %}
+            <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:600; font-size:16px; margin-bottom:4px;">
+                            {{ booking.schedule.route.code }} - {{ booking.schedule.route.start }} → {{ booking.schedule.route.end }}
+                        </div>
+                        <div style="color:var(--text-muted); font-size:14px;">
+                            📅 {{ booking.schedule.travel_date|date:"M d, Y" }} at {{ booking.schedule.departure_time|date:"g:i A" }}
+                            {% if booking.schedule.bus %}• 🚌 {{ booking.schedule.bus.bus_number }}{% endif %}
+                            • Seat: {{ booking.seat_number }}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="badge badge-{{ booking.status }}" style="padding:6px 12px; border-radius:999px; font-size:12px; font-weight:600;">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:var(--text-muted); text-align:center; padding:40px;">No upcoming trips</p>
+        {% endif %}
+    </div>
+    
+    <!-- Recent Bookings -->
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px;">
+        <h2 style="font-size:20px; font-weight:600; margin-bottom:20px;">Recent Bookings</h2>
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <th style="padding:12px; text-align:left; font-size:12px; color:var(--text-muted);">Booking ID</th>
+                    <th style="padding:12px; text-align:left; font-size:12px; color:var(--text-muted);">Route</th>
+                    <th style="padding:12px; text-align:left; font-size:12px; color:var(--text-muted);">Date</th>
+                    <th style="padding:12px; text-align:left; font-size:12px; color:var(--text-muted);">Status</th>
+                    <th style="padding:12px; text-align:left; font-size:12px; color:var(--text-muted);">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in my_bookings|slice:":10" %}
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:12px;"><strong>{{ booking.booking_id }}</strong></td>
+                    <td style="padding:12px;">{{ booking.schedule.route.code }}</td>
+                    <td style="padding:12px;">{{ booking.schedule.travel_date|date:"M d" }}</td>
+                    <td style="padding:12px;">
+                        <span class="badge badge-{{ booking.status }}">{{ booking.get_status_display }}</span>
+                        {% if booking.admin_remarks %}
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">{{ booking.admin_remarks }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="padding:12px;">৳{{ booking.amount }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="padding:40px; text-align:center; color:var(--text-muted);">No bookings yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

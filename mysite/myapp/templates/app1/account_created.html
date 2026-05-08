@@ -1,0 +1,337 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Created — Next Route</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,600&display=swap" rel="stylesheet" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'DM Sans', sans-serif;
+      background: linear-gradient(140deg, #0f0f1a 0%, #1a0a25 50%, #0a0f1f 100%);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      pointer-events: none;
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+    .orb-1 {
+      width: 500px; height: 500px;
+      background: rgba(123, 47, 190, 0.18);
+      top: -150px; left: -150px;
+      animation-delay: 0s;
+    }
+    .orb-2 {
+      width: 400px; height: 400px;
+      background: rgba(255, 71, 87, 0.10);
+      bottom: -100px; right: -100px;
+      animation-delay: -3s;
+    }
+    .orb-3 {
+      width: 300px; height: 300px;
+      background: rgba(0, 200, 160, 0.07);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      animation-delay: -5s;
+    }
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 20px) scale(1.08); }
+    }
+
+    .particles { position: absolute; inset: 0; pointer-events: none; }
+    .particle {
+      position: absolute;
+      width: 3px; height: 3px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      animation: rise linear infinite;
+    }
+    @keyframes rise {
+      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(-20px) scale(1); opacity: 0; }
+    }
+
+    .card {
+      position: relative; z-index: 10;
+      background: #1c1c2e;
+      border: 0.8px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      width: 420px;
+      padding: 48px 40px 40px;
+      text-align: center;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 8px 40px rgba(0,0,0,0.6),
+        0 0 80px rgba(123,47,190,0.12);
+      animation: popIn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.7) translateY(30px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(0,200,160,0.35), rgba(255,71,87,0.15), transparent 60%);
+      webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .icon-wrap {
+      position: relative;
+      width: 80px; height: 80px;
+      margin: 0 auto 28px;
+      animation: popIn 0.65s 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    .ring {
+      position: absolute; inset: -12px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(0, 200, 160, 0.3);
+      animation: ripple 2.2s ease-out infinite;
+    }
+    .ring:nth-child(2) {
+      inset: -24px;
+      animation-delay: 0.5s;
+      border-color: rgba(0, 200, 160, 0.15);
+    }
+    @keyframes ripple {
+      0%   { transform: scale(0.85); opacity: 1; }
+      100% { transform: scale(1.15); opacity: 0; }
+    }
+
+    .icon-circle {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: rgba(0, 200, 160, 0.12);
+      border: 2px solid rgba(0, 200, 160, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; z-index: 1;
+    }
+
+    .checkmark {
+      width: 36px; height: 36px;
+    }
+    .check-circle {
+      stroke: #00c8a0;
+      stroke-width: 2;
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      fill: none;
+      animation: drawCircle 0.5s 0.4s ease forwards;
+    }
+    .check-tick {
+      stroke: #00c8a0;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      fill: none;
+      animation: drawTick 0.35s 0.9s ease forwards;
+    }
+    @keyframes drawCircle { to { stroke-dashoffset: 0; } }
+    @keyframes drawTick { to { stroke-dashoffset: 0; } }
+
+    .title {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px; font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 10px;
+      animation: fadeUp 0.5s 0.5s ease both;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: #a09ab8;
+      line-height: 1.6;
+      margin-bottom: 32px;
+      animation: fadeUp 0.5s 0.65s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .email-hint {
+      background: rgba(0, 200, 160, 0.06);
+      border: 0.8px solid rgba(0, 200, 160, 0.2);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #a09ab8;
+      line-height: 1.5;
+      animation: fadeUp 0.5s 0.75s ease both;
+    }
+    .email-hint span { color: #00c8a0; font-weight: 600; }
+
+    .btn-login {
+      display: inline-block;
+      background: #ff4757;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px; font-weight: 600;
+      padding: 13px 40px;
+      border-radius: 999px;
+      border: none; cursor: pointer;
+      box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      animation: fadeUp 0.5s 0.85s ease both;
+      width: 100%;
+      text-decoration: none;
+    }
+    .btn-login:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 0 32px rgba(255, 71, 87, 0.6);
+    }
+    .btn-login:active { transform: translateY(0); }
+
+    .confetti-wrap {
+      position: absolute; top: 0; left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none; z-index: 20;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 8px; height: 8px;
+      border-radius: 2px;
+      animation: burst 1.2s ease-out both;
+    }
+    @keyframes burst {
+      0%   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+      100% { transform: var(--tx) rotate(var(--rot)) scale(0.4); opacity: 0; }
+    }
+
+    .dots {
+      display: flex; justify-content: center; gap: 6px;
+      margin-top: 24px;
+      animation: fadeUp 0.5s 1s ease both;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+    }
+    .dot.active { background: #ff4757; }
+
+    .resend-note {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #5a5470;
+      animation: fadeUp 0.5s 1.1s ease both;
+    }
+    .resend-note a {
+      color: #ff4757; text-decoration: none; font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .resend-note a:hover { opacity: 0.8; }
+  </style>
+</head>
+<body>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="particles" id="particles"></div>
+
+  <div class="card" id="card">
+    <div class="confetti-wrap" id="confetti"></div>
+
+    <div class="icon-wrap">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="icon-circle">
+        <svg class="checkmark" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+          <circle class="check-circle" cx="26" cy="26" r="24"/>
+          <polyline class="check-tick" points="14,26 22,34 38,18"/>
+        </svg>
+      </div>
+    </div>
+
+    <h2 class="title">Account Created!</h2>
+    <p class="subtitle">Your account is ready. One last step to go! 🚀</p>
+
+    <!-- ✅ FIXED: Updated message for console email backend -->
+    <div class="email-hint">
+      ✅ Your account has been created successfully!<br/>
+      <span>Please proceed to login</span> with your credentials.
+    </div>
+
+    <!-- ✅ FIXED: Using Django URL tag -->
+    <a class="btn-login" href="{% url 'login_page' %}">Go to Login</a>
+
+    <div class="dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot active"></div>
+    </div>
+
+    <!-- ✅ FIXED: Removed non-functional resend link -->
+    <p class="resend-note">
+      Need help? <a href="{% url 'login_page' %}">Contact Support</a>
+    </p>
+  </div>
+
+  <script>
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.bottom = '0';
+      p.style.width = (Math.random() * 3 + 1.5) + 'px';
+      p.style.height = p.style.width;
+      p.style.animationDuration = (Math.random() * 12 + 8) + 's';
+      p.style.animationDelay = (Math.random() * 10) + 's';
+      p.style.opacity = Math.random() * 0.4 + 0.1;
+      container.appendChild(p);
+    }
+
+    const colors = ['#ff4757','#ff6b35','#00c8a0','#a855f7','#fbbf24','#60a5fa'];
+    const confettiWrap = document.getElementById('confetti');
+
+    function launchConfetti() {
+      for (let i = 0; i < 22; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        const angle = (Math.random() * 360);
+        const dist = Math.random() * 160 + 60;
+        const tx = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist + 20}px)`;
+        const rot = (Math.random() * 720 - 360) + 'deg';
+        piece.style.setProperty('--tx', tx);
+        piece.style.setProperty('--rot', rot);
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.top = '0px';
+        piece.style.left = (Math.random() * 60 - 30) + 'px';
+        piece.style.animationDelay = (Math.random() * 0.3 + 0.8) + 's';
+        piece.style.animationDuration = (Math.random() * 0.6 + 0.9) + 's';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        confettiWrap.appendChild(piece);
+      }
+    }
+    launchConfetti();
+  </script>
+</body>
+</html>

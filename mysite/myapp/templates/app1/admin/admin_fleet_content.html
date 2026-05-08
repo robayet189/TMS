@@ -12,7 +12,7 @@
     </div>
     <div>
       <p class="stat-label">Total Fleet</p>
-      <p class="stat-value">{{ total_buses }}</p>
+      <p class="stat-value">{{ total_buses|default:0 }}</p>
     </div>
   </div>
 
@@ -26,7 +26,7 @@
     </div>
     <div>
       <p class="stat-label">Active</p>
-      <p class="stat-value" style="color: #00c896;">{{ active_buses }}</p>
+      <p class="stat-value" style="color: #00c896;">{{ active_buses|default:0 }}</p>
     </div>
   </div>
 
@@ -40,7 +40,7 @@
     </div>
     <div>
       <p class="stat-label">In Maintenance</p>
-      <p class="stat-value" style="color: #ffb800;">{{ maintenance_buses }}</p>
+      <p class="stat-value" style="color: #ffb800;">{{ maintenance_buses|default:0 }}</p>
     </div>
   </div>
 
@@ -54,7 +54,7 @@
     </div>
     <div>
       <p class="stat-label">Inactive</p>
-      <p class="stat-value" style="color: #ff4757;">{{ inactive_buses }}</p>
+      <p class="stat-value" style="color: #ff4757;">{{ inactive_buses|default:0 }}</p>
     </div>
   </div>
 </div>
@@ -91,7 +91,8 @@
       </thead>
       <tbody id="busesTableBody">
         {% for bus in buses %}
-        <tr data-status="{% if bus.is_active %}active{% else %}inactive{% endif %}">
+        <!-- ✅ FIXED: Added data attributes for safe JS access -->
+        <tr data-bus-id="{{ bus.id }}" data-status="{% if bus.is_active %}active{% else %}inactive{% endif %}">
           <td><strong>{{ bus.bus_number }}</strong></td>
           <td>{{ bus.capacity }} seats</td>
           <td>
@@ -108,10 +109,20 @@
             </div>
           </td>
           <td>
+            <!-- ✅ FIXED: Using data-action instead of inline onclick -->
             <div class="action-buttons">
-              <button class="btn-icon btn-edit" onclick="editBus({{ bus.id }})" title="Edit">✏️</button>
-              <button class="btn-icon btn-toggle" onclick="toggleBusStatus({{ bus.id }})" title="Toggle Status">🔄</button>
-              <button class="btn-icon btn-delete" onclick="deleteBus({{ bus.id }})" title="Delete">🗑️</button>
+              <button class="btn-icon btn-edit" 
+                      data-action="edit" 
+                      data-bus-id="{{ bus.id }}" 
+                      title="Edit">&#9998;</button>
+              <button class="btn-icon btn-toggle" 
+                      data-action="toggle" 
+                      data-bus-id="{{ bus.id }}" 
+                      title="Toggle Status">&#128260;</button>
+              <button class="btn-icon btn-delete" 
+                      data-action="delete" 
+                      data-bus-id="{{ bus.id }}" 
+                      title="Delete">&#128465;</button>
             </div>
           </td>
         </tr>
@@ -244,6 +255,7 @@
 </style>
 
 <script>
+// Filter buses based on search and status
 function filterBuses() {
   const searchTerm = document.getElementById('searchBus').value.toLowerCase();
   const statusFilter = document.getElementById('statusFilter').value;
@@ -263,12 +275,33 @@ function filterBuses() {
   });
 }
 
+// ✅ FIXED: Event delegation - handles all button clicks safely
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.btn-icon');
+  if (!btn) return;
+  
+  const action = btn.dataset.action;
+  const busId = btn.dataset.busId;
+  
+  if (action === 'edit') {
+    editBus(busId);
+  } else if (action === 'toggle') {
+    toggleBusStatus(busId);
+  } else if (action === 'delete') {
+    deleteBus(busId);
+  }
+});
+
 function editBus(busId) {
   fetch(`/admin_page/api/get-bus/${busId}/`)
     .then(response => response.json())
     .then(data => {
-      // Implementation for editing (same as in main template)
+      // Redirect to edit page or open modal
       window.location.href = `/admin_page/fleet/?edit=${busId}`;
+    })
+    .catch(error => {
+      showToast('Error loading bus data', true);
+      console.error('Error:', error);
     });
 }
 
@@ -284,23 +317,32 @@ function toggleBusStatus(busId) {
   .then(data => {
     showToast(data.message);
     setTimeout(() => location.reload(), 1000);
+  })
+  .catch(error => {
+    showToast('Error toggling bus status', true);
+    console.error('Error:', error);
   });
 }
 
 function deleteBus(busId) {
-  if (confirm('Are you sure you want to delete this bus?')) {
-    fetch(`/admin_page/api/delete-bus/${busId}/`, {
-      method: 'DELETE',
-      headers: { 'X-CSRFToken': getCookie('csrftoken') }
-    })
-    .then(response => response.json())
-    .then(data => {
-      showToast(data.message);
-      setTimeout(() => location.reload(), 1000);
-    });
-  }
+  if (!confirm('Are you sure you want to delete this bus? This cannot be undone.')) return;
+  
+  fetch(`/admin_page/api/delete-bus/${busId}/`, {
+    method: 'DELETE',
+    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+  })
+  .then(response => response.json())
+  .then(data => {
+    showToast(data.message);
+    if(data.success) setTimeout(() => location.reload(), 1000);
+  })
+  .catch(error => {
+    showToast('Error deleting bus', true);
+    console.error('Error:', error);
+  });
 }
 
+// Get CSRF token
 function getCookie(name) {
   let cookieValue = null;
   if (document.cookie && document.cookie !== '') {
@@ -314,5 +356,22 @@ function getCookie(name) {
     }
   }
   return cookieValue;
+}
+
+// Toast notification
+function showToast(msg, isError = false) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ${isError?'#ff4757':'#00c896'}; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;`;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => { 
+    toast.style.transform = 'translateY(0)'; 
+    toast.style.opacity = '1'; 
+  }, 10);
+  setTimeout(() => { 
+    toast.style.transform = 'translateY(60px)'; 
+    toast.style.opacity = '0'; 
+    setTimeout(() => toast.remove(), 250); 
+  }, 2800);
 }
 </script>

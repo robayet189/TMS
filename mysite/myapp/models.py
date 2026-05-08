@@ -1,59 +1,34 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+from django.utils import timezone
 
 class UserProfile(models.Model):
-    INSTITUTION_TYPES = [
-        ('educational', 'Educational'),
-        ('industrial', 'Industrial'),
-    ]
-
     USER_TYPES = [
         ('student', 'Student'),
         ('faculty', 'Faculty'),
         ('staff', 'Staff'),
         ('admin', 'Admin'),
         ('driver', 'Driver'),
-        ('executive', 'Executive'),
+    ]
+    INSTITUTION_TYPES = [
+        ('educational', 'Educational'),
+        ('industrial', 'Industrial'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     phone = models.CharField(max_length=15, blank=True)
-    institution_type = models.CharField(max_length=50, blank=True)
     user_type = models.CharField(max_length=20, choices=USER_TYPES, default='student')
+    institution_type = models.CharField(max_length=50, blank=True, null=True)
     institution_id = models.CharField(max_length=50, blank=True)
     department = models.CharField(max_length=100, blank=True)
     is_pass_active = models.BooleanField(default=False)
     pass_valid_until = models.DateField(null=True, blank=True)
     pass_id = models.CharField(max_length=50, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.get_full_name() or self.user.username} - {self.institution_id}"
-
-    class Meta:
-        verbose_name = "User Profile"
-        verbose_name_plural = "User Profiles"
-
-
-from django.db import models
-from django.contrib.auth.models import User
-
-
-class Route(models.Model):
-    """Bus route information"""
-    code = models.CharField(max_length=10, unique=True)  # A1, B3, C2, etc.
-    start = models.CharField(max_length=100)
-    end = models.CharField(max_length=100)
-    distance_km = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.code}: {self.start} → {self.end}"
-
+        return f"{self.user.username} ({self.user_type})"
 
 class Bus(models.Model):
-    """Bus details"""
     bus_number = models.CharField(max_length=20, unique=True)
     capacity = models.IntegerField(default=40)
     driver_name = models.CharField(max_length=100)
@@ -63,11 +38,18 @@ class Bus(models.Model):
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.bus_number} - {self.driver_name}"
+        return self.bus_number
 
+class Route(models.Model):
+    code = models.CharField(max_length=10, unique=True)
+    start = models.CharField(max_length=100)
+    end = models.CharField(max_length=100)
+    distance_km = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.code}: {self.start} → {self.end}"
 
 class Schedule(models.Model):
-    """Bus schedule for specific dates"""
     route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='schedules')
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='schedules')
     departure_time = models.TimeField()
@@ -79,59 +61,120 @@ class Schedule(models.Model):
 
     class Meta:
         unique_together = ['route', 'travel_date', 'departure_time']
-        ordering = ['travel_date', 'departure_time']
 
     def __str__(self):
-        return f"{self.route.code} - {self.departure_time} on {self.travel_date}"
-    
-   
+        return f"{self.route.code} on {self.travel_date}"
 
 class Booking(models.Model):
-    """Ticket booking information"""
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
         ('completed', 'Completed'),
     ]
+    PAYMENT_CHOICES = [('bkash', 'bKash'), ('sslcommerz', 'SSLCommerz'), ('cash', 'Cash')]
+
+    booking_id = models.CharField(max_length=20, unique=True, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='bookings')
+    seat_number = models.CharField(max_length=10)
+    booking_date = models.DateTimeField(auto_now_add=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    passenger_name = models.CharField(max_length=100)
+    admin_remarks = models.TextField(blank=True, null=True, help_text="Admin approval/rejection remarks")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_bookings')
+
+    def save(self, *args, **kwargs):
+        if not self.booking_id:
+            import random, string
+            self.booking_id = 'BK-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.booking_id} - {self.passenger_name}"
+
+
+class BusLocation(models.Model):
+    """Track bus locations"""
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='locations')
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    updated_at = models.DateTimeField(auto_now=True)
     
-    PAYMENT_STATUS = [
-        ('unpaid', 'Unpaid'),
-        ('paid', 'Paid'),
+    class Meta:
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"{self.bus.bus_number} - {self.latitude}, {self.longitude}"
+
+
+
+
+        # ==================== PAYMENT MODELS ====================
+
+class PaymentMethod(models.Model):
+    """Available payment methods"""
+    name = models.CharField(max_length=50)  # bKash, Nagad, Card, Bank
+    code = models.CharField(max_length=20, unique=True)
+    is_active = models.BooleanField(default=True)
+    icon = models.CharField(max_length=50, blank=True)
+    
+    def __str__(self):
+        return self.name
+
+
+class PaymentTransaction(models.Model):
+    """All payment transactions"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
         ('refunded', 'Refunded'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
-    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='bookings')
-    booking_date = models.DateTimeField(auto_now_add=True)
-    number_of_seats = models.IntegerField(default=1)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='confirmed')
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='paid')
-    booking_id = models.CharField(max_length=50, unique=True, blank=True)
-    passenger_name = models.CharField(max_length=100, blank=True)
-    passenger_phone = models.CharField(max_length=15, blank=True)
-    passenger_email = models.CharField(max_length=100, blank=True)
-    seat_numbers = models.CharField(max_length=200, blank=True)
-    travel_date = models.DateField(null=True, blank=True)
+    PAYMENT_TYPE_CHOICES = [
+        ('pass', 'Transport Pass'),
+        ('single', 'Single Trip'),
+        ('booking', 'Booking Payment'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
+    
+    transaction_id = models.CharField(max_length=100, unique=True, blank=True)
+    payment_method = models.CharField(max_length=50)  # bkash, nagad, card, bank
+    payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES, default='pass')
+    
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # For pass purchases
+    pass_type = models.CharField(max_length=20, blank=True)  # monthly, semester
+    pass_valid_from = models.DateField(null=True, blank=True)
+    pass_valid_until = models.DateField(null=True, blank=True)
+    
+    # Payment details
+    payment_details = models.JSONField(default=dict, blank=True)  # Store gateway response
+    remarks = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):
-        if not self.booking_id:
+        if not self.transaction_id:
             import random
             import string
-            self.booking_id = 'TR' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-        if not self.travel_date and self.schedule:
-            self.travel_date = self.schedule.travel_date
+            self.transaction_id = 'TXN' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
         super().save(*args, **kwargs)
     
     def __str__(self):
-        seat_info = f" - Seats: {self.seat_numbers}" if self.seat_numbers else ""
-        return f"Booking {self.booking_id} - {self.passenger_name or self.user.username}{seat_info}"
+        return f"{self.transaction_id} - {self.user.username} - ৳{self.amount}"
     
     class Meta:
-<<<<<<< Updated upstream
-        ordering = ['-booking_date']  
-=======
         ordering = ['-created_at']
 
 
@@ -162,38 +205,37 @@ class UserPass(models.Model):
         ordering = ['-created_at']
 
 
-
-
-        # ==================== CHAT MODELS ====================
+   # ==================== CHAT SYSTEM MODELS ====================
 
 class ChatRoom(models.Model):
-    """Chat room for user-admin or driver-admin conversations"""
-    ROOM_TYPES = [
-        ('user_admin', 'User-Admin'),
-        ('driver_admin', 'Driver-Admin'),
-    ]
-    
-    room_id = models.CharField(max_length=100, unique=True)
-    room_type = models.CharField(max_length=20, choices=ROOM_TYPES)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='chat_rooms')
-    admin = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='admin_chat_rooms')
+    """Chat room for user-admin communication"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_rooms')
+    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_chat_rooms')
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_rooms')
     created_at = models.DateTimeField(auto_now_add=True)
-    last_message = models.TextField(blank=True)
-    last_message_time = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
     
     def __str__(self):
-        return f"Room: {self.room_id}"
+        return f"Chat: {self.user.username} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
     
     class Meta:
-        ordering = ['-last_message_time']
+        ordering = ['-updated_at']
 
 
 class ChatMessage(models.Model):
     """Individual chat messages"""
+    MESSAGE_TYPES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('file', 'File'),
+    ]
+    
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages', null=True, blank=True)
     message = models.TextField()
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPES, default='text')
+    attachment = models.FileField(upload_to='chat_attachments/', null=True, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -201,15 +243,4 @@ class ChatMessage(models.Model):
         return f"{self.sender.username}: {self.message[:50]}"
     
     class Meta:
-        ordering = ['created_at']
-
-
-class UserOnlineStatus(models.Model):
-    """Track user online status"""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='online_status')
-    is_online = models.BooleanField(default=False)
-    last_seen = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return f"{self.user.username} - {'Online' if self.is_online else 'Offline'}"
->>>>>>> Stashed changes
+        ordering = ['created_at']     
