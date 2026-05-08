@@ -96,3 +96,151 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.booking_id} - {self.passenger_name}"
+
+
+class BusLocation(models.Model):
+    """Track bus locations"""
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='locations')
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"{self.bus.bus_number} - {self.latitude}, {self.longitude}"
+
+
+
+
+        # ==================== PAYMENT MODELS ====================
+
+class PaymentMethod(models.Model):
+    """Available payment methods"""
+    name = models.CharField(max_length=50)  # bKash, Nagad, Card, Bank
+    code = models.CharField(max_length=20, unique=True)
+    is_active = models.BooleanField(default=True)
+    icon = models.CharField(max_length=50, blank=True)
+    
+    def __str__(self):
+        return self.name
+
+
+class PaymentTransaction(models.Model):
+    """All payment transactions"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    PAYMENT_TYPE_CHOICES = [
+        ('pass', 'Transport Pass'),
+        ('single', 'Single Trip'),
+        ('booking', 'Booking Payment'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
+    
+    transaction_id = models.CharField(max_length=100, unique=True, blank=True)
+    payment_method = models.CharField(max_length=50)  # bkash, nagad, card, bank
+    payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES, default='pass')
+    
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # For pass purchases
+    pass_type = models.CharField(max_length=20, blank=True)  # monthly, semester
+    pass_valid_from = models.DateField(null=True, blank=True)
+    pass_valid_until = models.DateField(null=True, blank=True)
+    
+    # Payment details
+    payment_details = models.JSONField(default=dict, blank=True)  # Store gateway response
+    remarks = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.transaction_id:
+            import random
+            import string
+            self.transaction_id = 'TXN' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.transaction_id} - {self.user.username} - ৳{self.amount}"
+    
+    class Meta:
+        ordering = ['-created_at']
+
+
+class UserPass(models.Model):
+    """User's active passes"""
+    PASS_TYPES = [
+        ('monthly', 'Monthly Pass'),
+        ('semester', 'Semester Pass'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='passes')
+    pass_type = models.CharField(max_length=20, choices=PASS_TYPES)
+    transaction = models.OneToOneField(PaymentTransaction, on_delete=models.CASCADE, related_name='user_pass')
+    
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    
+    total_rides = models.IntegerField(default=0)
+    remaining_rides = models.IntegerField(default=0)  # For limited rides
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.pass_type} (Valid until {self.end_date})"
+    
+    class Meta:
+        ordering = ['-created_at']
+
+
+   # ==================== CHAT SYSTEM MODELS ====================
+
+class ChatRoom(models.Model):
+    """Chat room for user-admin communication"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_rooms', null=True, blank=True)
+    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_chat_rooms')
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_rooms')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"Chat: {self.user.username} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    
+    class Meta:
+        ordering = ['-updated_at']
+
+
+class ChatMessage(models.Model):
+    """Individual chat messages"""
+    MESSAGE_TYPES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('file', 'File'),
+    ]
+    
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    message = models.TextField()
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPES, default='text')
+    attachment = models.FileField(upload_to='chat_attachments/', null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.sender.username}: {self.message[:50]}"
+    
+    class Meta:
+        ordering = ['created_at']     
