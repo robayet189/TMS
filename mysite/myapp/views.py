@@ -131,25 +131,20 @@ def login_user(request):
     if user is not None:
         login(request, user)
         
-        is_admin = False
-        try:
-            if hasattr(user, 'profile'):
-                is_admin = user.profile.user_type.lower() == 'admin'
-        except:
-            is_admin = user.is_superuser
+        # ✅ FIXED: Role-based redirection (Driver, Admin, User)
+        user_type = 'student'
+        if hasattr(user, 'profile'):
+            user_type = user.profile.user_type.lower()
         
-        # ✅ ADDED: Check if driver and redirect to driver dashboard
-        is_driver = hasattr(user, 'driver_profile') and user.driver_profile.is_active
-        
-        if is_driver:
-            redirect_url = '/driver/dashboard/'
-        elif is_admin:
+        if user_type == 'admin':
             redirect_url = '/admin_page/dashboard/'
+        elif user_type == 'driver':
+            redirect_url = '/driver/dashboard/'
         else:
             redirect_url = '/dashboard/'
-        
+            
         full_name = user.get_full_name() or user.username
-        msg = f'Welcome back Admin, {full_name}!' if is_admin else f'Welcome back, {full_name}!'
+        msg = f'Welcome back Admin, {full_name}!' if user_type == 'admin' else f'Welcome back, {full_name}!'
         
         return JsonResponse({'success': True, 'message': msg, 'redirect_url': redirect_url})
     
@@ -883,14 +878,13 @@ def close_chat(request, room_id):
 
 
 # ==================== DRIVER MODULE VIEWS (NEW - For driver_dashboard.html) ====================
-# ✅ ADDED: Driver login page
+
 def driver_login_page(request):
     """Driver login page"""
     if request.user.is_authenticated and hasattr(request.user, 'driver_profile'):
         return redirect('driver_dashboard')
     return render(request, 'app1/driver/driver_login.html')
 
-# ✅ ADDED: Driver login handler
 @require_http_methods(["POST"])
 def driver_login(request):
     """Driver login handler"""
@@ -931,7 +925,6 @@ def driver_login(request):
             'message': 'Invalid username or password'
         }, status=401)
 
-# ✅ ADDED: Driver dashboard view - MAIN VIEW FOR driver_dashboard.html
 @login_required
 def driver_dashboard(request):
     """Driver dashboard - shows assigned trips and stats"""
@@ -942,27 +935,23 @@ def driver_dashboard(request):
     driver = request.user.driver_profile
     today = timezone.now().date()
     
-    # Get today's trips for this driver
     today_trips = Trip.objects.filter(
         driver=driver,
         travel_date=today
     ).select_related('route', 'bus').order_by('departure_time')
     
-    # Get upcoming trips
     upcoming_trips = Trip.objects.filter(
         driver=driver,
         travel_date__gt=today,
         status='pending'
     ).select_related('route', 'bus').order_by('travel_date', 'departure_time')[:5]
     
-    # Get ongoing trip if any
     ongoing_trip = Trip.objects.filter(
         driver=driver,
         status='ongoing'
     ).select_related('route', 'bus').first()
     
-    # Get passenger count for today's trips (mock data for template)
-    passenger_count = 24  # Mock value - replace with actual booking count
+    passenger_count = 24
     
     context = {
         'driver': driver,
@@ -971,12 +960,11 @@ def driver_dashboard(request):
         'ongoing_trip': ongoing_trip,
         'passenger_count': passenger_count,
         'trips_completed': driver.trips.filter(status='completed').count(),
-        'today_earnings': 480,  # Mock value
+        'today_earnings': 480,
     }
     
     return render(request, 'app1/driver/driver_dashboard.html', context)
 
-# ✅ ADDED: Driver profile view
 @login_required
 def driver_profile(request):
     """Driver profile page"""
@@ -998,7 +986,6 @@ def driver_profile(request):
     context = {'driver': driver}
     return render(request, 'app1/driver/driver_profile.html', context)
 
-# ✅ ADDED: Trip detail view
 @login_required
 def trip_detail(request, trip_id):
     """View trip details with stops"""
@@ -1015,7 +1002,6 @@ def trip_detail(request, trip_id):
     }
     return render(request, 'app1/driver/trip_detail.html', context)
 
-# ✅ ADDED: Start trip action
 @login_required
 @require_http_methods(["POST"])
 def start_trip(request, trip_id):
@@ -1038,7 +1024,6 @@ def start_trip(request, trip_id):
             'message': 'Trip cannot be started in current status'
         }, status=400)
 
-# ✅ ADDED: Complete trip action
 @login_required
 @require_http_methods(["POST"])
 def complete_trip(request, trip_id):
@@ -1062,7 +1047,6 @@ def complete_trip(request, trip_id):
             'message': 'Trip cannot be completed in current status'
         }, status=400)
 
-# ✅ ADDED: Update stop status
 @login_required
 @require_http_methods(["POST"])
 def update_stop_status(request, stop_id):
@@ -1089,7 +1073,6 @@ def update_stop_status(request, stop_id):
     else:
         return JsonResponse({'success': False, 'message': 'Invalid action'}, status=400)
 
-# ✅ ADDED: Driver logout
 @login_required
 def driver_logout(request):
     """Driver logout"""
