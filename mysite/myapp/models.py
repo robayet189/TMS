@@ -8,7 +8,7 @@ class UserProfile(models.Model):
         ('faculty', 'Faculty'),
         ('staff', 'Staff'),
         ('admin', 'Admin'),
-        ('driver', 'Driver'),
+        ('driver', 'Driver'),  # ✅ Already exists - Driver user type
     ]
     INSTITUTION_TYPES = [
         ('educational', 'Educational'),
@@ -112,13 +112,11 @@ class BusLocation(models.Model):
         return f"{self.bus.bus_number} - {self.latitude}, {self.longitude}"
 
 
-
-
-        # ==================== PAYMENT MODELS ====================
+# ==================== PAYMENT MODELS ====================
 
 class PaymentMethod(models.Model):
     """Available payment methods"""
-    name = models.CharField(max_length=50)  # bKash, Nagad, Card, Bank
+    name = models.CharField(max_length=50)
     code = models.CharField(max_length=20, unique=True)
     is_active = models.BooleanField(default=True)
     icon = models.CharField(max_length=50, blank=True)
@@ -146,19 +144,17 @@ class PaymentTransaction(models.Model):
     booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     
     transaction_id = models.CharField(max_length=100, unique=True, blank=True)
-    payment_method = models.CharField(max_length=50)  # bkash, nagad, card, bank
+    payment_method = models.CharField(max_length=50)
     payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES, default='pass')
     
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
-    # For pass purchases
-    pass_type = models.CharField(max_length=20, blank=True)  # monthly, semester
+    pass_type = models.CharField(max_length=20, blank=True)
     pass_valid_from = models.DateField(null=True, blank=True)
     pass_valid_until = models.DateField(null=True, blank=True)
     
-    # Payment details
-    payment_details = models.JSONField(default=dict, blank=True)  # Store gateway response
+    payment_details = models.JSONField(default=dict, blank=True)
     remarks = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -194,7 +190,7 @@ class UserPass(models.Model):
     is_active = models.BooleanField(default=True)
     
     total_rides = models.IntegerField(default=0)
-    remaining_rides = models.IntegerField(default=0)  # For limited rides
+    remaining_rides = models.IntegerField(default=0)
     
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -205,7 +201,7 @@ class UserPass(models.Model):
         ordering = ['-created_at']
 
 
-   # ==================== CHAT SYSTEM MODELS ====================
+# ==================== CHAT SYSTEM MODELS ====================
 
 class ChatRoom(models.Model):
     """Chat room for user-admin communication"""
@@ -243,4 +239,91 @@ class ChatMessage(models.Model):
         return f"{self.sender.username}: {self.message[:50]}"
     
     class Meta:
-        ordering = ['created_at']     
+        ordering = ['created_at']
+
+
+# ==================== DRIVER MODULE MODELS (NEW - For driver_dashboard.html) ====================
+# ✅ ADDED: Driver model for driver-specific data
+class Driver(models.Model):
+    """Driver profile extending UserProfile"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='driver_profile')
+    license_number = models.CharField(max_length=50, unique=True)
+    license_expiry = models.DateField()
+    phone = models.CharField(max_length=15)
+    address = models.TextField()
+    emergency_contact = models.CharField(max_length=15)
+    is_approved = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    assigned_bus = models.ForeignKey(Bus, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_drivers')
+    assigned_route = models.ForeignKey(Route, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_drivers')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.get_full_name()} - {self.license_number}"
+
+
+# ✅ ADDED: Trip model for driver trip management
+class Trip(models.Model):
+    """Trip assignment for drivers"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='trips')
+    route = models.ForeignKey(Route, on_delete=models.CASCADE)
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
+    travel_date = models.DateField()
+    departure_time = models.TimeField()
+    arrival_time = models.TimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    current_lat = models.FloatField(null=True, blank=True)
+    current_lng = models.FloatField(null=True, blank=True)
+    last_location_update = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.route.code} - {self.travel_date} ({self.driver.user.get_full_name()})"
+
+
+# ✅ ADDED: TripStop model for route stops
+class TripStop(models.Model):
+    """Individual stops in a trip"""
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='stops')
+    stop_name = models.CharField(max_length=200)
+    stop_order = models.IntegerField()
+    scheduled_time = models.TimeField()
+    arrival_time = models.TimeField(null=True, blank=True)
+    departure_time = models.TimeField(null=True, blank=True)
+    is_completed = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['stop_order']
+    
+    def __str__(self):
+        return f"{self.trip.route.code} - {self.stop_name} (Order {self.stop_order})"
+
+
+# ✅ ADDED: VehicleIssue model for driver issue reporting
+class VehicleIssue(models.Model):
+    """Vehicle issue reporting by drivers"""
+    SEVERITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
+    issue_description = models.TextField()
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='medium')
+    reported_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    is_resolved = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"Issue by {self.driver.user.get_full_name()} - {self.reported_at}"
