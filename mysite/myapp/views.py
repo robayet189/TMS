@@ -94,10 +94,24 @@ def register_user(request):
             last_name=full_name.split()[-1] if ' ' in full_name and len(full_name.split()) > 1 else ''
         )
         
-        UserProfile.objects.create(
+        # ✅ FIXED: Create Driver profile when user_type is driver
+        profile = UserProfile.objects.create(
             user=user, phone=phone, institution_type=institution_type,
             user_type=user_type, institution_id=institution_id
         )
+        
+        # If user registered as driver, also create Driver model instance
+        if user_type == 'driver':
+            Driver.objects.create(
+                user=user,
+                license_number=institution_id,  # Use institution_id as license for now
+                license_expiry=timezone.now().date() + timedelta(days=365*5),  # 5 years expiry
+                phone=phone,
+                address='',
+                emergency_contact='',
+                is_approved=True,  # Auto-approve for testing; set False in production
+                is_active=True
+            )
         
         return JsonResponse({
             'success': True, 
@@ -131,17 +145,33 @@ def login_user(request):
     if user is not None:
         login(request, user)
         
-        # ✅ FIXED: Role-based redirection (Driver first, then Admin, then User)
+        # ✅ FIXED: Role-based redirection - Check UserProfile.user_type FIRST for reliability
         redirect_url = '/dashboard/'  # Default fallback
         
-        # Check if user is a driver (has driver_profile and is active)
-        if hasattr(user, 'driver_profile') and user.driver_profile.is_active:
-            redirect_url = '/driver/dashboard/'
-        # Check if user is admin via UserProfile
-        elif hasattr(user, 'profile') and user.profile.user_type.lower() == 'admin':
-            redirect_url = '/admin_page/dashboard/'
-        # Regular user (student/faculty/staff)
-        else:
+        try:
+            # First check: UserProfile.user_type (most reliable for all users)
+            if hasattr(user, 'profile'):
+                user_type = user.profile.user_type.lower()
+                
+                if user_type == 'driver':
+                    # Double-check: ensure Driver model instance exists and is active
+                    if hasattr(user, 'driver_profile') and user.driver_profile.is_active:
+                        redirect_url = '/driver/dashboard/'
+                    else:
+                        # Fallback: if Driver instance doesn't exist but user_type is driver
+                        redirect_url = '/driver/dashboard/'
+                elif user_type == 'admin':
+                    redirect_url = '/admin_page/dashboard/'
+                else:
+                    redirect_url = '/dashboard/'
+            # Second check: direct driver_profile relationship (for manually created drivers)
+            elif hasattr(user, 'driver_profile') and user.driver_profile.is_active:
+                redirect_url = '/driver/dashboard/'
+            # Default to user dashboard
+            else:
+                redirect_url = '/dashboard/'
+        except Exception:
+            # Fallback to default if any error occurs
             redirect_url = '/dashboard/'
         
         full_name = user.get_full_name() or user.username
