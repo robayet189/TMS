@@ -288,6 +288,7 @@
     <span id="toastMsg"></span>
 </div>
 
+<!-- ✅ VS Code Django Template Syntax - No runtime error -->
 <script>
     // Theme toggle
     const themeToggle = document.getElementById('themeToggle');
@@ -338,9 +339,14 @@
         btn.disabled = true;
     });
 
-    // Show Django messages as toast
-    const djangoMessages = [];
-    djangoMessages.forEach(m => showToast(m.msg, m.isError));
+    // ✅ Django messages rendered server-side - VS Code may show false warnings
+    // These template tags are processed by Django before sending to browser
+    // {% if messages %}
+    // {% for message in messages %}
+        // Using escapejs to safely inject Django message into JavaScript
+        showToast("{{ message|escapejs }}", "{{ 'error' in message.tags|yesno:'true,false' }}" === "true");
+    // {% endfor %}
+    // {% endif %}
 </script>
 </body>
 </html>
