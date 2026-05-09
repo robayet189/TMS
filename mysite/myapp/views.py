@@ -18,6 +18,9 @@ from .models import UserProfile, Route, Bus, Schedule, Booking
 import json, random, string, re
 from datetime import datetime, timedelta
 from .models import PaymentTransaction, UserPass, PaymentMethod
+
+from .models import EmergencyAlert, PaymentTransaction
+
 import json
 
 
@@ -279,6 +282,11 @@ def dashboard(request):
     
     total_bookings = Booking.objects.filter(user=user, status='confirmed').count()
     total_spent = Booking.objects.filter(user=user, status='confirmed').aggregate(total=Sum('amount'))['total'] or 0
+
+    emergency_alerts = EmergencyAlert.objects.filter(user=user).order_by('-created_at')[:5]
+    recent_payments = PaymentTransaction.objects.filter(user=user, status='completed').order_by('-created_at')[:5]
+
+
     
     context = {
         'first_name': user.first_name,
@@ -288,6 +296,8 @@ def dashboard(request):
         'past_bookings': past_bookings,
         'total_bookings': total_bookings,
         'total_spent': total_spent,
+        'emergency_alerts': emergency_alerts,
+        'recent_payments': recent_payments,
     }
     
     if is_ajax(request):
@@ -957,7 +967,6 @@ def emergency_history(request):
     alerts = EmergencyAlert.objects.filter(user=request.user).order_by('-created_at')
     context = {'alerts': alerts}
     return render(request, 'app1/emergency_history.html', context)
-
 
 
 

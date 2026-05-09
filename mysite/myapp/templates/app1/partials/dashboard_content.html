@@ -10,7 +10,7 @@
     </div>
     <div>
       <span class="stat-label">Total Trips</span>
-      <div class="stat-value">{{ total_bookings }}</div>
+      <div class="stat-value">{{ total_bookings|default:0 }}</div>
     </div>
   </div>
 
@@ -22,7 +22,7 @@
     </div>
     <div>
       <span class="stat-label">Total Spent</span>
-      <div class="stat-value">৳{{ total_spent|floatformat:0 }}</div>
+      <div class="stat-value">৳{{ total_spent|default:0|floatformat:0 }}</div>
     </div>
   </div>
 
@@ -34,7 +34,7 @@
     </div>
     <div>
       <span class="stat-label">Pass Status</span>
-      <div class="stat-value">{{ pass_status }}</div>
+      <div class="stat-value">{{ pass_status|default:"Inactive" }}</div>
     </div>
   </div>
 
@@ -46,9 +46,75 @@
     </div>
     <div>
       <span class="stat-label">Next Payment</span>
-      <div class="stat-value">{{ next_payment }}</div>
+      <div class="stat-value">{{ next_payment|default:"No active pass" }}</div>
     </div>
   </div>
+</div>
+
+<!-- ==================== EMERGENCY ALERT SECTION ==================== -->
+<div class="card">
+  <div class="card-title">
+    🚨 Emergency Alerts
+    <span class="badge">{{ emergency_alerts|length|default:0 }}</span>
+  </div>
+  {% if emergency_alerts %}
+    {% for alert in emergency_alerts %}
+    <div style="display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid var(--border);">
+      <div style="font-size: 24px;">🆘</div>
+      <div style="flex: 1;">
+        <strong>{{ alert.created_at|date:"M d, H:i" }}</strong>
+        <p style="margin: 5px 0;">{{ alert.message|default:"Emergency alert sent" }}</p>
+        <span style="font-size: 12px; padding: 2px 8px; border-radius: 12px; background: {% if alert.is_resolved %}#e8f5e9; color:#4caf50{% else %}#ffebee; color:#f44336{% endif %}">
+          {% if alert.is_resolved %}Resolved{% else %}Pending{% endif %}
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p style="color: var(--text-muted); text-align:center; padding:20px;">No emergency alerts</p>
+  {% endif %}
+</div>
+
+<!-- Quick Actions Grid - WITH TRACK BUS CARD -->
+<div class="actions-grid">
+  <a href="{% url 'schedule' %}" class="action-card">
+    <div class="action-icon red">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    </div>
+    <span class="action-label">Book a Seat</span>
+  </a>
+
+  <!-- Track Bus Action Card -->
+  <a href="{% url 'track_bus' %}" class="action-card">
+    <div class="action-icon cyan">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-6H8l-2 6-2.5.1C2.7 10.3 2 11.1 2 12v3c0 .6.4 1 1 1h2"/>
+        <circle cx="7" cy="17" r="2"/>
+        <circle cx="17" cy="17" r="2"/>
+      </svg>
+    </div>
+    <span class="action-label">Track Bus</span>
+  </a>
+
+  <a href="{% url 'my_bookings' %}" class="action-card">
+    <div class="action-icon green">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+      </svg>
+    </div>
+    <span class="action-label">My Bookings</span>
+  </a>
+
+  <a href="{% url 'profile' %}" class="action-card">
+    <div class="action-icon amber">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <span class="action-label">Profile</span>
+  </a>
 </div>
 
 <!-- Upcoming Trips Section - Shows Bus Information -->
@@ -113,11 +179,11 @@
           </div>
           <div class="bus-detail">
             <span class="detail-label">Your Seats:</span>
-            <span class="detail-value">{{ booking.seat_numbers|default:"A" }}{{ forloop.counter }}</span>
+            <span class="detail-value">{{ booking.seat_number|default:"A" }}</span>
           </div>
           <div class="bus-detail">
             <span class="detail-label">Amount:</span>
-            <span class="detail-value price">৳{{ booking.total_amount }}</span>
+            <span class="detail-value price">৳{{ booking.amount }}</span>
           </div>
         </div>
       </div>
@@ -138,6 +204,44 @@
   {% endif %}
 </div>
 
+<!-- ==================== RECENT PAYMENTS SECTION ==================== -->
+<div class="card">
+  <div class="card-title">
+    💰 Recent Payments
+    <span class="badge">{{ recent_payments|length|default:0 }}</span>
+  </div>
+  {% if recent_payments %}
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr><th style="text-align:left; padding:12px;">Date</th>
+            <th style="text-align:left; padding:12px;">Transaction</th>
+            <th style="text-align:left; padding:12px;">Amount</th>
+            <th style="text-align:left; padding:12px;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in recent_payments %}
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:12px;">{{ payment.created_at|date:"M d, Y" }}</td>
+            <td style="padding:12px;"><small>{{ payment.transaction_id|truncatechars:12 }}</small></td>
+            <td style="padding:12px;">৳{{ payment.amount }}</td>
+            <td style="padding:12px;">
+              <span style="padding:2px 8px; border-radius:12px; font-size:12px; {% if payment.status == 'completed' %}background:#e8f5e9; color:#4caf50{% else %}background:#fff3e0; color:#ff9800{% endif %}">
+                {{ payment.status|title }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <a href="{% url 'payment_history' %}" style="display:inline-block; margin-top:15px; color:#ff4757; text-decoration:none;">View All →</a>
+  {% else %}
+    <p style="color: var(--text-muted); text-align:center; padding:20px;">No payments yet</p>
+  {% endif %}
+</div>
+
 <!-- Recent Past Trips -->
 {% if past_bookings %}
 <div class="card">
@@ -148,7 +252,7 @@
       <div class="past-trip-route">{{ booking.schedule.route.code }}</div>
       <div class="past-trip-date">{{ booking.schedule.travel_date|date:"M d, Y" }}</div>
       <div class="past-trip-bus">🚌 {{ booking.schedule.bus.bus_number }}</div>
-      <div class="past-trip-amount">৳{{ booking.total_amount }}</div>
+      <div class="past-trip-amount">৳{{ booking.amount }}</div>
     </div>
     {% endfor %}
   </div>
@@ -484,5 +588,10 @@ function getCookie(name) {
     }
   }
   return cookieValue;
+}
+
+function showToast(message, isError = false) {
+  // Simple alert for now
+  alert(message);
 }
 </script>
