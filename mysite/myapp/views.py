@@ -94,24 +94,30 @@ def register_user(request):
             last_name=full_name.split()[-1] if ' ' in full_name and len(full_name.split()) > 1 else ''
         )
         
-        # ✅ FIXED: Create Driver profile when user_type is driver
-        profile = UserProfile.objects.create(
+        # Create UserProfile for ALL users
+        UserProfile.objects.create(
             user=user, phone=phone, institution_type=institution_type,
             user_type=user_type, institution_id=institution_id
         )
         
-        # If user registered as driver, also create Driver model instance
+        # ✅ FIXED: ONLY create Driver record if user_type is 'driver'
         if user_type == 'driver':
-            Driver.objects.create(
-                user=user,
-                license_number=institution_id,  # Use institution_id as license for now
-                license_expiry=timezone.now().date() + timedelta(days=365*5),  # 5 years expiry
-                phone=phone,
-                address='',
-                emergency_contact='',
-                is_approved=True,  # Auto-approve for testing; set False in production
-                is_active=True
-            )
+            # Generate UNIQUE license_number to avoid UNIQUE constraint error
+            # Format: DL-YYYYMMDD-XXXXX-UserID
+            unique_license = f"DL-{timezone.now().strftime('%Y%m%d')}-{random.randint(10000, 99999)}-{user.id}"
+            
+            # Check if Driver already exists (safety check)
+            if not Driver.objects.filter(user=user).exists():
+                Driver.objects.create(
+                    user=user,
+                    license_number=unique_license,  # ✅ Unique license number
+                    license_expiry=timezone.now().date() + timedelta(days=365*5),
+                    phone=phone,
+                    address='',
+                    emergency_contact='',
+                    is_approved=True,
+                    is_active=True
+                )
         
         return JsonResponse({
             'success': True, 
@@ -120,6 +126,8 @@ def register_user(request):
         })
         
     except Exception as e:
+        # Log the error for debugging
+        print(f"Registration error: {str(e)}")
         return JsonResponse({'success': False, 'message': f'Registration failed: {str(e)}'}, status=500)
 
 @require_http_methods(["POST"])
