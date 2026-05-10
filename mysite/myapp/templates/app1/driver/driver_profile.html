@@ -200,10 +200,10 @@
         </div>
         
         <div class="profile-header">
-            <div class="profile-avatar">{{ request.user.first_name|default:"D"|first|upper }}</div>
+            <div class="profile-avatar">{{ user.first_name|default:"D"|first|upper }}</div>
             <div class="profile-info">
-                <!-- ✅ FIXED: Use request.user for correct name display -->
-                <div class="name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                <!-- ✅ FIXED: Use user.get_full_name for correct name display -->
+                <div class="name">{{ user.get_full_name|default:user.username }}</div>
                 <div class="role">Professional Driver</div>
                 <div class="tags">
                     <span class="profile-tag">License: {{ driver.license_number|default:"N/A" }}</span>
@@ -212,9 +212,36 @@
             </div>
         </div>
         
-        <!-- ✅ FIXED: Form with proper action, method, CSRF, and field names -->
+        <!-- ✅ FIXED: Form with ALL editable fields: name, email, phone, address, emergency -->
         <form method="POST" action="{% url 'driver_profile' %}" id="profileForm">
             {% csrf_token %}
+            
+            <!-- CHANGE: Added First Name field -->
+            <div class="form-group">
+                <label>First Name <span class="req">*</span></label>
+                <div class="input-wrap">
+                    <span class="icon">👤</span>
+                    <input type="text" name="first_name" id="first_name" value="{{ user.first_name }}" placeholder="Your first name" required>
+                </div>
+            </div>
+            
+            <!-- CHANGE: Added Last Name field -->
+            <div class="form-group">
+                <label>Last Name <span class="req">*</span></label>
+                <div class="input-wrap">
+                    <span class="icon">👤</span>
+                    <input type="text" name="last_name" id="last_name" value="{{ user.last_name }}" placeholder="Your last name" required>
+                </div>
+            </div>
+            
+            <!-- CHANGE: Added Email field with validation -->
+            <div class="form-group">
+                <label>Email Address <span class="req">*</span></label>
+                <div class="input-wrap">
+                    <span class="icon">✉️</span>
+                    <input type="email" name="email" id="email" value="{{ user.email }}" placeholder="your@email.com" required>
+                </div>
+            </div>
             
             <div class="form-group">
                 <label>Phone Number <span class="req">*</span></label>
@@ -306,8 +333,8 @@
         // Form will submit normally - NO e.preventDefault()
     });
 
-    // ✅ FIXED: Django messages display - using data attribute for VS Code compatibility
-    // CHANGE REASON: Move Django template tags outside JavaScript to avoid VS Code syntax errors
+    // ✅ FIXED: Django messages display using safe data attribute method
+    // CHANGE REASON: Move Django template tags outside JavaScript to avoid syntax errors
     document.addEventListener('DOMContentLoaded', function() {
         const messagesData = document.getElementById('djangoMessages');
         if (messagesData) {
