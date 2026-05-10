@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import UserProfile, Route, Bus, Schedule, Booking, Driver, Trip
+from .models import UserProfile, Route, Bus, Schedule, Booking, Driver, Trip, Alert
 from django.contrib.auth.models import User
 import json
 
