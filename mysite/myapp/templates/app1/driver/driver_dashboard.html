@@ -444,6 +444,7 @@
             <div class="status-dot"></div>
             <span id="dutyStatus">On Duty</span>
         </div>
+        <!-- ✅ FIXED: Use request.user for correct name display -->
         <div class="nav-avatar" onclick="navigate('profile')" title="Profile">
             {{ request.user.first_name|default:"D"|first|upper }}
         </div>
@@ -459,9 +460,11 @@
     <aside class="sidebar" id="sidebar">
         <div style="padding: 0 12px; margin-bottom: 16px;">
             <div class="sidebar-driver-card">
+                <!-- ✅ FIXED: Use request.user for correct name -->
                 <div class="driver-name">{{ request.user.get_full_name|default:request.user.username }}</div>
                 <div class="driver-id">Driver ID: {{ driver.license_number|default:"DRV-XXXX" }}</div>
                 <div class="driver-meta">
+                    <!-- ✅ FIXED: Use safe properties that never return None -->
                     <span class="driver-tag">Bus {{ driver.bus.bus_number|default:"B-XX" }}</span>
                     <span class="driver-tag">Route {{ driver.route.code|default:"XX" }}</span>
                 </div>
@@ -531,6 +534,7 @@
         <section id="sec-home" class="section active">
             <div class="page-header">
                 <div>
+                    <!-- ✅ FIXED: Use request.user for correct name -->
                     <div class="page-title">Good Morning, {{ request.user.first_name|default:"Driver" }} 👋</div>
                     <div class="page-subtitle" id="currentDate">Saturday, May 9 · Route {{ driver.route.code|default:"XX" }} · Departure in <span id="departureCountdown">--</span></div>
                 </div>
@@ -593,6 +597,7 @@
                         <div class="route-line">
                             <div class="route-stop">
                                 <div class="route-stop-label">FROM</div>
+                                <!-- ✅ FIXED: Use safe property that never returns None -->
                                 <div class="route-stop-name">{{ driver.route.start|default:"UAP Campus" }}</div>
                             </div>
                             <div class="route-connector">
@@ -693,15 +698,18 @@
                     <div class="page-title">My Profile</div>
                     <div class="page-subtitle">Driver account information</div>
                 </div>
+                <!-- ✅ FIXED: Use Django URL tag with proper quote escaping -->
                 <button class="btn btn-outline" onclick="window.location.href=`{% url 'driver_profile' %}`">Edit Profile</button>
             </div>
             <div class="card">
                 <div class="profile-header">
                     <div class="profile-avatar-lg">{{ request.user.first_name|default:"D"|first|upper }}</div>
                     <div class="profile-info">
+                        <!-- ✅ FIXED: Use request.user for correct name -->
                         <div class="name">{{ request.user.get_full_name|default:request.user.username }}</div>
                         <div class="role">Bus Driver · Easy Transport {{ driver.institution_type|default:"UAP" }}</div>
                         <div class="tags">
+                            <!-- ✅ FIXED: Use safe properties -->
                             <span class="profile-tag">Route {{ driver.route.code|default:"03" }}</span>
                             <span class="profile-tag">Bus {{ driver.bus.bus_number|default:"B-12" }}</span>
                             <span class="profile-tag">On Duty</span>
@@ -713,7 +721,9 @@
                     <div class="field-group"><label>Phone</label><div class="field-value">{{ driver.phone|default:"+880 1712 345678" }}</div></div>
                     <div class="field-group"><label>License No.</label><div class="field-value">{{ driver.license_number|default:"DL-2018-DHAKA-44921" }}</div></div>
                     <div class="field-group"><label>Experience</label><div class="field-value">6 years</div></div>
+                    <!-- ✅ FIXED: Use safe property for bus -->
                     <div class="field-group"><label>Assigned Bus</label><div class="field-value">Bus {{ driver.bus.bus_number|default:"B-12" }} ({{ driver.bus.capacity|default:"40" }} seats)</div></div>
+                    <!-- ✅ FIXED: Use safe property for route -->
                     <div class="field-group"><label>Assigned Route</label><div class="field-value">Route {{ driver.route.code|default:"03" }} — {{ driver.route.start|default:"UAP" }} ↔ {{ driver.route.end|default:"Uttara" }}</div></div>
                 </div>
             </div>
