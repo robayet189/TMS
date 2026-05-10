@@ -240,6 +240,8 @@ def admin_schedule(request):
     """Admin schedule management page - CHANGE REASON: Allow admin to manage transport schedules"""
     schedules = Schedule.objects.select_related('route', 'bus').all().order_by('travel_date', 'departure_time')
     routes = Route.objects.all()
+    # ✅ FIXED: Add drivers to context for dropdown in modal
+    drivers = Driver.objects.select_related('user').filter(is_active=True, is_approved=True)
     
     today = timezone.now().date()
     total_schedules = schedules.count()
@@ -251,6 +253,7 @@ def admin_schedule(request):
         'active': 'schedule',
         'schedules': schedules,
         'routes': routes,
+        'drivers': drivers,  # ✅ Pass drivers to template
         'total_schedules': total_schedules,
         'active_today': active_today,
         'pending_schedules': pending_schedules,
@@ -557,12 +560,13 @@ def admin_add_schedule(request):
                         arrival_time=datetime.strptime(data.get('arrival_time'), '%H:%M').time() if data.get('arrival_time') else None,
                         status='pending'
                     )
+                    print(f"✅ Trip created for driver {driver_id}")  # Debug log
                 except Driver.DoesNotExist:
-                    # Driver not found, but schedule was created successfully
-                    pass
+                    print(f"⚠️ Driver {driver_id} not found, but schedule created")  # Debug log
             
             return JsonResponse({'success': True, 'message': 'Schedule added successfully', 'schedule_id': schedule.id})
         except Exception as e:
+            print(f"❌ Error in admin_add_schedule: {str(e)}")  # Debug log
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
