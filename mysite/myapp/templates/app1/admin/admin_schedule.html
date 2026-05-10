@@ -124,6 +124,20 @@
                 <small style="color:var(--text-muted);">All buses shown (inactive buses disabled)</small>
             </div>
             
+            <!-- ✅ FIXED: Driver Selection Dropdown - Populated from Django context -->
+            <div class="form-group">
+                <label>Assign Driver</label>
+                <select id="driver" name="driver">
+                    <option value="">Select a Driver (Optional)</option>
+                    {% for driver in drivers %}
+                    <option value="{{ driver.id }}">
+                        {{ driver.user.get_full_name|default:driver.user.username }} - {{ driver.license_number }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <small style="color:var(--text-muted);">Assign a driver to create trip for dashboard</small>
+            </div>
+            
             <!-- Date & Time Fields: Required schedule timing information -->
             <div class="form-row">
                 <div class="form-group">
@@ -387,9 +401,11 @@ function saveSchedule(e) {
     const url = scheduleId ? `/admin_page/api/update-schedule/${scheduleId}/` : '/admin_page/api/add-schedule/';
     const method = scheduleId ? 'PUT' : 'POST';
     
+    // ✅ FIXED: Include driver field in formData
     const formData = {
         route: document.getElementById('route').value,
         bus: document.getElementById('bus').value,
+        driver: document.getElementById('driver')?.value || null,  // ✅ Add driver to formData
         travel_date: document.getElementById('travelDate').value,
         departure_time: document.getElementById('departureTime').value,
         arrival_time: document.getElementById('arrivalTime').value,
@@ -398,7 +414,7 @@ function saveSchedule(e) {
         is_active: document.getElementById('isActive').value === 'true'
     };
     
-    console.log('Saving schedule:', formData);
+    console.log('Saving schedule:', formData);  // Debug log
     
     fetch(url, {
         method: method,
@@ -407,7 +423,7 @@ function saveSchedule(e) {
     })
     .then(res => res.json())
     .then(data => {
-        console.log('Save response:', data);
+        console.log('Save response:', data);  // Debug log
         if(data.success) { 
             showToast(data.message); 
             closeModal(); 
