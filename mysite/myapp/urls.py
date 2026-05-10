@@ -1,6 +1,8 @@
-﻿from django.urls import path
+﻿# Import Django URL utilities and view modules
+from django.urls import path
 from . import views, views_admin
 
+# Define URL patterns for the application
 urlpatterns = [
     # ================= AUTH & HOME =================
     path('', views.homepage, name='homepage'),
@@ -51,17 +53,17 @@ urlpatterns = [
     # ================= ADMIN DASHBOARD & MANAGEMENT =================
     path('admin_page/dashboard/', views_admin.admin_dashboard, name='admin_dashboard'),
     
-    # Admin Users
+    # Admin Users Management URLs
     path('admin_page/users/', views_admin.admin_users, name='admin_users'),
     path('admin_page/api/delete-user/<int:user_id>/', views_admin.admin_delete_user, name='admin_delete_user'),
     path('admin_page/api/update-booking/<int:booking_id>/', views_admin.admin_update_booking_status, name='admin_update_booking'),
 
-    # Admin Bookings
+    # Admin Bookings Management URLs
     path('admin_page/bookings/', views_admin.admin_bookings, name='admin_bookings'),
     path('admin_page/bookings/<str:booking_id>/approve/', views_admin.admin_approve_booking, name='admin_approve_booking'),
     path('admin_page/bookings/<str:booking_id>/reject/', views_admin.admin_reject_booking, name='admin_reject_booking'),
     
-    # Admin Fleet Management
+    # Admin Fleet Management URLs
     path('admin_page/fleet/', views_admin.admin_fleet, name='admin_fleet'),
     path('admin_page/api/get-bus/<int:bus_id>/', views_admin.admin_get_bus, name='admin_get_bus'),
     path('admin_page/api/get-buses/', views_admin.admin_get_buses, name='admin_get_buses'),
@@ -70,7 +72,7 @@ urlpatterns = [
     path('admin_page/api/toggle-bus/<int:bus_id>/', views_admin.admin_toggle_bus_status, name='admin_toggle_bus'),
     path('admin_page/api/delete-bus/<int:bus_id>/', views_admin.admin_delete_bus, name='admin_delete_bus'),
     
-    # ✅ NEW: Admin Routes & Schedules Management
+    # ✅ NEW: Admin Routes & Schedules Management URLs
     path('admin_page/routes/', views_admin.admin_routes, name='admin_routes'),
     path('admin_page/api/add-route/', views_admin.admin_add_route, name='admin_add_route'),
     path('admin_page/api/route/<int:route_id>/', views_admin.admin_route_detail, name='admin_route_detail'),
@@ -85,7 +87,7 @@ urlpatterns = [
     path('admin_page/api/toggle-schedule/<int:schedule_id>/', views_admin.admin_toggle_schedule_status, name='admin_toggle_schedule'),
     path('admin_page/api/delete-schedule/<int:schedule_id>/', views_admin.admin_delete_schedule, name='admin_delete_schedule'),
     
-    # Admin Analytics & System
+    # Admin Analytics & System URLs
     path('admin_page/revenue/', views_admin.admin_revenue, name='admin_revenue'),
     path('admin_page/alerts/', views_admin.admin_alerts, name='admin_alerts'),
     path('admin_page/notifications/', views_admin.admin_notifications, name='admin_notifications'),
