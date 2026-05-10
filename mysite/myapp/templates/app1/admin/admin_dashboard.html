@@ -1,10 +1,11 @@
 {% extends 'app1/admin/admin_base.html' %}
+{% load static %}
 
 {% block page_title %}Dashboard Overview{% endblock %}
 {% block page_subtitle %}Real-time statistics and system overview{% endblock %}
 
 {% block content %}
-<!-- Statistics Cards -->
+<!-- Statistics Cards Section: Display key metrics for admin monitoring -->
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-label">Total Users</div>
@@ -31,7 +32,7 @@
     </div>
 </div>
 
-<!-- Recent Bookings -->
+<!-- Recent Bookings Table Section: Display latest bookings with action buttons -->
 <div class="content-card">
     <div class="card-header">
         <h3 class="card-title">Recent Bookings</h3>
@@ -83,7 +84,9 @@
     </table>
 </div>
 
+<!-- JavaScript Section: Handle booking approval and rejection via AJAX -->
 <script>
+// Function to approve a pending booking via API call
 function approveBooking(bookingId) {
     if(!confirm('Approve this booking?')) return;
     
@@ -103,9 +106,14 @@ function approveBooking(bookingId) {
         } else {
             alert(data.message);
         }
+    })
+    .catch(error => {
+        console.error('Error approving booking:', error);
+        alert('Failed to approve booking. Please try again.');
     });
 }
 
+// Function to reject a pending booking with reason via API call
 function rejectBooking(bookingId) {
     const reason = prompt('Reason for rejection:');
     if(!reason) return;
@@ -126,6 +134,10 @@ function rejectBooking(bookingId) {
         } else {
             alert(data.message);
         }
+    })
+    .catch(error => {
+        console.error('Error rejecting booking:', error);
+        alert('Failed to reject booking. Please try again.');
     });
 }
 </script>
