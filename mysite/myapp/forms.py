@@ -1,4 +1,5 @@
 from django import forms
+from django.db import models
 from .models import Bus, Route, Schedule, Driver, VehicleIssue
 
 class BusForm(forms.ModelForm):
