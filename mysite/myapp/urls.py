@@ -14,7 +14,7 @@ urlpatterns = [
     path('api/password-reset/', views.password_reset_request, name='password_reset_request'),
     path('logout/', views.logout_user, name='logout'),
 
-    # ================= PASSWORD RESET PAGES (Only accessible via these URLs) =================
+    # ================= PASSWORD RESET PAGES =================
     path('forgot-password/', views.forgot_password, name='forgot_password'),
     path('forgot-success/', views.forgot_password_success, name='forgot_password_success'),
     path('reset/<uidb64>/<token>/', views.password_reset_confirm_view, name='password_reset_confirm'),
@@ -42,7 +42,7 @@ urlpatterns = [
     path('booking-confirmation/<str:booking_id>/', views.booking_confirmation, name='booking_confirmation'),
     path('bus-schedule/', views.bus_schedule, name='bus_schedule'),
     
-    # ================= 2-STEP BOOKING SYSTEM (Trip Summary & Seat Selection) =================
+    # ================= 2-STEP BOOKING SYSTEM =================
     path('trip-summary/<int:schedule_id>/', views.trip_summary, name='trip_summary'),
     path('seat-selection/<int:schedule_id>/', views.seat_selection, name='seat_selection'),
     path('confirm-booking-seat/', views.confirm_booking_seat, name='confirm_booking_seat'),
@@ -70,13 +70,18 @@ urlpatterns = [
     path('admin_page/api/toggle-bus/<int:bus_id>/', views_admin.admin_toggle_bus_status, name='admin_toggle_bus'),
     path('admin_page/api/delete-bus/<int:bus_id>/', views_admin.admin_delete_bus, name='admin_delete_bus'),
     
-    # Admin Routes & Schedules
+    # ✅ NEW: Admin Routes & Schedules Management
     path('admin_page/routes/', views_admin.admin_routes, name='admin_routes'),
     path('admin_page/api/add-route/', views_admin.admin_add_route, name='admin_add_route'),
     path('admin_page/api/route/<int:route_id>/', views_admin.admin_route_detail, name='admin_route_detail'),
     path('admin_page/api/update-route/<int:route_id>/', views_admin.admin_update_route, name='admin_update_route'),
     path('admin_page/api/delete-route/<int:route_id>/', views_admin.admin_delete_route, name='admin_delete_route'),
+    
+    # ✅ NEW: Schedule Management URLs
+    path('admin_page/schedule/', views_admin.admin_schedule, name='admin_schedule'),
+    path('admin_page/api/schedule/<int:schedule_id>/', views_admin.admin_get_schedule, name='admin_get_schedule'),
     path('admin_page/api/add-schedule/', views_admin.admin_add_schedule, name='admin_add_schedule'),
+    path('admin_page/api/update-schedule/<int:schedule_id>/', views_admin.admin_update_schedule, name='admin_update_schedule'),
     path('admin_page/api/toggle-schedule/<int:schedule_id>/', views_admin.admin_toggle_schedule_status, name='admin_toggle_schedule'),
     path('admin_page/api/delete-schedule/<int:schedule_id>/', views_admin.admin_delete_schedule, name='admin_delete_schedule'),
     
@@ -105,16 +110,11 @@ urlpatterns = [
 
 
     # ==================== DRIVER MODULE URLs ====================
-    # ✅ Driver authentication URLs
     path('driver/login/', views.driver_login_page, name='driver_login'),
     path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
     path('driver/logout/', views.driver_logout, name='driver_logout'),
-    
-    # ✅ Driver dashboard and profile URLs
     path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
     path('driver/profile/', views.driver_profile, name='driver_profile'),
-    
-    # ✅ Trip management URLs
     path('driver/trip/<int:trip_id>/', views.trip_detail, name='trip_detail'),
     path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
     path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
