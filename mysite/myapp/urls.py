@@ -14,7 +14,7 @@ urlpatterns = [
     path('api/password-reset/', views.password_reset_request, name='password_reset_request'),
     path('logout/', views.logout_user, name='logout'),
 
-    # ================= PASSWORD RESET PAGES =================
+    # ================= PASSWORD RESET PAGES (Only accessible via these URLs) =================
     path('forgot-password/', views.forgot_password, name='forgot_password'),
     path('forgot-success/', views.forgot_password_success, name='forgot_password_success'),
     path('reset/<uidb64>/<token>/', views.password_reset_confirm_view, name='password_reset_confirm'),
@@ -87,7 +87,7 @@ urlpatterns = [
     path('admin_page/api/send-notification/', views_admin.send_notification_api, name='send_notification_api'),
     path('admin_page/api/resolve-alert/<int:alert_id>/', views_admin.resolve_alert_api, name='resolve_alert_api'),
 
-    # ✅ Bus Tracking URLs (Already present - no changes needed)
+    # ✅ Bus Tracking URLs
     path('track-bus/', views.track_bus, name='track_bus'),
     path('api/bus/<int:bus_id>/update/', views.update_bus_location, name='update_bus_location'),
     path('api/bus/<int:bus_id>/location/', views.get_bus_location, name='get_bus_location'),
@@ -104,17 +104,17 @@ urlpatterns = [
     path('chat/close/<int:room_id>/', views.close_chat, name='close_chat'),
 
 
-    # ==================== DRIVER MODULE URLs (NEW - For driver_dashboard.html) ====================
-    # ✅ ADDED: Driver authentication URLs
+    # ==================== DRIVER MODULE URLs ====================
+    # ✅ Driver authentication URLs
     path('driver/login/', views.driver_login_page, name='driver_login'),
     path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
     path('driver/logout/', views.driver_logout, name='driver_logout'),
     
-    # ✅ ADDED: Driver dashboard and profile URLs
+    # ✅ Driver dashboard and profile URLs
     path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
     path('driver/profile/', views.driver_profile, name='driver_profile'),
     
-    # ✅ ADDED: Trip management URLs
+    # ✅ Trip management URLs
     path('driver/trip/<int:trip_id>/', views.trip_detail, name='trip_detail'),
     path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
     path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
