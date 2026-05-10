@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 import json
 
 def is_admin(user):
+    """Check if user is admin - CHANGE REASON: Reusable admin check decorator"""
     if not user.is_authenticated: return False
     try:
         if hasattr(user, 'profile'): return user.profile.user_type == 'admin'
