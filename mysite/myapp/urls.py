@@ -121,4 +121,8 @@ urlpatterns = [
     path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
     path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
     path('driver/stop/<int:stop_id>/update/', views.update_stop_status, name='update_stop_status'),
+
+        # ✅ Driver Emergency Alert & Passenger API
+    path('driver/api/send-alert/', views.driver_send_alert, name='driver_send_alert'),
+    path('driver/api/passengers/', views.driver_get_passengers, name='driver_get_passengers'),
 ]
