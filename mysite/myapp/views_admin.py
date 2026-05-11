@@ -387,6 +387,28 @@ def admin_add_route(request):
 
 @login_required
 @user_passes_test(is_admin)
+def admin_route_detail(request, route_id):
+    """Get route details"""
+    if request.method == 'GET':
+        try:
+            route = get_object_or_404(Route, id=route_id)
+            return JsonResponse({
+                'success': True,
+                'route': {
+                    'id': route.id,
+                    'code': route.code,
+                    'start': route.start,
+                    'end': route.end,
+                    'distance_km': float(route.distance_km) if route.distance_km else 0
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+
+@login_required
+@user_passes_test(is_admin)
 def admin_update_route(request, route_id):
     if request.method in ['POST', 'PUT']:
         try:
