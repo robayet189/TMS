@@ -73,9 +73,9 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')" data-bus-id="{{ bus.id }}" title="Edit">✏️</button>
-                            <button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')" data-bus-id="{{ bus.id }}" title="Toggle Status">🔄</button>
-                            <button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')" data-bus-id="{{ bus.id }}" title="Delete">🗑️</button>
+                            <button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')" title="Edit">✏️</button>
+                            <button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')" title="Toggle Status">🔄</button>
+                            <button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')" title="Delete">🗑️</button>
                         </div>
                     </td>
                 </tr>
@@ -94,7 +94,7 @@
             <h2 id="modalTitle">Add New Bus</h2>
             <button class="modal-close" onclick="closeModal()">×</button>
         </div>
-        <form id="busForm" onsubmit="saveBus(event)">
+        <form id="busForm" onsubmit="return false;">
             {% csrf_token %}
             <input type="hidden" id="busId" name="bus_id">
             
@@ -131,11 +131,14 @@
             
             <div class="modal-actions">
                 <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
-                <button type="submit" class="btn-save">Save Bus</button>
+                <button type="button" class="btn-save" onclick="saveBus()">Save Bus</button>
             </div>
         </form>
     </div>
 </div>
+
+<!-- CSRF Token for AJAX -->
+{% csrf_token %}
 
 <style>
 .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:20px; }
@@ -188,15 +191,37 @@
 </style>
 
 <script>
+// Get CSRF token from cookie
+function getCSRFToken() {
+    // Try to get from cookie first
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    // Fallback: try to get from hidden input
+    if (!cookieValue) {
+        var tokenInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (tokenInput) cookieValue = tokenInput.value;
+    }
+    return cookieValue;
+}
+
 function filterTable() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
-    document.querySelectorAll('#busesTableBody tr').forEach(row => {
+    var q = document.getElementById('searchInput').value.toLowerCase();
+    var status = document.getElementById('statusFilter').value;
+    document.querySelectorAll('#busesTableBody tr').forEach(function(row) {
         if(row.classList.contains('empty-row')) return;
-        const text = row.textContent.toLowerCase();
-        const rowStatus = row.dataset.status;
-        const matchQ = !q || text.includes(q);
-        const matchS = status === 'all' || rowStatus === status;
+        var text = row.textContent.toLowerCase();
+        var rowStatus = row.dataset.status;
+        var matchQ = !q || text.includes(q);
+        var matchS = status === 'all' || rowStatus === status;
         row.style.display = (matchQ && matchS) ? '' : 'none';
     });
 }
@@ -208,15 +233,14 @@ function openAddBusModal() {
     document.getElementById('busModal').style.display = 'flex';
 }
 
-// ✅ FIXED: Proper editBus function that fetches data and populates form
 function editBus(busId) {
-    fetch(`/admin_page/api/get-bus/${busId}/`, {
-        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    fetch('/admin_page/api/get-bus/' + busId + '/', {
+        headers: { 'X-CSRFToken': getCSRFToken() }
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
         if(data.success) {
-            const bus = data.bus;
+            var bus = data.bus;
             document.getElementById('modalTitle').textContent = 'Edit Bus';
             document.getElementById('busId').value = bus.id;
             document.getElementById('busNumber').value = bus.bus_number;
@@ -228,63 +252,78 @@ function editBus(busId) {
             document.getElementById('isActive').value = bus.is_active ? 'true' : 'false';
             document.getElementById('busModal').style.display = 'flex';
         } else {
-            showToast(data.message, true);
+            showToast(data.message || 'Failed to load bus', true);
         }
     })
-    .catch(error => {
+    .catch(function(error) {
         showToast('Failed to load bus data', true);
         console.error('Error:', error);
     });
 }
 
-function saveBus(e) {
-    e.preventDefault();
-    const busId = document.getElementById('busId').value;
-    const url = busId ? `/admin_page/api/update-bus/${busId}/` : '/admin_page/api/add-bus/';
-    const method = busId ? 'PUT' : 'POST';
+function saveBus() {
+    var busId = document.getElementById('busId').value;
+    var url = busId ? '/admin_page/api/update-bus/' + busId + '/' : '/admin_page/api/add-bus/';
+    var method = busId ? 'PUT' : 'POST';
     
-    const formData = {
-        bus_number: document.getElementById('busNumber').value,
+    var formData = {
+        bus_number: document.getElementById('busNumber').value.trim(),
         capacity: parseInt(document.getElementById('capacity').value),
-        driver_name: document.getElementById('driverName').value,
-        driver_phone: document.getElementById('driverPhone').value,
+        driver_name: document.getElementById('driverName').value.trim(),
+        driver_phone: document.getElementById('driverPhone').value.trim(),
         has_ac: document.getElementById('hasAc').checked,
         has_wifi: document.getElementById('hasWifi').checked,
         is_active: document.getElementById('isActive').value === 'true'
     };
     
+    // Validate required fields
+    if (!formData.bus_number) {
+        showToast('Bus Number is required', true);
+        return;
+    }
+    if (!formData.capacity || formData.capacity < 1) {
+        showToast('Valid capacity is required', true);
+        return;
+    }
+    
+    console.log('Saving bus:', formData);
+    
     fetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRFToken': getCSRFToken() 
+        },
         body: JSON.stringify(formData)
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        console.log('Response:', data);
         if(data.success) { 
-            showToast(data.message); 
+            showToast(data.message || 'Bus saved successfully!'); 
             closeModal(); 
-            setTimeout(() => location.reload(), 1000); 
+            setTimeout(function() { location.reload(); }, 1000); 
         } else { 
-            showToast(data.message, true); 
+            showToast(data.message || 'Failed to save bus', true); 
         }
     })
-    .catch(error => {
-        showToast('An error occurred', true);
+    .catch(function(error) {
+        showToast('An error occurred while saving', true);
         console.error('Error:', error);
     });
 }
 
 function toggleBusStatus(busId) {
-    fetch(`/admin_page/api/toggle-bus/${busId}/`, {
+    fetch('/admin_page/api/toggle-bus/' + busId + '/', {
         method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        headers: { 'X-CSRFToken': getCSRFToken() }
     })
-    .then(res => res.json())
-    .then(data => { 
+    .then(function(res) { return res.json(); })
+    .then(function(data) { 
         showToast(data.message); 
-        setTimeout(() => location.reload(), 1000); 
+        setTimeout(function() { location.reload(); }, 1000); 
     })
-    .catch(error => {
+    .catch(function(error) {
         showToast('Failed to toggle status', true);
         console.error('Error:', error);
     });
@@ -292,16 +331,16 @@ function toggleBusStatus(busId) {
 
 function deleteBus(busId) {
     if(!confirm('Delete this bus? This cannot be undone.')) return;
-    fetch(`/admin_page/api/delete-bus/${busId}/`, {
+    fetch('/admin_page/api/delete-bus/' + busId + '/', {
         method: 'DELETE',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        headers: { 'X-CSRFToken': getCSRFToken() }
     })
-    .then(res => res.json())
-    .then(data => { 
+    .then(function(res) { return res.json(); })
+    .then(function(data) { 
         showToast(data.message); 
-        if(data.success) setTimeout(() => location.reload(), 1000); 
+        if(data.success) setTimeout(function() { location.reload(); }, 1000); 
     })
-    .catch(error => {
+    .catch(function(error) {
         showToast('Failed to delete bus', true);
         console.error('Error:', error);
     });
@@ -311,29 +350,17 @@ function closeModal() {
     document.getElementById('busModal').style.display = 'none'; 
 }
 
-function showToast(msg, isError = false) {
-    const toast = document.createElement('div');
-    toast.style.cssText = `position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ${isError?'#ff4757':'#00c896'}; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;`;
+function showToast(msg, isError) {
+    isError = isError || false;
+    var toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ' + (isError ? '#ff4757' : '#00c896') + '; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;';
     toast.textContent = msg;
     document.body.appendChild(toast);
-    setTimeout(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; }, 10);
-    setTimeout(() => { toast.style.transform = 'translateY(60px)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 250); }, 2800);
+    setTimeout(function() { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; }, 10);
+    setTimeout(function() { toast.style.transform = 'translateY(60px)'; toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 250); }, 2800);
 }
 
-function getCookie(name) {
-    let cookieValue = null;
-    if(document.cookie) {
-        for(let c of document.cookie.split(';')) {
-            c = c.trim();
-            if(c.startsWith(name + '=')) { 
-                cookieValue = decodeURIComponent(c.substring(name.length + 1)); 
-                break; 
-            }
-        }
-    }
-    return cookieValue;
-}
-
+// Close modal when clicking outside
 document.getElementById('busModal').addEventListener('click', function(e) { 
     if(e.target === this) closeModal(); 
 });

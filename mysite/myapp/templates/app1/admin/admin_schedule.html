@@ -1,0 +1,205 @@
+{% extends 'app1/admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Schedule Management{% endblock %}
+{% block page_title %}Schedule Management{% endblock %}
+{% block page_subtitle %}Manage transport schedules and assignments{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total Schedules</div><div class="stat-value">{{ total_schedules|default:0 }}</div></div>
+    <div class="stat-card"><div class="stat-label" style="color:#00c896">Active Today</div><div class="stat-value" style="color:#00c896">{{ active_today|default:0 }}</div></div>
+    <div class="stat-card"><div class="stat-label" style="color:#ffb800">Pending</div><div class="stat-value" style="color:#ffb800">{{ pending_schedules|default:0 }}</div></div>
+    <div class="stat-card"><div class="stat-label" style="color:#ff4757">Completed</div><div class="stat-value" style="color:#ff4757">{{ completed_schedules|default:0 }}</div></div>
+</div>
+
+<!-- Search & Filter -->
+<div class="search-filter-section">
+    <div class="search-wrapper"><span class="search-icon">🔍</span><input type="text" id="searchInput" class="search-input" placeholder="Search by route, bus, or date..." onkeyup="filterTable()"></div>
+    <select id="dateFilter" class="filter-select" onchange="filterTable()"><option value="all">All Dates</option><option value="today">Today</option><option value="tomorrow">Tomorrow</option><option value="week">This Week</option></select>
+    <select id="statusFilter" class="filter-select" onchange="filterTable()"><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+    <button class="btn-add" onclick="openAddScheduleModal()">➕ Add New Schedule</button>
+</div>
+
+<!-- Schedules Table -->
+<div class="card"><div class="table-container"><table class="data-table"><thead><tr><th>SCHEDULE ID</th><th>ROUTE</th><th>BUS</th><th>DRIVER</th><th>DATE</th><th>DEPARTURE</th><th>FARE</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody id="schedulesTableBody">
+    {% for schedule in schedules %}
+    <tr data-schedule-id="{{ schedule.id }}" data-date="{{ schedule.travel_date|date:'Y-m-d' }}" data-status="{% if schedule.is_active %}active{% else %}inactive{% endif %}">
+        <td><strong>#{{ schedule.id }}</strong></td>
+        <td>{{ schedule.route.code }}: {{ schedule.route.start }} → {{ schedule.route.end }}</td>
+        <td>{{ schedule.bus.bus_number }}</td>
+        <td>{% with trip=schedule.trip_set.first %}{% if trip and trip.driver %}{{ trip.driver.user.get_full_name|default:trip.driver.user.username }}{% else %}<span style="color:var(--text-muted);">Unassigned</span>{% endif %}{% endwith %}</td>
+        <td>{{ schedule.travel_date|date:"M d, Y" }}</td>
+        <td>{{ schedule.departure_time|time:"g:i A" }}</td>
+        <td>৳{{ schedule.fare }}</td>
+        <td><span class="status-badge {% if schedule.is_active %}status-active{% else %}status-inactive{% endif %}">{% if schedule.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+        <td><div class="action-buttons"><button class="btn-icon btn-edit" onclick="editSchedule('{{ schedule.id }}')" title="Edit">✏️</button><button class="btn-icon btn-toggle" onclick="toggleScheduleStatus('{{ schedule.id }}')" title="Toggle">🔄</button><button class="btn-icon btn-delete" onclick="deleteSchedule('{{ schedule.id }}')" title="Delete">🗑️</button></div></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" class="empty-row">No schedules found. Click "Add New Schedule" to create one.</td></tr>
+    {% endfor %}
+</tbody></table></div></div>
+
+<!-- Modal -->
+<div id="scheduleModal" class="modal-overlay" style="display:none;"><div class="modal"><div class="modal-header"><h2 id="modalTitle">Add New Schedule</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+<form id="scheduleForm" onsubmit="saveSchedule(event)">
+    {% csrf_token %}<input type="hidden" id="scheduleId">
+    <div class="form-group"><label>Route *</label><select id="route" required><option value="">Select a Route</option>{% for route in routes %}<option value="{{ route.id }}">{{ route.code }}: {{ route.start }} → {{ route.end }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Bus *</label><select id="bus" required><option value="">Select a Bus</option></select><small style="color:var(--text-muted);">All buses shown</small></div>
+    <div class="form-group"><label>Assign Driver (REQUIRED for Driver Dashboard)</label><select id="driver"><option value="">Select a Driver</option>{% for driver in drivers %}<option value="{{ driver.id }}">{{ driver.user.get_full_name|default:driver.user.username }} - {{ driver.license_number }}</option>{% endfor %}</select><small style="color:var(--text-muted);">⚠️ Must assign driver to show trips on driver dashboard</small></div>
+    <div class="form-row"><div class="form-group"><label>Travel Date *</label><input type="date" id="travelDate" required></div><div class="form-group"><label>Departure Time *</label><input type="time" id="departureTime" required></div></div>
+    <div class="form-row"><div class="form-group"><label>Arrival Time</label><input type="time" id="arrivalTime"></div><div class="form-group"><label>Fare (৳) *</label><input type="number" id="fare" required placeholder="40" min="0" step="0.01"></div></div>
+    <div class="form-row"><div class="form-group"><label>Available Seats</label><input type="number" id="availableSeats" placeholder="Auto-filled" min="0"></div><div class="form-group"><label>Status</label><select id="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div></div>
+    <div class="modal-actions"><button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button><button type="submit" class="btn-save">Save Schedule</button></div>
+</form></div></div>
+
+<style>
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:20px}.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px}.stat-label{font-size:13px;color:var(--text-muted);margin-bottom:6px}.stat-value{font-size:28px;font-weight:700}.search-filter-section{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}.search-wrapper{flex:1;min-width:200px;position:relative}.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted)}.search-input{width:100%;padding:10px 14px 10px 42px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.filter-select{padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.btn-add{padding:10px 20px;background:var(--accent-red);color:white;border:none;border-radius:12px;cursor:pointer;font-weight:600}.card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}.table-container{overflow-x:auto}.data-table{width:100%;border-collapse:collapse}.data-table th,.data-table td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--border)}.data-table th{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase}.status-badge{padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600}.status-active{background:rgba(0,200,150,0.12);color:#00c896}.status-inactive{background:rgba(255,71,87,0.12);color:#ff4757}.action-buttons{display:flex;gap:6px}.btn-icon{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:14px;transition:transform 0.15s}.btn-icon:hover{transform:scale(1.1)}.btn-edit{background:rgba(138,99,255,0.1);color:var(--accent-purple)}.btn-toggle{background:rgba(0,200,150,0.1);color:var(--accent-green)}.btn-delete{background:rgba(255,71,87,0.1);color:var(--accent-red)}.empty-row{text-align:center;padding:40px!important;color:var(--text-muted)}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;width:90%;max-width:600px;padding:24px;max-height:90vh;overflow-y:auto}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.modal-close{background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer}.form-group{margin-bottom:16px}.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px}.form-group input,.form-group select{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:14px}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}.btn-cancel,.btn-save{padding:10px 20px;border-radius:10px;border:none;font-weight:600;cursor:pointer}.btn-cancel{background:rgba(255,255,255,0.05);color:var(--text-primary)}.btn-save{background:var(--accent-red);color:white}
+</style>
+
+<script>
+// Load buses into dropdown with Promise support
+function loadBusesDropdown(){
+    const busSelect=document.getElementById('bus');
+    busSelect.innerHTML='<option value="">Loading buses...</option>';
+    return fetch('/admin_page/api/get-buses/',{headers:{'X-CSRFToken':getCookie('csrftoken')}})
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success){
+            busSelect.innerHTML='<option value="">Select a Bus</option>';
+            if(data.buses.length===0){busSelect.innerHTML='<option value="">No buses available</option>';return;}
+            data.buses.forEach(bus=>{
+                const option=document.createElement('option');
+                option.value=bus.id;
+                option.textContent=`${bus.bus_number} (${bus.capacity} seats)${bus.is_active?'':' (Inactive)'}`;
+                if(!bus.is_active){option.disabled=true;option.style.color='var(--text-muted)';}
+                busSelect.appendChild(option);
+            });
+        }
+    })
+    .catch(error=>{console.error('Error loading buses:',error);busSelect.innerHTML='<option value="">Error</option>';});
+}
+
+// Auto-fill seats when bus selected
+document.addEventListener('DOMContentLoaded',function(){
+    const busSelect=document.getElementById('bus');
+    const seatsInput=document.getElementById('availableSeats');
+    if(busSelect&&seatsInput){
+        busSelect.addEventListener('change',function(){
+            const match=this.options[this.selectedIndex].textContent.match(/\((\d+)\s*seats?\)/);
+            if(match&&match[1])seatsInput.value=match[1];
+        });
+    }
+});
+
+function filterTable(){
+    const q=document.getElementById('searchInput').value.toLowerCase();
+    const dateFilter=document.getElementById('dateFilter').value;
+    const status=document.getElementById('statusFilter').value;
+    const today=new Date().toISOString().split('T')[0];
+    document.querySelectorAll('#schedulesTableBody tr').forEach(row=>{
+        if(row.classList.contains('empty-row'))return;
+        const text=row.textContent.toLowerCase();
+        const rowDate=row.dataset.date;
+        const rowStatus=row.dataset.status;
+        let matchDate=true;
+        if(dateFilter==='today')matchDate=rowDate===today;
+        else if(dateFilter==='tomorrow'){const t=new Date();t.setDate(t.getDate()+1);matchDate=rowDate===t.toISOString().split('T')[0];}
+        else if(dateFilter==='week'){const w=new Date();w.setDate(w.getDate()+7);matchDate=rowDate>=today&&rowDate<=w.toISOString().split('T')[0];}
+        row.style.display=(!q||text.includes(q))&&(status==='all'||rowStatus===status)&&matchDate?'':'none';
+    });
+}
+
+function openAddScheduleModal(){
+    document.getElementById('modalTitle').textContent='Add New Schedule';
+    document.getElementById('scheduleForm').reset();
+    document.getElementById('scheduleId').value='';
+    document.getElementById('scheduleModal').style.display='flex';
+    loadBusesDropdown();
+}
+
+function editSchedule(scheduleId){
+    fetch(`/admin_page/api/schedule/${scheduleId}/`,{headers:{'X-CSRFToken':getCookie('csrftoken')}})
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success){
+            const s=data.schedule;
+            document.getElementById('modalTitle').textContent='Edit Schedule';
+            document.getElementById('scheduleId').value=s.id;
+            document.getElementById('route').value=s.route;
+            document.getElementById('travelDate').value=s.travel_date;
+            document.getElementById('departureTime').value=s.departure_time;
+            document.getElementById('arrivalTime').value=s.arrival_time||'';
+            document.getElementById('fare').value=s.fare;
+            document.getElementById('availableSeats').value=s.available_seats;
+            document.getElementById('isActive').value=s.is_active?'true':'false';
+            loadBusesDropdown().then(()=>{setTimeout(()=>{document.getElementById('bus').value=s.bus;},100);});
+            document.getElementById('scheduleModal').style.display='flex';
+        }else{showToast(data.message||'Failed',true);}
+    })
+    .catch(error=>{showToast('Error loading schedule',true);});
+}
+
+// CRITICAL FIX: saveSchedule with driver field properly handled
+function saveSchedule(e){
+    e.preventDefault();
+    const scheduleId=document.getElementById('scheduleId').value;
+    const url=scheduleId?`/admin_page/api/update-schedule/${scheduleId}/`:'/admin_page/api/add-schedule/';
+    const method=scheduleId?'PUT':'POST';
+    
+    // Get driver value - handle empty string
+    const driverSelect=document.getElementById('driver');
+    const driverValue=driverSelect&&driverSelect.value?parseInt(driverSelect.value):null;
+    
+    const formData={
+        route:parseInt(document.getElementById('route').value),
+        bus:parseInt(document.getElementById('bus').value),
+        driver:driverValue,  // Integer or null
+        travel_date:document.getElementById('travelDate').value,
+        departure_time:document.getElementById('departureTime').value,
+        arrival_time:document.getElementById('arrivalTime').value||null,
+        fare:parseFloat(document.getElementById('fare').value),
+        available_seats:parseInt(document.getElementById('availableSeats').value)||null,
+        is_active:document.getElementById('isActive').value==='true'
+    };
+    
+    console.log('SAVING SCHEDULE - FormData:',JSON.stringify(formData,null,2));
+    console.log('Driver value being sent:',formData.driver);
+    
+    fetch(url,{
+        method:method,
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+        body:JSON.stringify(formData)
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        console.log('SAVE RESPONSE:',data);
+        if(data.success){showToast(data.message);closeModal();setTimeout(()=>location.reload(),1000);}
+        else{showToast(data.message||'Failed to save',true);}
+    })
+    .catch(error=>{console.error('Error:',error);showToast('Error saving schedule',true);});
+}
+
+function toggleScheduleStatus(scheduleId){
+    fetch(`/admin_page/api/toggle-schedule/${scheduleId}/`,{method:'POST',headers:{'X-CSRFToken':getCookie('csrftoken')}})
+    .then(res=>res.json()).then(data=>{showToast(data.message);setTimeout(()=>location.reload(),1000);});
+}
+function deleteSchedule(scheduleId){
+    if(!confirm('Delete this schedule?'))return;
+    fetch(`/admin_page/api/delete-schedule/${scheduleId}/`,{method:'DELETE',headers:{'X-CSRFToken':getCookie('csrftoken')}})
+    .then(res=>res.json()).then(data=>{showToast(data.message);if(data.success)setTimeout(()=>location.reload(),1000);});
+}
+function closeModal(){document.getElementById('scheduleModal').style.display='none';}
+function showToast(msg,isError=false){
+    const toast=document.createElement('div');
+    toast.style.cssText=`position:fixed;bottom:28px;right:28px;background:#1c1c2e;border:1px solid var(--border);border-left:3px solid ${isError?'#ff4757':'#00c896'};border-radius:12px;padding:14px 18px;font-size:13px;color:#fff;z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.25s;`;
+    toast.textContent=msg;document.body.appendChild(toast);
+    setTimeout(()=>{toast.style.transform='translateY(0)';toast.style.opacity='1';},10);
+    setTimeout(()=>{toast.style.transform='translateY(60px)';toast.style.opacity='0';setTimeout(()=>toast.remove(),250);},2800);
+}
+function getCookie(name){let v=null;if(document.cookie)for(let c of document.cookie.split(';')){c=c.trim();if(c.startsWith(name+'=')){v=decodeURIComponent(c.substring(name.length+1));break;}}return v;}
+document.getElementById('scheduleModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+console.log('Admin Schedule page loaded - driver assignment enabled');
+</script>
+{% endblock %}

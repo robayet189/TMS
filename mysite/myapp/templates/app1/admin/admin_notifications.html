@@ -1,235 +1,196 @@
 {% extends 'app1/admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Notifications{% endblock %}
-{% block page_title %}Notifications & Announcements{% endblock %}
-{% block page_subtitle %}Send announcements and updates to users{% endblock %}
+{% block title %}Notifications - Admin{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+{% block page_subtitle %}Manage system notifications and alerts{% endblock %}
 
 {% block content %}
-<!-- Stats Row -->
+
+<!-- Stats Cards -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-label">Total Sent</div>
+        <div class="stat-label">Total Notifications</div>
         <div class="stat-value">{{ total_notifications|default:0 }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label" style="color:#00c896">Total Recipients</div>
-        <div class="stat-value" style="color:#00c896">{{ total_recipients|default:0 }}</div>
+        <div class="stat-label" style="color:#ffb800">Unread</div>
+        <div class="stat-value" style="color:#ffb800">{{ unread_count|default:0 }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label" style="color:#8a63ff">Delivery Rate</div>
-        <div class="stat-value" style="color:#8a63ff">98.5%</div>
+        <div class="stat-label" style="color:#ff4757">Emergency Alerts</div>
+        <div class="stat-value" style="color:#ff4757">{{ emergency_count|default:0 }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label" style="color:#ffb800">This Month</div>
-        <div class="stat-value" style="color:#ffb800">{{ this_month_count|default:0 }}</div>
+        <div class="stat-label" style="color:#00c896">Resolved</div>
+        <div class="stat-value" style="color:#00c896">{{ resolved_count|default:0 }}</div>
     </div>
 </div>
 
-<!-- Two Column Section -->
-<div class="two-column-grid">
-    <!-- Send Notification Card -->
-    <div class="card send-notification-card">
-        <div class="card-header">
-            <div class="card-icon" style="background:rgba(255,71,87,0.1); color:#ff4757;">📢</div>
-            <div>
-                <h2 class="card-title">Send Notification</h2>
-                <p class="card-subtitle">Create and send announcements</p>
-            </div>
-        </div>
-
-        <form id="notificationForm" onsubmit="sendNotification(event)">
-            {% csrf_token %}
-            
-            <div class="form-group">
-                <label>Notification Title</label>
-                <input type="text" id="notifTitle" required placeholder="e.g., Important Update">
-            </div>
-
-            <div class="form-group">
-                <label>Message</label>
-                <textarea id="notifMessage" rows="5" required placeholder="Type your announcement message here..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label>Target Audience</label>
-                <select id="notifAudience" class="form-select">
-                    <option value="all">All Users (2,447)</option>
-                    <option value="route_c2">Route C2 Users (450)</option>
-                    <option value="route_b3">Route B3 Users (380)</option>
-                    <option value="drivers">Drivers Only (120)</option>
-                </select>
-            </div>
-
-            <div class="recipients-preview">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-                    <span style="color:#8a63ff; font-weight:600; font-size:13px;">👥 Recipients</span>
-                </div>
-                <div style="font-size:20px; font-weight:700;" id="recipientCount">2,447 users</div>
-            </div>
-
-            <button type="submit" class="btn-send">📤 Send Notification</button>
-        </form>
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <span class="filter-label">Filter:</span>
+    <div class="filter-tabs">
+        <a href="?type=all" class="filter-tab {% if filter_type == 'all' %}active{% endif %}">All ({{ total_notifications|default:0 }})</a>
+        <a href="?type=emergency" class="filter-tab {% if filter_type == 'emergency' %}active{% endif %}" style="color:#ff4757;">🆘 Emergency ({{ emergency_count|default:0 }})</a>
+        <a href="?type=booking" class="filter-tab {% if filter_type == 'booking' %}active{% endif %}">🎫 Booking</a>
+        <a href="?type=payment" class="filter-tab {% if filter_type == 'payment' %}active{% endif %}">💳 Payment</a>
+        <a href="?type=driver" class="filter-tab {% if filter_type == 'driver' %}active{% endif %}">🚗 Driver</a>
+        <a href="?type=schedule" class="filter-tab {% if filter_type == 'schedule' %}active{% endif %}">📅 Schedule</a>
+        <a href="?type=system" class="filter-tab {% if filter_type == 'system' %}active{% endif %}">⚙️ System</a>
     </div>
+    <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Search notifications..." value="{{ search_query }}" onkeyup="searchNotifs()">
+    </div>
+</div>
 
-    <!-- Recent Notifications Card -->
-    <div class="card recent-notifications-card">
-        <div class="card-header">
-            <div class="card-icon" style="background:rgba(138,99,255,0.1); color:#8a63ff;">🔔</div>
-            <div>
-                <h2 class="card-title">Recent Notifications</h2>
-                <p class="card-subtitle">Previously sent announcements</p>
+<!-- Notifications List -->
+<div class="notif-list" id="notif-list">
+    {% if notifications %}
+        {% for notif in notifications %}
+        <div class="notif-card {% if not notif.is_read %}unread{% endif %}">
+            <div class="notif-icon 
+                {% if notif.type == 'emergency' %}red
+                {% elif notif.type == 'booking' %}blue
+                {% elif notif.type == 'payment' %}gold
+                {% elif notif.type == 'driver' %}orange
+                {% elif notif.type == 'schedule' %}green
+                {% else %}purple{% endif %}">
+                {% if notif.type == 'emergency' %}🆘
+                {% elif notif.type == 'booking' %}🎫
+                {% elif notif.type == 'payment' %}💳
+                {% elif notif.type == 'driver' %}🚗
+                {% elif notif.type == 'schedule' %}📅
+                {% else %}🔔{% endif %}
             </div>
+            <div class="notif-body">
+                <div class="notif-header">
+                    <div class="notif-title">{{ notif.title }}</div>
+                    <span class="notif-badge badge-{{ notif.type }}">{{ notif.get_type_display }}</span>
+                </div>
+                <div class="notif-desc">{{ notif.message }}</div>
+                <div class="notif-meta">
+                    <span class="notif-time">🕐 {{ notif.created_at|timesince }} ago</span>
+                    {% if notif.related_user %}
+                    <span class="notif-user">👤 {{ notif.related_user.get_full_name|default:notif.related_user.username }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if not notif.is_read %}
+            <div class="unread-dot"></div>
+            {% endif %}
         </div>
+        {% endfor %}
+    {% else %}
+        <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+            <div style="font-size:40px;margin-bottom:12px;">🔔</div>
+            <div style="font-size:15px;font-weight:500;margin-bottom:6px;">No notifications found</div>
+            <div style="font-size:13px;">All caught up! 🎉</div>
+        </div>
+    {% endif %}
+</div>
 
-        <div class="notifications-list">
-            {% for notif in recent_notifications %}
-            <div class="notification-item">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <span style="font-weight:600; font-size:15px;">{{ notif.title }}</span>
-                    <span class="badge badge-success">delivered</span>
-                </div>
-                <p style="color:var(--text-muted); font-size:13px; margin:0 0 10px 0;">{{ notif.message }}</p>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim);">
-                        👥 {{ notif.audience }}
-                    </div>
-                    <span style="color:#8a63ff; font-weight:600; font-size:12px;">{{ notif.recipient_count }} sent</span>
-                </div>
-                <div style="margin-top:8px; font-size:11px; color:var(--text-dim);">
-                    #{{ notif.id }} • {{ notif.created_at|date:"Y-m-d h:i A" }}
+<!-- Recent Activity -->
+<div class="two-col" style="margin-top:24px;">
+    <!-- Recent Bookings -->
+    <div class="card">
+        <div class="card-title"><span class="dot"></span>Recent Bookings</div>
+        {% if recent_bookings %}
+            {% for booking in recent_bookings %}
+            <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+                <div style="font-size:13px;font-weight:500;">{{ booking.passenger_name }} - {{ booking.schedule.route.code }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">{{ booking.booking_date|date:"M d, H:i" }} | 
+                    <span class="badge badge-{% if booking.status == 'approved' %}green{% elif booking.status == 'pending' %}gold{% else %}red{% endif %}">{{ booking.get_status_display }}</span>
                 </div>
             </div>
-            {% empty %}
-            <div style="text-align:center; padding:40px; color:var(--text-dim);">No notifications sent yet.</div>
             {% endfor %}
-        </div>
+        {% else %}
+            <p style="color:var(--text-muted);text-align:center;padding:20px;">No recent bookings</p>
+        {% endif %}
+    </div>
+    
+    <!-- Active Alerts -->
+    <div class="card">
+        <div class="card-title"><span class="dot"></span>Active Alerts</div>
+        {% if recent_alerts %}
+            {% for alert in recent_alerts %}
+            <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+                <div style="font-size:13px;font-weight:500;">{{ alert.get_alert_type_display }}: {{ alert.message|truncatechars:60 }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">{{ alert.created_at|date:"M d, H:i" }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:var(--text-muted);text-align:center;padding:20px;">🟢 All clear! No active alerts.</p>
+        {% endif %}
     </div>
 </div>
 
-<!-- Quick Templates -->
-<div class="quick-templates">
-    <button class="template-card" onclick="useTemplate('emergency')">
-        <div class="template-icon" style="background:rgba(255,71,87,0.1); color:#ff4757;">⚠️</div>
-        <div>
-            <div style="font-weight:600; font-size:16px;">Emergency Alert</div>
-            <div style="font-size:13px; color:var(--text-dim);">Quick template for urgent notifications</div>
-        </div>
-    </button>
-
-    <button class="template-card" onclick="useTemplate('route')">
-        <div class="template-icon" style="background:rgba(0,200,150,0.1); color:#00c896;">🗺️</div>
-        <div>
-            <div style="font-weight:600; font-size:16px;">Route Update</div>
-            <div style="font-size:13px; color:var(--text-dim);">Announce route or schedule changes</div>
-        </div>
-    </button>
-
-    <button class="template-card" onclick="useTemplate('general')">
-        <div class="template-icon" style="background:rgba(138,99,255,0.1); color:#8a63ff;">📢</div>
-        <div>
-            <div style="font-weight:600; font-size:16px;">General Announcement</div>
-            <div style="font-size:13px; color:var(--text-dim);">Send general information to users</div>
-        </div>
-    </button>
-</div>
-
+<!-- Styles -->
 <style>
 .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:20px; }
 .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; }
 .stat-label { font-size:13px; color:var(--text-muted); margin-bottom:6px; }
 .stat-value { font-size:28px; font-weight:700; }
+.card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; overflow:hidden; }
+.card-title { font-size:16px; font-weight:600; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.card-title .dot { width:6px; height:6px; border-radius:50%; background:var(--accent-orange); }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
-.two-column-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
-.card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:24px; }
-.card-header { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
-.card-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
-.card-title { font-size:20px; font-weight:600; margin:0; }
-.card-subtitle { font-size:13px; color:var(--text-muted); margin:0; }
+.filter-bar { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 18px; }
+.filter-label { font-size:12px; color:var(--text-muted); font-weight:500; }
+.filter-tabs { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
+.filter-tab { padding:5px 14px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-muted); font-size:12px; cursor:pointer; text-decoration:none; white-space:nowrap; transition:all 0.15s; }
+.filter-tab:hover { border-color:var(--text-muted); color:var(--text); }
+.filter-tab.active { background:var(--accent-red); border-color:var(--accent-red); color:white; }
+.search-box { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:6px 12px; width:220px; }
+.search-box input { background:none; border:none; outline:none; color:var(--text); font-size:13px; width:100%; }
+.search-icon { color:var(--text-muted); font-size:14px; }
 
-.form-group { margin-bottom:20px; }
-.form-group label { display:block; font-size:14px; font-weight:600; margin-bottom:8px; }
-.form-group input, .form-group textarea, .form-select { width:100%; padding:12px 16px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:14px; color:var(--text-primary); font-size:15px; outline:none; box-sizing:border-box; }
-.form-group input:focus, .form-group textarea:focus, .form-select:focus { border-color:var(--accent-red); }
+.notif-list { display:flex; flex-direction:column; gap:10px; }
+.notif-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; display:flex; align-items:flex-start; gap:14px; position:relative; transition:all 0.18s; }
+.notif-card:hover { border-color:var(--text-muted); }
+.notif-card.unread { border-left:3px solid var(--accent-red); padding-left:17px; background:rgba(255,71,87,0.03); }
+.notif-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.notif-icon.red { background:rgba(255,71,87,0.14); }
+.notif-icon.blue { background:rgba(58,123,213,0.14); }
+.notif-icon.gold { background:rgba(245,166,35,0.14); }
+.notif-icon.orange { background:rgba(255,107,53,0.14); }
+.notif-icon.green { background:rgba(46,213,115,0.14); }
+.notif-icon.purple { background:rgba(156,136,255,0.14); }
+.notif-body { flex:1; min-width:0; }
+.notif-header { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+.notif-title { font-weight:500; font-size:13.5px; color:var(--text); flex:1; }
+.notif-badge { font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+.badge-emergency { background:rgba(255,71,87,0.2); color:#ff4757; }
+.badge-booking { background:rgba(58,123,213,0.2); color:#3a7bd5; }
+.badge-payment { background:rgba(245,166,35,0.2); color:#f5a623; }
+.badge-driver { background:rgba(255,107,53,0.2); color:#ff6b35; }
+.badge-schedule { background:rgba(46,213,115,0.2); color:#2ed573; }
+.badge-system { background:rgba(156,136,255,0.2); color:#9c88ff; }
+.notif-desc { font-size:12.5px; color:var(--text-muted); line-height:1.5; margin-bottom:8px; }
+.notif-meta { display:flex; align-items:center; gap:14px; }
+.notif-time { font-size:11px; color:var(--text-dim); }
+.notif-user { font-size:11px; color:var(--text-dim); }
+.unread-dot { width:7px; height:7px; background:var(--accent-red); border-radius:50%; position:absolute; top:16px; right:16px; }
 
-.recipients-preview { background:rgba(138,99,255,0.05); border:1px solid rgba(138,99,255,0.2); border-radius:14px; padding:16px; margin-bottom:20px; }
-.btn-send { width:100%; height:52px; background:var(--accent-red); border:none; border-radius:999px; color:white; font-size:16px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:opacity 0.15s; }
-.btn-send:hover { opacity:0.9; }
+.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-green { background:rgba(46,213,115,0.12); color:#2ed573; }
+.badge-gold { background:rgba(245,166,35,0.12); color:#f5a623; }
+.badge-red { background:rgba(255,71,87,0.12); color:#ff4757; }
 
-.notifications-list { display:flex; flex-direction:column; gap:12px; max-height:700px; overflow-y:auto; }
-.notification-item { background:rgba(255,255,255,0.02); border-radius:14px; padding:16px; }
-.badge { padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
-.badge-success { background:rgba(0,200,150,0.1); color:#00c896; }
-
-.quick-templates { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
-.template-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:21px; display:flex; align-items:center; gap:12px; cursor:pointer; text-align:left; transition:all 0.15s; }
-.template-card:hover { border-color:rgba(255,255,255,0.15); background:#21213a; }
-.template-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-
-@media (max-width:900px) {
-    .stats-grid { grid-template-columns:repeat(2,1fr); }
-    .two-column-grid { grid-template-columns:1fr; }
-    .quick-templates { grid-template-columns:1fr; }
-}
+@media (max-width:768px) { .two-col { grid-template-columns:1fr; } .stats-grid { grid-template-columns:repeat(2,1fr); } }
 </style>
 
 <script>
-// Update recipient count
-document.getElementById('notifAudience').addEventListener('change', function() {
-    const counts = { 'all': '2,447', 'route_c2': '450', 'route_b3': '380', 'drivers': '120' };
-    document.getElementById('recipientCount').textContent = counts[this.value] + ' users';
-});
-
-// Send notification
-function sendNotification(e) {
-    e.preventDefault();
-    const title = document.getElementById('notifTitle').value;
-    const message = document.getElementById('notifMessage').value;
-    const audience = document.getElementById('notifAudience').value;
-    
-    fetch('/admin_page/api/send-notification/', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, message, audience })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) { showToast('Notification sent successfully!', 'success'); document.getElementById('notificationForm').reset(); setTimeout(() => location.reload(), 1000); }
-        else { showToast(data.message, 'error'); }
-    });
-}
-
-// Use template
-function useTemplate(type) {
-    const templates = {
-        'emergency': { title: '🚨 Emergency Alert', message: 'Important emergency notice. Please check your app for details.' },
-        'route': { title: '📍 Route Update', message: 'Route schedule has been updated. Please check the new timings.' },
-        'general': { title: '📢 Announcement', message: 'General announcement for all users.' }
-    };
-    const t = templates[type];
-    document.getElementById('notifTitle').value = t.title;
-    document.getElementById('notifMessage').value = t.message;
-}
-
-// Toast
-function showToast(msg, type = 'success') {
-    const toast = document.createElement('div');
-    toast.style.cssText = `position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ${type==='success'?'#00c896':'#ff4757'}; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;`;
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-    setTimeout(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; }, 10);
-    setTimeout(() => { toast.style.transform = 'translateY(60px)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 250); }, 2800);
-}
-
-function getCookie(name) {
-    let cookieValue = null;
-    if(document.cookie) {
-        for(let c of document.cookie.split(';')) {
-            c = c.trim();
-            if(c.startsWith(name + '=')) { cookieValue = decodeURIComponent(c.substring(name.length + 1)); break; }
-        }
-    }
-    return cookieValue;
+function searchNotifs() {
+    var query = document.getElementById('searchInput').value.trim();
+    var currentType = '{{ filter_type }}';
+    var url = window.location.pathname + '?';
+    if (currentType && currentType !== 'all') url += 'type=' + currentType + '&';
+    if (query) url += 'search=' + encodeURIComponent(query);
+    window.location.href = url;
 }
 </script>
+
 {% endblock %}

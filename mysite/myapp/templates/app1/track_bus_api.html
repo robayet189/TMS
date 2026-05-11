@@ -1,110 +1,69 @@
 {% extends 'app1/base.html' %}
 
+{% block title %}Live Bus Tracking - Easy Transport{% endblock %}
+
 {% block content %}
 <style>
-    .track-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+    .track-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .page-title { font-size: 28px; font-weight: bold; color: var(--text); margin-bottom: 10px; }
+    .page-subtitle { color: var(--text-muted); margin-bottom: 24px; }
     
-    .page-title {
-        font-size: 28px;
-        font-weight: bold;
-        color: #333;
-        margin-bottom: 10px;
-    }
+    .map-container { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 5px; margin-bottom: 24px; }
+    #map { height: 500px; width: 100%; border-radius: 16px; }
     
-    .page-subtitle {
-        color: #666;
-        margin-bottom: 30px;
-    }
+    .bus-selector { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 24px; }
+    .selector-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    .bus-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+    .bus-btn { padding: 10px 18px; border-radius: 30px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+    .bus-btn:hover { border-color: var(--accent-red); color: var(--text); }
+    .bus-btn.active { background: var(--accent-red); color: white; border-color: var(--accent-red); }
     
-    .map-container {
-        background: #f0f2f5;
-        border-radius: 20px;
-        padding: 5px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 30px;
-    }
+    .info-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--text-muted); }
+    .info-value { color: var(--text); font-weight: 600; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; background: rgba(46,213,115,0.12); color: #2ed573; }
     
-    #map {
-        height: 500px;
-        width: 100%;
-        border-radius: 16px;
-    }
-    
-    .bus-selector {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        margin-bottom: 30px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-    
-    .bus-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-    
-    .bus-btn {
-        padding: 10px 20px;
-        background: #f5f5f5;
-        border: 1px solid #ddd;
-        border-radius: 30px;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    
-    .bus-btn.active {
-        background: #ff4757;
-        color: white;
-        border-color: #ff4757;
-    }
-    
-    .info-card {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-    
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        background: #e8f5e9;
-        color: #4caf50;
-        font-size: 12px;
-    }
-    
-    @media (max-width: 768px) {
-        #map { height: 350px; }
-    }
+    @media (max-width: 768px) { #map { height: 350px; } }
 </style>
 
 <div class="track-container">
     <h1 class="page-title">📍 Live Bus Tracking</h1>
-    <p class="page-subtitle">Real-time bus location tracking using GPS</p>
+    <p class="page-subtitle">Real-time GPS tracking for all active buses</p>
     
     <div class="bus-selector">
-        <div class="bus-buttons" id="busButtons"></div>
+        <div class="selector-title">🚌 Select a Bus:</div>
+        <div class="bus-buttons" id="busButtons">
+            {% if buses %}
+                {% for bus in buses %}
+                <button class="bus-btn {% if forloop.first %}active{% endif %}" data-bus-id="{{ bus.id }}">
+                    🚌 {{ bus.bus_number }}
+                </button>
+                {% endfor %}
+            {% else %}
+                <p style="color:var(--text-muted);">No active buses found</p>
+            {% endif %}
+        </div>
     </div>
     
     <div class="map-container">
-        <div id="map"></div>
+        <div id="map">
+            <div style="height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--text-muted);">
+                <div style="font-size:48px; margin-bottom:16px;">📡</div>
+                <h3>GPS Tracking Map</h3>
+                <p style="margin-top:8px;">Select a bus to view its location</p>
+            </div>
+        </div>
     </div>
     
-    <div class="info-card" id="infoCard">
-        <div id="busInfo"></div>
+    <div class="info-card">
+        <div id="busInfo">
+            <div class="info-row"><span class="info-label">Bus Number:</span><span class="info-value" id="infoBusNum">--</span></div>
+            <div class="info-row"><span class="info-label">Coordinates:</span><span class="info-value" id="infoCoords">--</span></div>
+            <div class="info-row"><span class="info-label">Last Updated:</span><span class="info-value" id="infoUpdated">--</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge">🟢 Active</span></span></div>
+        </div>
     </div>
 </div>
 
@@ -117,141 +76,79 @@
     let currentMarker = null;
     let currentBusId = null;
     let updateInterval = null;
-    
-    // Dhaka center
     const dhaka = [23.8103, 90.4125];
-    
-    // Bus list (from database)
-    const buses = [
-        {% for bus in buses %}
-        { id: {{ bus.id }}, name: "{{ bus.bus_number }}" },
-        {% endfor %}
-    ];
     
     function initMap() {
         map = L.map('map').setView(dhaka, 13);
-        
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
         
-        // Create bus buttons
-        const busButtonsDiv = document.getElementById('busButtons');
-        buses.forEach((bus, index) => {
-            const btn = document.createElement('button');
-            btn.className = 'bus-btn';
-            if (index === 0) btn.classList.add('active');
-            btn.textContent = `🚌 ${bus.name}`;
-            btn.onclick = () => selectBus(bus.id);
-            btn.setAttribute('data-bus-id', bus.id);
-            busButtonsDiv.appendChild(btn);
-        });
-        
-        // Select first bus
-        if (buses.length > 0) {
-            selectBus(buses[0].id);
+        // Select first bus automatically
+        var firstBtn = document.querySelector('.bus-btn');
+        if (firstBtn) {
+            selectBus(parseInt(firstBtn.dataset.busId));
         }
     }
     
     function selectBus(busId) {
         currentBusId = busId;
         
-        // Update button active state
         document.querySelectorAll('.bus-btn').forEach(btn => {
             btn.classList.remove('active');
-            if (parseInt(btn.getAttribute('data-bus-id')) === busId) {
-                btn.classList.add('active');
-            }
+            if (parseInt(btn.dataset.busId) === busId) btn.classList.add('active');
         });
         
-        // Clear previous interval
-        if (updateInterval) {
-            clearInterval(updateInterval);
-        }
+        if (updateInterval) clearInterval(updateInterval);
         
-        // Fetch location immediately
         fetchBusLocation(busId);
-        
-        // Auto-update every 5 seconds
-        updateInterval = setInterval(() => {
-            fetchBusLocation(busId);
-        }, 5000);
+        updateInterval = setInterval(() => fetchBusLocation(busId), 5000);
     }
     
     async function fetchBusLocation(busId) {
         try {
-            const response = await fetch(`/api/bus/${busId}/location/`);
-            const data = await response.json();
+            var response = await fetch('/api/bus/' + busId + '/location/');
+            var data = await response.json();
+            
+            document.getElementById('infoBusNum').textContent = data.bus_number || 'Bus #' + busId;
+            document.getElementById('infoUpdated').textContent = data.updated_at || 'Just now';
             
             if (data.latitude && data.longitude) {
-                updateMap(data.latitude, data.longitude);
-                updateInfo(data);
+                updateMap(data.latitude, data.longitude, data.bus_number);
+                document.getElementById('infoCoords').textContent = data.latitude.toFixed(6) + ', ' + data.longitude.toFixed(6);
             } else {
-                console.log('No location data yet');
+                document.getElementById('infoCoords').textContent = 'No GPS data yet';
             }
         } catch (error) {
-            console.error('Error fetching location:', error);
+            console.error('Error:', error);
+            document.getElementById('infoCoords').textContent = 'Connection error';
         }
     }
     
-    function updateMap(lat, lng) {
-        const position = [lat, lng];
+    function updateMap(lat, lng, busName) {
+        var position = [lat, lng];
         
         if (currentMarker) {
             currentMarker.setLatLng(position);
         } else {
             currentMarker = L.marker(position, {
                 icon: L.divIcon({
-                    html: '🚌',
+                    html: '<div style="font-size:32px; text-align:center;">🚌</div>',
                     className: 'bus-marker',
-                    iconSize: [30, 30],
-                    popupAnchor: [0, -15]
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
                 })
             }).addTo(map);
-            currentMarker.bindPopup('📍 Bus Location');
+            currentMarker.bindPopup('🚌 ' + (busName || 'Bus Location'));
         }
         
         map.setView(position, 14);
     }
     
-    function updateInfo(data) {
-        const infoDiv = document.getElementById('busInfo');
-        const updateTime = data.updated_at || 'Just now';
-        
-        infoDiv.innerHTML = `
-            <div class="info-row">
-                <span class="info-label">Bus Number:</span>
-                <span class="info-value"><strong>${data.bus_number}</strong></span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Current Location:</span>
-                <span class="info-value">Lat: ${data.latitude?.toFixed(6)}, Lng: ${data.longitude?.toFixed(6)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Last Updated:</span>
-                <span class="info-value">${updateTime}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Status:</span>
-                <span class="info-value"><span class="status-badge">🟢 Active</span></span>
-            </div>
-        `;
-    }
-    
-    // Initialize map when page loads
     document.addEventListener('DOMContentLoaded', initMap);
 </script>
 
 <style>
-    .bus-marker {
-        background: #ff4757;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        border: 2px solid white;
-    }
+    .bus-marker { background: transparent !important; border: none !important; }
 </style>
 {% endblock %}

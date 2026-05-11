@@ -187,12 +187,7 @@
         }
         .eye-btn:hover { color: var(--red); }
         
-        .forgot-link {
-            display: block; text-align: right; font-size: 13px;
-            color: var(--muted); text-decoration: none; margin-top: -16px; margin-bottom: 20px;
-            transition: color 0.2s; cursor: pointer;
-        }
-        .forgot-link:hover { color: var(--red); }
+        /* ✅ FIXED: Removed forgot-link styles since link is removed from login page */
         
         .btn-login {
             width: 100%; padding: 15px;
@@ -280,9 +275,9 @@
 <nav>
     <a href="/" class="logo">
         <div class="logo-icon-custom">
-            <img style="width: 100%; height: 100%" src="{% static 'app1/logo.png' %}" alt="Next Route Logo">
+            <img style="width: 100%; height: 100%" src="{% static 'app1/logo.png' %}" alt="Easy Transport Logo">
         </div>
-        <span class="logo-text">Next Route</span>
+        <span class="logo-text">Easy Transport</span>
     </a>
     <div class="nav-right">
         <a href="/register/" class="nav-register">Don't have an account? <strong>Register →</strong></a>
@@ -318,8 +313,8 @@
                     <input type="password" name="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
                     <button class="eye-btn" type="button" onclick="togglePwd('password', this)" aria-label="Toggle password visibility">👁️</button>
                 </div>
-                <!-- ✅ FIXED: Connected to password reset -->
-                <a href="#" class="forgot-link" onclick="openPasswordReset(); return false;">Forgot password?</a>
+                <!-- ✅ FIXED: Removed Forgot Password link from login page -->
+                <!-- Forgot Password link is now ONLY available in forgot_password.html -->
             </div>
 
             <button type="submit" class="btn-login" id="loginBtn">
@@ -336,20 +331,7 @@
         </div>
 
         <div class="register-link">
-            New to Next Route? <a href="/register/">Create an account</a>
-        </div>
-    </div>
-</div>
-
-<!-- Password Reset Modal -->
-<div id="passwordResetModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; display:flex; align-items:center; justify-content:center;">
-    <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:32px; width:90%; max-width:400px;">
-        <h3 style="margin-bottom:16px; color:var(--text);">Reset Password</h3>
-        <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Enter your email to receive a password reset link.</p>
-        <input type="email" id="resetEmail" placeholder="Enter your email" style="width:100%; padding:12px; margin-bottom:16px; background:var(--input-bg); border:1px solid var(--input-border); border-radius:10px; color:var(--text);">
-        <div style="display:flex; gap:10px;">
-            <button onclick="closePasswordReset()" style="flex:1; padding:12px; background:var(--input-bg); border:1px solid var(--border); border-radius:10px; color:var(--text); cursor:pointer;">Cancel</button>
-            <button onclick="submitPasswordReset()" style="flex:1; padding:12px; background:var(--red); border:none; border-radius:10px; color:white; cursor:pointer; font-weight:600;">Send Link</button>
+            New to Easy Transport? <a href="/register/">Create an account</a>
         </div>
     </div>
 </div>
@@ -418,44 +400,10 @@
         return cookieValue;
     }
 
-    // ✅ FIXED: Password Reset Modal Functions
-    function openPasswordReset() {
-        document.getElementById('passwordResetModal').style.display = 'flex';
-    }
-    
-    function closePasswordReset() {
-        document.getElementById('passwordResetModal').style.display = 'none';
-    }
-    
-    function submitPasswordReset() {
-        const email = document.getElementById('resetEmail').value.trim();
-        if (!email) {
-            showToast('Please enter your email', true);
-            return;
-        }
-        
-        fetch('/api/password-reset/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: `email=${encodeURIComponent(email)}`
-        })
-        .then(res => res.json())
-        .then(data => {
-            showToast(data.message, !data.success);
-            if (data.success) closePasswordReset();
-        })
-        .catch(() => {
-            showToast('Failed to send reset link', true);
-        });
-    }
-
+    // ✅ FIXED: Proper error handling instead of fake "internet" error
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const form = e.target;
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
         const btn = document.getElementById('loginBtn');
@@ -479,25 +427,27 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             
+            // ✅ FIXED: Handle non-200 responses properly
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Server error' }));
+                throw new Error(errorData.message || `HTTP ${response.status}`);
+            }
+            
             const data = await response.json();
             
             if (data.success) {
                 showToast(data.message || 'Login successful!');
-                
                 setTimeout(() => {
-                    if (data.redirect_url) {
-                        window.location.href = data.redirect_url;
-                    } else {
-                        const isAdmin = username.toLowerCase().includes('admin');
-                        window.location.href = isAdmin ? '/admin_page/dashboard/' : '/dashboard/';
-                    }
+                    // ✅ Uses backend redirect_url directly (handles driver/admin/user)
+                    window.location.href = data.redirect_url || '/dashboard/';
                 }, 1000);
             } else {
                 showToast(data.message || 'Invalid credentials', true);
             }
         } catch (error) {
             console.error('Login error:', error);
-            showToast('Connection failed. Please check your internet.', true);
+            // ✅ Shows actual error instead of generic "check internet"
+            showToast(error.message || 'Login failed. Please try again.', true);
         } finally {
             btn.classList.remove('loading');
         }
