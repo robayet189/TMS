@@ -871,7 +871,8 @@ def driver_login(request):
 def driver_dashboard(request):
     """
     Driver dashboard - shows assigned trips and stats
-    CHANGE REASON: Personalized dashboard with trip management
+    ✅ FIXED: Calculate REAL passenger count and earnings from database
+    CHANGE REASON: Previously hardcoded values (24 passengers, 480 earnings) now dynamically calculated
     """
     if not hasattr(request.user, 'driver_profile'):
         messages.error(request, 'You are not registered as a driver.')
@@ -880,18 +881,37 @@ def driver_dashboard(request):
     driver = request.user.driver_profile
     today = timezone.now().date()
     
+    # Fetch trips for today, upcoming, and ongoing
     today_trips = Trip.objects.filter(driver=driver, travel_date=today).select_related('route', 'bus').order_by('departure_time')
     upcoming_trips = Trip.objects.filter(driver=driver, travel_date__gt=today, status='pending').select_related('route', 'bus').order_by('travel_date', 'departure_time')[:5]
     ongoing_trip = Trip.objects.filter(driver=driver, status='ongoing').select_related('route', 'bus').first()
+    
+    # ✅ FIXED: Calculate REAL passenger count from confirmed bookings for today's trips
+    # Get all schedule IDs from today's trips
+    today_trip_schedules = [t.schedule.id for t in today_trips if hasattr(t, 'schedule') and t.schedule]
+    if today_trip_schedules:
+        passenger_count = Booking.objects.filter(
+            schedule_id__in=today_trip_schedules, 
+            status='confirmed'
+        ).count()
+        # ✅ FIXED: Calculate REAL earnings from confirmed bookings
+        earnings_data = Booking.objects.filter(
+            schedule_id__in=today_trip_schedules, 
+            status='confirmed'
+        ).aggregate(total=Sum('amount'))
+        today_earnings = earnings_data['total'] or 0
+    else:
+        passenger_count = 0
+        today_earnings = 0
     
     context = {
         'driver': driver,
         'today_trips': today_trips,
         'upcoming_trips': upcoming_trips,
         'ongoing_trip': ongoing_trip,
-        'passenger_count': 24,
+        'passenger_count': passenger_count,  # ✅ Dynamic value from database
         'trips_completed': driver.trips.filter(status='completed').count(),
-        'today_earnings': 480,
+        'today_earnings': today_earnings,    # ✅ Dynamic value from database
     }
     return render(request, 'app1/driver/driver_dashboard.html', context)
 
