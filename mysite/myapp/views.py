@@ -871,9 +871,8 @@ def driver_login(request):
 @login_required
 def driver_dashboard(request):
     """
-    Driver dashboard - shows assigned trips and stats
-    FIXED: Added fallback to Schedule+Booking when Trip model has no data
-    Driver dashboard now works even if admin hasn't created Trip records yet
+    Driver dashboard - shows REAL assigned trips, passengers, earnings from database
+    No fake/hardcoded data
     """
     if not hasattr(request.user, 'driver_profile'):
         messages.error(request, 'You are not registered as a driver.')
@@ -882,7 +881,7 @@ def driver_dashboard(request):
     driver = request.user.driver_profile
     today = timezone.now().date()
     
-    # Try to get trips from Trip model first
+    # Get REAL trips from Trip model
     today_trips = Trip.objects.filter(
         driver=driver, travel_date=today
     ).select_related('route', 'bus').order_by('departure_time')
@@ -895,38 +894,21 @@ def driver_dashboard(request):
         driver=driver, status='ongoing'
     ).select_related('route', 'bus').first()
     
-    # FIXED: Calculate passenger count from Schedule + Booking (not from Trip)
+    # Calculate REAL passenger count from database
     passenger_count = 0
     today_earnings = 0
     
     if today_trips.exists():
-        # Use today's trips to find matching schedules
-        trip = today_trips.first()
-        schedule = Schedule.objects.filter(
-            route=trip.route,
-            travel_date=trip.travel_date,
-            departure_time=trip.departure_time
-        ).first()
-        if schedule:
-            passenger_count = Booking.objects.filter(
-                schedule=schedule, status='confirmed'
-            ).count()
-            today_earnings = passenger_count * float(schedule.fare)
-    else:
-        # FALLBACK: Trip table is empty, use Schedule + Booking directly
-        # This fixes the issue when admin created schedules but Trip wasn't created
-        schedule = Schedule.objects.filter(
-            route=driver.assigned_route,
-            travel_date=today,
-            is_active=True
-        ).first()
-        if schedule:
-            passenger_count = Booking.objects.filter(
-                schedule=schedule, status='confirmed'
-            ).count()
-            today_earnings = passenger_count * float(schedule.fare)
+        for trip in today_trips:
+            schedule = Schedule.objects.filter(
+                route=trip.route, travel_date=trip.travel_date,
+                departure_time=trip.departure_time
+            ).first()
+            if schedule:
+                count = Booking.objects.filter(schedule=schedule, status='confirmed').count()
+                passenger_count += count
+                today_earnings += count * float(schedule.fare)
     
-    # Count completed trips
     trips_completed = driver.trips.filter(status='completed').count()
     
     context = {
