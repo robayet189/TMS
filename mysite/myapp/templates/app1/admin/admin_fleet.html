@@ -8,194 +8,58 @@
 {% block content %}
 <!-- Stats Cards -->
 <div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-label">Total Fleet</div>
-        <div class="stat-value">{{ total_buses|default:0 }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label" style="color:#00c896">Active</div>
-        <div class="stat-value" style="color:#00c896">{{ active_buses|default:0 }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label" style="color:#ffb800">In Maintenance</div>
-        <div class="stat-value" style="color:#ffb800">{{ maintenance_buses|default:0 }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label" style="color:#ff4757">Inactive</div>
-        <div class="stat-value" style="color:#ff4757">{{ inactive_buses|default:0 }}</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">Total Fleet</div><div class="stat-value">{{ total_buses|default:0 }}</div></div>
+    <div class="stat-card"><div class="stat-label" style="color:#00c896">Active</div><div class="stat-value" style="color:#00c896">{{ active_buses|default:0 }}</div></div>
+    <div class="stat-card"><div class="stat-label" style="color:#ffb800">In Maintenance</div><div class="stat-value" style="color:#ffb800">{{ maintenance_buses|default:0 }}</div></div>
+    <div class="stat-card"><div class="stat-label" style="color:#ff4757">Inactive</div><div class="stat-value" style="color:#ff4757">{{ inactive_buses|default:0 }}</div></div>
 </div>
 
 <!-- Search & Filter -->
 <div class="search-filter-section">
-    <div class="search-wrapper">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search by bus ID or driver name..." onkeyup="filterTable()">
-    </div>
-    <select id="statusFilter" class="filter-select" onchange="filterTable()">
-        <option value="all">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-    </select>
+    <div class="search-wrapper"><span class="search-icon">🔍</span><input type="text" id="searchInput" class="search-input" placeholder="Search by bus ID or driver name..." onkeyup="filterTable()"></div>
+    <select id="statusFilter" class="filter-select" onchange="filterTable()"><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
     <button class="btn-add" onclick="openAddBusModal()">➕ Add New Bus</button>
 </div>
 
 <!-- Buses Table -->
-<div class="card">
-    <div class="table-container">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>BUS ID</th>
-                    <th>CAPACITY</th>
-                    <th>STATUS</th>
-                    <th>DRIVER</th>
-                    <th>PHONE</th>
-                    <th>AMENITIES</th>
-                    <th>ACTIONS</th>
-                </tr>
-            </thead>
-            <tbody id="busesTableBody">
-                {% for bus in buses %}
-                <tr data-bus-id="{{ bus.id }}" data-status="{% if bus.is_active %}active{% else %}inactive{% endif %}">
-                    <td><strong>{{ bus.bus_number }}</strong></td>
-                    <td>{{ bus.capacity }} seats</td>
-                    <td>
-                        <span class="status-badge {% if bus.is_active %}status-active{% else %}status-inactive{% endif %}">
-                            {% if bus.is_active %}Active{% else %}Inactive{% endif %}
-                        </span>
-                    </td>
-                    <td>{{ bus.driver_name|default:"—" }}</td>
-                    <td>{{ bus.driver_phone|default:"—" }}</td>
-                    <td>
-                        {% if bus.has_ac %}<span class="amenity-badge">❄️ AC</span>{% endif %}
-                        {% if bus.has_wifi %}<span class="amenity-badge">📶 WiFi</span>{% endif %}
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')" title="Edit">✏️</button>
-                            <button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')" title="Toggle Status">🔄</button>
-                            <button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')" title="Delete">🗑️</button>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="7" class="empty-row">No buses found. Click "Add New Bus" to create one.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+<div class="card"><div class="table-container"><table class="data-table"><thead><tr><th>BUS ID</th><th>CAPACITY</th><th>STATUS</th><th>DRIVER</th><th>PHONE</th><th>AMENITIES</th><th>ACTIONS</th></tr></thead><tbody id="busesTableBody">
+    {% for bus in buses %}
+    <tr data-bus-id="{{ bus.id }}" data-status="{% if bus.is_active %}active{% else %}inactive{% endif %}">
+        <td><strong>{{ bus.bus_number }}</strong></td>
+        <td>{{ bus.capacity }} seats</td>
+        <td><span class="status-badge {% if bus.is_active %}status-active{% else %}status-inactive{% endif %}">{% if bus.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+        <td>{{ bus.driver_name|default:"—" }}</td>
+        <td>{{ bus.driver_phone|default:"—" }}</td>
+        <td>{% if bus.has_ac %}<span class="amenity-badge">❄️ AC</span>{% endif %}{% if bus.has_wifi %}<span class="amenity-badge">📶 WiFi</span>{% endif %}</td>
+        <td><div class="action-buttons"><button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')" title="Edit">✏️</button><button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')" title="Toggle">🔄</button><button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')" title="Delete">🗑️</button></div></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="empty-row">No buses found. Click "Add New Bus" to create one.</td></tr>
+    {% endfor %}
+</tbody></table></div></div>
 
 <!-- Add/Edit Bus Modal -->
-<div id="busModal" class="modal-overlay" style="display:none;">
-    <div class="modal">
-        <div class="modal-header">
-            <h2 id="modalTitle">Add New Bus</h2>
-            <button class="modal-close" onclick="closeModal()">×</button>
-        </div>
-        <form id="busForm" onsubmit="return false;">
-            {% csrf_token %}
-            <input type="hidden" id="busId" name="bus_id">
-            
-            <div class="form-group">
-                <label>Bus Number *</label>
-                <input type="text" id="busNumber" name="bus_number" required placeholder="e.g., UAP-104">
-            </div>
-            <div class="form-group">
-                <label>Capacity *</label>
-                <input type="number" id="capacity" name="capacity" required placeholder="Number of seats" min="1" max="100">
-            </div>
-            <div class="form-group">
-                <label>Driver Name</label>
-                <input type="text" id="driverName" name="driver_name" placeholder="Driver's full name">
-            </div>
-            <div class="form-group">
-                <label>Driver Phone</label>
-                <input type="tel" id="driverPhone" name="driver_phone" placeholder="Driver's contact number">
-            </div>
-            <div class="form-group">
-                <label>Amenities</label>
-                <div class="checkbox-group">
-                    <label><input type="checkbox" id="hasAc" name="has_ac"> Air Conditioned (AC)</label>
-                    <label><input type="checkbox" id="hasWifi" name="has_wifi"> WiFi Available</label>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Status</label>
-                <select id="isActive" name="is_active">
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                </select>
-            </div>
-            
-            <div class="modal-actions">
-                <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
-                <button type="button" class="btn-save" onclick="saveBus()">Save Bus</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- CSRF Token for AJAX -->
-{% csrf_token %}
+<div id="busModal" class="modal-overlay" style="display:none;"><div class="modal"><div class="modal-header"><h2 id="modalTitle">Add New Bus</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+<form id="busForm" onsubmit="return false;">
+    {% csrf_token %}<input type="hidden" id="busId">
+    <div class="form-group"><label>Bus Number *</label><input type="text" id="busNumber" required placeholder="e.g., UAP-104"></div>
+    <div class="form-group"><label>Capacity *</label><input type="number" id="capacity" required placeholder="Number of seats" min="1" max="100"></div>
+    <div class="form-group"><label>Driver Name</label><input type="text" id="driverName" placeholder="Driver's full name"></div>
+    <div class="form-group"><label>Driver Phone</label><input type="tel" id="driverPhone" placeholder="Driver's contact number"></div>
+    <div class="form-group"><label>Amenities</label><div class="checkbox-group"><label><input type="checkbox" id="hasAc"> Air Conditioned (AC)</label><label><input type="checkbox" id="hasWifi"> WiFi Available</label></div></div>
+    <div class="form-group"><label>Status</label><select id="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+    <div class="modal-actions"><button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button><button type="button" class="btn-save" onclick="saveBus()">Save Bus</button></div>
+</form></div></div>
 
 <style>
-.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:20px; }
-.stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; }
-.stat-label { font-size:13px; color:var(--text-muted); margin-bottom:6px; }
-.stat-value { font-size:28px; font-weight:700; }
-
-.search-filter-section { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
-.search-wrapper { flex:1; min-width:200px; position:relative; }
-.search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-muted); }
-.search-input { width:100%; padding:10px 14px 10px 42px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:14px; }
-.filter-select { padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:14px; appearance:none; }
-.btn-add { padding:10px 20px; background:var(--accent-red); color:white; border:none; border-radius:12px; cursor:pointer; font-weight:600; }
-
-.card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
-.table-container { overflow-x:auto; }
-.data-table { width:100%; border-collapse:collapse; }
-.data-table th, .data-table td { padding:14px 16px; text-align:left; border-bottom:1px solid var(--border); }
-.data-table th { font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; }
-
-.status-badge { padding:4px 12px; border-radius:999px; font-size:11px; font-weight:600; }
-.status-active { background:rgba(0,200,150,0.12); color:#00c896; }
-.status-inactive { background:rgba(255,71,87,0.12); color:#ff4757; }
-
-.amenity-badge { font-size:11px; padding:2px 8px; background:rgba(138,99,255,0.1); border-radius:6px; margin-right:4px; }
-
-.action-buttons { display:flex; gap:6px; }
-.btn-icon { width:30px; height:30px; border-radius:8px; border:none; cursor:pointer; font-size:14px; transition:transform 0.15s; }
-.btn-icon:hover { transform:scale(1.1); }
-.btn-edit { background:rgba(138,99,255,0.1); color:var(--accent-purple); }
-.btn-toggle { background:rgba(0,200,150,0.1); color:var(--accent-green); }
-.btn-delete { background:rgba(255,71,87,0.1); color:var(--accent-red); }
-
-.empty-row { text-align:center; padding:40px !important; color:var(--text-muted); }
-
-/* Modal */
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:1000; backdrop-filter:blur(4px); }
-.modal { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; width:90%; max-width:500px; padding:24px; }
-.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-.modal-close { background:none; border:none; color:var(--text-muted); font-size:24px; cursor:pointer; }
-.form-group { margin-bottom:16px; }
-.form-group label { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:6px; }
-.form-group input, .form-group select { width:100%; padding:10px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; color:var(--text-primary); font-size:14px; }
-.checkbox-group { display:flex; gap:16px; flex-wrap:wrap; }
-.checkbox-group label { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
-.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
-.btn-cancel, .btn-save { padding:10px 20px; border-radius:10px; border:none; font-weight:600; cursor:pointer; }
-.btn-cancel { background:rgba(255,255,255,0.05); color:var(--text-primary); }
-.btn-save { background:var(--accent-red); color:white; }
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:20px}.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px}.stat-label{font-size:13px;color:var(--text-muted);margin-bottom:6px}.stat-value{font-size:28px;font-weight:700}.search-filter-section{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}.search-wrapper{flex:1;min-width:200px;position:relative}.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted)}.search-input{width:100%;padding:10px 14px 10px 42px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.filter-select{padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.btn-add{padding:10px 20px;background:var(--accent-red);color:white;border:none;border-radius:12px;cursor:pointer;font-weight:600}.card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}.table-container{overflow-x:auto}.data-table{width:100%;border-collapse:collapse}.data-table th,.data-table td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--border)}.data-table th{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase}.status-badge{padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600}.status-active{background:rgba(0,200,150,0.12);color:#00c896}.status-inactive{background:rgba(255,71,87,0.12);color:#ff4757}.amenity-badge{font-size:11px;padding:2px 8px;background:rgba(138,99,255,0.1);border-radius:6px;margin-right:4px}.action-buttons{display:flex;gap:6px}.btn-icon{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:14px;transition:transform 0.15s}.btn-icon:hover{transform:scale(1.1)}.btn-edit{background:rgba(138,99,255,0.1);color:var(--accent-purple)}.btn-toggle{background:rgba(0,200,150,0.1);color:var(--accent-green)}.btn-delete{background:rgba(255,71,87,0.1);color:var(--accent-red)}.empty-row{text-align:center;padding:40px!important;color:var(--text-muted)}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;width:90%;max-width:500px;padding:24px}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.modal-close{background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer}.form-group{margin-bottom:16px}.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px}.form-group input,.form-group select{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:14px}.checkbox-group{display:flex;gap:16px;flex-wrap:wrap}.checkbox-group label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}.btn-cancel,.btn-save{padding:10px 20px;border-radius:10px;border:none;font-weight:600;cursor:pointer}.btn-cancel{background:rgba(255,255,255,0.05);color:var(--text-primary)}.btn-save{background:var(--accent-red);color:white}
 </style>
 
 <script>
-// Get CSRF token from cookie
+// Get CSRF token
 function getCSRFToken() {
-    // Try to get from cookie first
     var cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
+    if (document.cookie) {
         var cookies = document.cookie.split(';');
         for (var i = 0; i < cookies.length; i++) {
             var cookie = cookies[i].trim();
@@ -205,7 +69,6 @@ function getCSRFToken() {
             }
         }
     }
-    // Fallback: try to get from hidden input
     if (!cookieValue) {
         var tokenInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
         if (tokenInput) cookieValue = tokenInput.value;
@@ -217,7 +80,7 @@ function filterTable() {
     var q = document.getElementById('searchInput').value.toLowerCase();
     var status = document.getElementById('statusFilter').value;
     document.querySelectorAll('#busesTableBody tr').forEach(function(row) {
-        if(row.classList.contains('empty-row')) return;
+        if (row.classList.contains('empty-row')) return;
         var text = row.textContent.toLowerCase();
         var rowStatus = row.dataset.status;
         var matchQ = !q || text.includes(q);
@@ -239,7 +102,7 @@ function editBus(busId) {
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
-        if(data.success) {
+        if (data.success) {
             var bus = data.bus;
             document.getElementById('modalTitle').textContent = 'Edit Bus';
             document.getElementById('busId').value = bus.id;
@@ -257,7 +120,6 @@ function editBus(busId) {
     })
     .catch(function(error) {
         showToast('Failed to load bus data', true);
-        console.error('Error:', error);
     });
 }
 
@@ -266,9 +128,15 @@ function saveBus() {
     var url = busId ? '/admin_page/api/update-bus/' + busId + '/' : '/admin_page/api/add-bus/';
     var method = busId ? 'PUT' : 'POST';
     
+    var busNumber = document.getElementById('busNumber').value.trim();
+    var capacity = parseInt(document.getElementById('capacity').value);
+    
+    if (!busNumber) { showToast('Bus Number is required', true); return; }
+    if (!capacity || capacity < 1) { showToast('Valid capacity is required', true); return; }
+    
     var formData = {
-        bus_number: document.getElementById('busNumber').value.trim(),
-        capacity: parseInt(document.getElementById('capacity').value),
+        bus_number: busNumber,
+        capacity: capacity,
         driver_name: document.getElementById('driverName').value.trim(),
         driver_phone: document.getElementById('driverPhone').value.trim(),
         has_ac: document.getElementById('hasAc').checked,
@@ -276,41 +144,17 @@ function saveBus() {
         is_active: document.getElementById('isActive').value === 'true'
     };
     
-    // Validate required fields
-    if (!formData.bus_number) {
-        showToast('Bus Number is required', true);
-        return;
-    }
-    if (!formData.capacity || formData.capacity < 1) {
-        showToast('Valid capacity is required', true);
-        return;
-    }
-    
-    console.log('Saving bus:', formData);
-    
     fetch(url, {
         method: method,
-        headers: { 
-            'Content-Type': 'application/json', 
-            'X-CSRFToken': getCSRFToken() 
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
         body: JSON.stringify(formData)
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
-        console.log('Response:', data);
-        if(data.success) { 
-            showToast(data.message || 'Bus saved successfully!'); 
-            closeModal(); 
-            setTimeout(function() { location.reload(); }, 1000); 
-        } else { 
-            showToast(data.message || 'Failed to save bus', true); 
-        }
+        if (data.success) { showToast(data.message || 'Bus saved!'); closeModal(); setTimeout(function() { location.reload(); }, 1000); }
+        else { showToast(data.message || 'Failed to save bus', true); }
     })
-    .catch(function(error) {
-        showToast('An error occurred while saving', true);
-        console.error('Error:', error);
-    });
+    .catch(function(error) { showToast('An error occurred while saving', true); });
 }
 
 function toggleBusStatus(busId) {
@@ -319,50 +163,33 @@ function toggleBusStatus(busId) {
         headers: { 'X-CSRFToken': getCSRFToken() }
     })
     .then(function(res) { return res.json(); })
-    .then(function(data) { 
-        showToast(data.message); 
-        setTimeout(function() { location.reload(); }, 1000); 
-    })
-    .catch(function(error) {
-        showToast('Failed to toggle status', true);
-        console.error('Error:', error);
-    });
+    .then(function(data) { showToast(data.message); setTimeout(function() { location.reload(); }, 1000); })
+    .catch(function() { showToast('Failed to toggle status', true); });
 }
 
 function deleteBus(busId) {
-    if(!confirm('Delete this bus? This cannot be undone.')) return;
+    if (!confirm('Delete this bus? This cannot be undone.')) return;
     fetch('/admin_page/api/delete-bus/' + busId + '/', {
         method: 'DELETE',
         headers: { 'X-CSRFToken': getCSRFToken() }
     })
     .then(function(res) { return res.json(); })
-    .then(function(data) { 
-        showToast(data.message); 
-        if(data.success) setTimeout(function() { location.reload(); }, 1000); 
-    })
-    .catch(function(error) {
-        showToast('Failed to delete bus', true);
-        console.error('Error:', error);
-    });
+    .then(function(data) { showToast(data.message); if (data.success) setTimeout(function() { location.reload(); }, 1000); })
+    .catch(function() { showToast('Failed to delete bus', true); });
 }
 
-function closeModal() { 
-    document.getElementById('busModal').style.display = 'none'; 
-}
+function closeModal() { document.getElementById('busModal').style.display = 'none'; }
 
 function showToast(msg, isError) {
     isError = isError || false;
     var toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ' + (isError ? '#ff4757' : '#00c896') + '; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;';
+    toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1c1c2e;border:1px solid var(--border);border-left:3px solid ' + (isError ? '#ff4757' : '#00c896') + ';border-radius:12px;padding:14px 18px;font-size:13px;color:#fff;z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.25s;';
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(function() { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; }, 10);
     setTimeout(function() { toast.style.transform = 'translateY(60px)'; toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 250); }, 2800);
 }
 
-// Close modal when clicking outside
-document.getElementById('busModal').addEventListener('click', function(e) { 
-    if(e.target === this) closeModal(); 
-});
+document.getElementById('busModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 </script>
 {% endblock %}
