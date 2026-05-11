@@ -1,11 +1,10 @@
-# Import Django model utilities and User model for authentication
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import UserProfile, Route, Bus, Schedule, Booking, Driver, Trip, Alert  # ✅ FIXED: Added Alert to imports
+from .models import UserProfile, Route, Bus, Schedule, Booking, Driver, Trip
 from django.contrib.auth.models import User
 import json
 
@@ -14,17 +13,11 @@ def is_admin(user):
     Check if user is admin - CHANGE REASON: Reusable admin check decorator
     Returns True if user has admin privileges via profile or superuser status
     """
-    if not user.is_authenticated:
-        return False
+    if not user.is_authenticated: return False
     try:
-        if hasattr(user, 'profile'):
-            return user.profile.user_type == 'admin'
+        if hasattr(user, 'profile'): return user.profile.user_type == 'admin'
         return user.is_superuser
-    except Exception:
-        return False
-
-
-# ==================== ADMIN DASHBOARD ====================
+    except: return False
 
 @login_required
 @user_passes_test(is_admin)
@@ -38,16 +31,10 @@ def admin_dashboard(request):
     pending_bookings = Booking.objects.filter(status='pending').count()
     approved_bookings = Booking.objects.filter(status='approved').count()
     today_bookings = Booking.objects.filter(schedule__travel_date=today).count()
-    today_revenue = Booking.objects.filter(
-        schedule__travel_date=today, status='approved'
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    total_revenue = Booking.objects.filter(
-        status='approved'
-    ).aggregate(total=Sum('amount'))['total'] or 0
+    today_revenue = Booking.objects.filter(schedule__travel_date=today, status='approved').aggregate(total=Sum('amount'))['total'] or 0
+    total_revenue = Booking.objects.filter(status='approved').aggregate(total=Sum('amount'))['total'] or 0
     
-    recent_bookings = Booking.objects.select_related(
-        'user', 'schedule__route'
-    ).order_by('-booking_date')[:10]
+    recent_bookings = Booking.objects.select_related('user', 'schedule__route').order_by('-booking_date')[:10]
     
     context = {
         'active': 'overview',
@@ -62,9 +49,6 @@ def admin_dashboard(request):
         'recent_bookings': recent_bookings,
     }
     return render(request, 'app1/admin/admin_dashboard.html', context)
-
-
-# ==================== USER MANAGEMENT ====================
 
 @login_required
 @user_passes_test(is_admin)
@@ -100,7 +84,6 @@ def admin_users(request):
     }
     return render(request, 'app1/admin/admin_user_management.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_user(request, user_id):
@@ -113,9 +96,6 @@ def admin_delete_user(request, user_id):
         return JsonResponse({'success': True, 'message': 'User deleted successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
-# ==================== BOOKING MANAGEMENT ====================
-
 @login_required
 @user_passes_test(is_admin)
 def admin_bookings(request):
@@ -125,9 +105,7 @@ def admin_bookings(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
     
-    bookings = Booking.objects.select_related(
-        'user', 'schedule__route', 'schedule__bus', 'approved_by'
-    ).all()
+    bookings = Booking.objects.select_related('user', 'schedule__route', 'schedule__bus', 'approved_by').all()
     
     if status_filter:
         bookings = bookings.filter(status=status_filter)
@@ -162,7 +140,6 @@ def admin_bookings(request):
     }
     return render(request, 'app1/admin/admin_bookings.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_approve_booking(request, booking_id):
@@ -182,7 +159,6 @@ def admin_approve_booking(request, booking_id):
         booking.save()
         return JsonResponse({'success': True, 'message': f'Booking {booking.booking_id} approved successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -206,7 +182,6 @@ def admin_reject_booking(request, booking_id):
         return JsonResponse({'success': True, 'message': f'Booking {booking.booking_id} rejected'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_update_booking_status(request, booking_id):
@@ -225,9 +200,6 @@ def admin_update_booking_status(request, booking_id):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
-# ==================== FLEET MANAGEMENT ====================
-
 @login_required
 @user_passes_test(is_admin)
 def admin_fleet(request):
@@ -243,6 +215,90 @@ def admin_fleet(request):
     }
     return render(request, 'app1/admin/admin_fleet.html', context)
 
+@login_required
+@user_passes_test(is_admin)
+def admin_routes(request):
+    """Render routes management page with schedule count annotation"""
+    routes = Route.objects.all().annotate(schedule_count=Count('schedules'))
+    active_routes = routes.filter(schedules__is_active=True).distinct().count()
+    total_buses = Bus.objects.count()
+    avg_fare = Schedule.objects.aggregate(avg=Sum('fare'))['avg']
+    
+    context = {
+        'active': 'routes', 
+        'routes': routes,
+        'active_routes': active_routes,
+        'total_buses': total_buses,
+        'avg_fare': avg_fare or 0,
+    }
+    return render(request, 'app1/admin/admin_routes.html', context)
+
+# ✅ NEW: Admin Schedule Management View
+@login_required
+@user_passes_test(is_admin)
+def admin_schedule(request):
+    """Admin schedule management page - CHANGE REASON: Allow admin to manage transport schedules"""
+    schedules = Schedule.objects.select_related('route', 'bus').all().order_by('travel_date', 'departure_time')
+    routes = Route.objects.all()
+    # ✅ FIXED: Add drivers to context for dropdown in modal
+    drivers = Driver.objects.select_related('user').filter(is_active=True, is_approved=True)
+    
+    today = timezone.now().date()
+    total_schedules = schedules.count()
+    active_today = schedules.filter(travel_date=today, is_active=True).count()
+    pending_schedules = schedules.filter(is_active=True, travel_date__gte=today).count()
+    completed_schedules = schedules.filter(travel_date__lt=today).count()
+    
+    context = {
+        'active': 'schedule',
+        'schedules': schedules,
+        'routes': routes,
+        'drivers': drivers,  # ✅ Pass drivers to template
+        'total_schedules': total_schedules,
+        'active_today': active_today,
+        'pending_schedules': pending_schedules,
+        'completed_schedules': completed_schedules,
+    }
+    return render(request, 'app1/admin/admin_schedule.html', context)
+
+@login_required
+@user_passes_test(is_admin)
+def admin_revenue(request):
+    """Render revenue analytics page with time-based aggregations"""
+    today = timezone.now().date()
+    this_week = today - timedelta(days=today.weekday())
+    this_month = today.replace(day=1)
+    
+    today_revenue = Booking.objects.filter(schedule__travel_date=today, status='approved').aggregate(total=Sum('amount'))['total'] or 0
+    week_revenue = Booking.objects.filter(schedule__travel_date__gte=this_week, status='approved').aggregate(total=Sum('amount'))['total'] or 0
+    month_revenue = Booking.objects.filter(schedule__travel_date__gte=this_month, status='approved').aggregate(total=Sum('amount'))['total'] or 0
+    total_revenue = Booking.objects.filter(status='approved').aggregate(total=Sum('amount'))['total'] or 0
+    
+    revenue_by_route = Booking.objects.filter(status='approved').values('schedule__route__code').annotate(total=Sum('amount'), count=Count('id')).order_by('-total')
+    
+    context = {
+        'active': 'revenue',
+        'today_revenue': today_revenue,
+        'week_revenue': week_revenue,
+        'month_revenue': month_revenue,
+        'total_revenue': total_revenue,
+        'revenue_by_route': revenue_by_route,
+    }
+    return render(request, 'app1/admin/admin_revenue.html', context)
+
+@login_required
+@user_passes_test(is_admin)
+def admin_alerts(request):
+    """Render alerts management page"""
+    return render(request, 'app1/admin/admin_alerts.html', {'active': 'alerts'})
+
+@login_required
+@user_passes_test(is_admin)
+def admin_notifications(request):
+    """Render notifications management page"""
+    return render(request, 'app1/admin/admin_notifications.html', {'active': 'notifications'})
+
+# ==================== API ENDPOINTS (FLEET MANAGEMENT) ====================
 
 @login_required
 @user_passes_test(is_admin)
@@ -268,14 +324,14 @@ def admin_get_bus(request, bus_id):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_get_buses(request):
     """Get all buses for schedule creation - CHANGE REASON: Populate bus dropdown in schedule modal"""
     if request.method == 'GET':
         try:
-            # Return ALL buses (active + inactive) so admin can see and select any bus
+            # ✅ FIXED: Return ALL buses (active + inactive) so admin can see and select any bus
+            # CHANGE REASON: Admin should be able to assign any bus to a schedule, even inactive ones
             buses = Bus.objects.all().values('id', 'bus_number', 'capacity', 'is_active')
             return JsonResponse({
                 'success': True,
@@ -284,7 +340,6 @@ def admin_get_buses(request):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -309,7 +364,6 @@ def admin_add_bus(request):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_update_bus(request, bus_id):
@@ -331,7 +385,6 @@ def admin_update_bus(request, bus_id):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_toggle_bus_status(request, bus_id):
@@ -343,7 +396,6 @@ def admin_toggle_bus_status(request, bus_id):
         status = 'activated' if bus.is_active else 'deactivated'
         return JsonResponse({'success': True, 'message': f'Bus {status} successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -357,27 +409,7 @@ def admin_delete_bus(request, bus_id):
         return JsonResponse({'success': True, 'message': 'Bus deleted successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
-# ==================== ROUTE MANAGEMENT ====================
-
-@login_required
-@user_passes_test(is_admin)
-def admin_routes(request):
-    """Render routes management page with schedule count annotation"""
-    routes = Route.objects.all().annotate(schedule_count=Count('schedules'))
-    active_routes = routes.filter(schedules__is_active=True).distinct().count()
-    total_buses = Bus.objects.count()
-    avg_fare = Schedule.objects.aggregate(avg=Sum('fare'))['avg']
-    
-    context = {
-        'active': 'routes', 
-        'routes': routes,
-        'active_routes': active_routes,
-        'total_buses': total_buses,
-        'avg_fare': avg_fare or 0,
-    }
-    return render(request, 'app1/admin/admin_routes.html', context)
-
+# ==================== API ENDPOINTS (ROUTE MANAGEMENT) ====================
 
 @login_required
 @user_passes_test(is_admin)
@@ -400,7 +432,6 @@ def admin_add_route(request):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_route_detail(request, route_id):
@@ -422,7 +453,6 @@ def admin_route_detail(request, route_id):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_update_route(request, route_id):
@@ -441,7 +471,6 @@ def admin_update_route(request, route_id):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_route(request, route_id):
@@ -454,41 +483,12 @@ def admin_delete_route(request, route_id):
         return JsonResponse({'success': True, 'message': 'Route deleted successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
-# ==================== SCHEDULE MANAGEMENT ====================
-
-@login_required
-@user_passes_test(is_admin)
-def admin_schedule(request):
-    """Admin schedule management page - Allow admin to manage transport schedules"""
-    schedules = Schedule.objects.select_related('route', 'bus').all().order_by('travel_date', 'departure_time')
-    routes = Route.objects.all()
-    # Add drivers to context for dropdown in modal
-    drivers = Driver.objects.select_related('user').filter(is_active=True, is_approved=True)
-    
-    today = timezone.now().date()
-    total_schedules = schedules.count()
-    active_today = schedules.filter(travel_date=today, is_active=True).count()
-    pending_schedules = schedules.filter(is_active=True, travel_date__gte=today).count()
-    completed_schedules = schedules.filter(travel_date__lt=today).count()
-    
-    context = {
-        'active': 'schedule',
-        'schedules': schedules,
-        'routes': routes,
-        'drivers': drivers,  # Pass drivers to template
-        'total_schedules': total_schedules,
-        'active_today': active_today,
-        'pending_schedules': pending_schedules,
-        'completed_schedules': completed_schedules,
-    }
-    return render(request, 'app1/admin/admin_schedule.html', context)
-
+# ==================== API ENDPOINTS (SCHEDULE MANAGEMENT) - NEW ====================
 
 @login_required
 @user_passes_test(is_admin)
 def admin_get_schedule(request, schedule_id):
-    """Get single schedule details via API - Populate edit form"""
+    """Get single schedule details via API - CHANGE REASON: Populate edit form"""
     if request.method == 'GET':
         try:
             schedule = get_object_or_404(Schedule, id=schedule_id)
@@ -510,12 +510,11 @@ def admin_get_schedule(request, schedule_id):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_add_schedule(request):
     """
-    Add new schedule via API - Create new transport schedule
+    Add new schedule via API - CHANGE REASON: Create new transport schedule
     ✅ FIXED: Also create Trip for driver dashboard visibility when driver is assigned
     """
     if request.method == 'POST':
@@ -527,11 +526,11 @@ def admin_add_schedule(request):
             travel_date = datetime.strptime(data.get('travel_date'), '%Y-%m-%d').date()
             departure_time = datetime.strptime(data.get('departure_time'), '%H:%M').time()
             
-            # Check for duplicate schedule
+            # CHANGE: Check for duplicate schedule
             if Schedule.objects.filter(route=route, travel_date=travel_date, departure_time=departure_time).exists():
                 return JsonResponse({'success': False, 'message': 'Schedule already exists for this route at this time'})
             
-            # Auto-fill available seats from bus capacity if not provided
+            # CHANGE: Auto-fill available seats from bus capacity if not provided
             available_seats = data.get('available_seats') or bus.capacity
             
             # Create Schedule
@@ -546,7 +545,8 @@ def admin_add_schedule(request):
                 is_active=data.get('is_active', True)
             )
             
-            # ✅ Create Trip for driver dashboard if driver is assigned
+            # ✅ FIXED: Create Trip for driver dashboard if driver is assigned
+            # CHANGE REASON: Driver dashboard queries Trip model, not Schedule - so Trip must exist for driver to see assignment
             driver_id = data.get('driver')
             if driver_id:
                 try:
@@ -560,21 +560,20 @@ def admin_add_schedule(request):
                         arrival_time=datetime.strptime(data.get('arrival_time'), '%H:%M').time() if data.get('arrival_time') else None,
                         status='pending'
                     )
-                    print(f"✅ Trip created for driver {driver_id}")
+                    print(f"✅ Trip created for driver {driver_id}")  # Debug log
                 except Driver.DoesNotExist:
-                    print(f"⚠️ Driver {driver_id} not found, but schedule created")
+                    print(f"⚠️ Driver {driver_id} not found, but schedule created")  # Debug log
             
             return JsonResponse({'success': True, 'message': 'Schedule added successfully', 'schedule_id': schedule.id})
         except Exception as e:
-            print(f"❌ Error in admin_add_schedule: {str(e)}")
+            print(f"❌ Error in admin_add_schedule: {str(e)}")  # Debug log
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
-
 
 @login_required
 @user_passes_test(is_admin)
 def admin_update_schedule(request, schedule_id):
-    """Update schedule via API - Edit existing schedule"""
+    """Update schedule via API - CHANGE REASON: Edit existing schedule"""
     if request.method in ['POST', 'PUT']:
         try:
             schedule = get_object_or_404(Schedule, id=schedule_id)
@@ -594,7 +593,6 @@ def admin_update_schedule(request, schedule_id):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_toggle_schedule_status(request, schedule_id):
@@ -607,76 +605,20 @@ def admin_toggle_schedule_status(request, schedule_id):
         return JsonResponse({'success': True, 'message': f'Schedule {status} successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_schedule(request, schedule_id):
     """Delete schedule via API"""
     if request.method in ['POST', 'DELETE']:
         schedule = get_object_or_404(Schedule, id=schedule_id)
-        # Check if schedule has bookings before deleting
+        # CHANGE: Check if schedule has bookings before deleting
         if schedule.bookings.exists():
             return JsonResponse({'success': False, 'message': 'Cannot delete schedule with existing bookings'})
         schedule.delete()
         return JsonResponse({'success': True, 'message': 'Schedule deleted successfully'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
-# ==================== REVENUE & ANALYTICS ====================
-
-@login_required
-@user_passes_test(is_admin)
-def admin_revenue(request):
-    """Render revenue analytics page with time-based aggregations"""
-    today = timezone.now().date()
-    this_week = today - timedelta(days=today.weekday())
-    this_month = today.replace(day=1)
-    
-    today_revenue = Booking.objects.filter(
-        schedule__travel_date=today, status='approved'
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    week_revenue = Booking.objects.filter(
-        schedule__travel_date__gte=this_week, status='approved'
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    month_revenue = Booking.objects.filter(
-        schedule__travel_date__gte=this_month, status='approved'
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    total_revenue = Booking.objects.filter(
-        status='approved'
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    
-    revenue_by_route = Booking.objects.filter(
-        status='approved'
-    ).values('schedule__route__code').annotate(
-        total=Sum('amount'), count=Count('id')
-    ).order_by('-total')
-    
-    context = {
-        'active': 'revenue',
-        'today_revenue': today_revenue,
-        'week_revenue': week_revenue,
-        'month_revenue': month_revenue,
-        'total_revenue': total_revenue,
-        'revenue_by_route': revenue_by_route,
-    }
-    return render(request, 'app1/admin/admin_revenue.html', context)
-
-
-# ==================== ALERTS & NOTIFICATIONS ====================
-
-@login_required
-@user_passes_test(is_admin)
-def admin_alerts(request):
-    """Render alerts management page"""
-    return render(request, 'app1/admin/admin_alerts.html', {'active': 'alerts'})
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_notifications(request):
-    """Render notifications management page"""
-    return render(request, 'app1/admin/admin_notifications.html', {'active': 'notifications'})
-
+# ==================== API ENDPOINTS (NOTIFICATIONS & ALERTS) ====================
 
 @login_required
 @user_passes_test(is_admin)
@@ -694,17 +636,14 @@ def send_notification_api(request):
             return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def resolve_alert_api(request, alert_id):
     """Resolve alert via API"""
     if request.method == 'POST':
         try:
-            # ✅ FIXED: Alert model is now imported at top of file
             alert = get_object_or_404(Alert, id=alert_id)
             alert.is_resolved = True
-            alert.resolved_at = timezone.now()
             alert.save()
             return JsonResponse({'success': True, 'message': 'Alert resolved successfully'})
         except Exception as e:
