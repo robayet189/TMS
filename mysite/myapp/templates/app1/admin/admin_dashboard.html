@@ -32,6 +32,83 @@
     </div>
 </div>
 
+<!-- Two Column Layout: Notifications + Quick Stats -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+    
+    <!-- Recent Notifications Section: Show latest unread notifications -->
+    <div class="content-card">
+        <div class="card-header">
+            <h3 class="card-title">🔔 Recent Notifications</h3>
+            <a href="{% url 'admin_notifications' %}" class="btn" style="font-size:12px;">View All →</a>
+        </div>
+        
+        {% if recent_notifications %}
+            {% for notif in recent_notifications %}
+            <div style="padding:10px 0; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:10px;">
+                <div style="font-size:20px; flex-shrink:0;">
+                    {% if notif.type == 'emergency' %}🆘
+                    {% elif notif.type == 'booking' %}🎫
+                    {% elif notif.type == 'payment' %}💳
+                    {% elif notif.type == 'driver' %}🚗
+                    {% elif notif.type == 'schedule' %}📅
+                    {% else %}🔔{% endif %}
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:13px; font-weight:600; color:var(--text);">{{ notif.title }}</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">{{ notif.message|truncatechars:80 }}</div>
+                    <div style="font-size:10px; color:var(--text-dim); margin-top:4px;">{{ notif.created_at|timesince }} ago</div>
+                </div>
+                {% if not notif.is_read %}
+                <span style="width:8px; height:8px; background:var(--accent-red); border-radius:50%; flex-shrink:0; margin-top:4px;"></span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                <div style="font-size:40px; margin-bottom:8px;">🔔</div>
+                <div style="font-size:13px;">No new notifications</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Stats / Recent Activity -->
+    <div class="content-card">
+        <div class="card-header">
+            <h3 class="card-title">📊 Quick Overview</h3>
+        </div>
+        <div style="padding:10px 0; border-bottom:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Total Bookings</span>
+                <span style="font-weight:600;">{{ total_bookings|default:0 }}</span>
+            </div>
+        </div>
+        <div style="padding:10px 0; border-bottom:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Approved Bookings</span>
+                <span style="font-weight:600; color:var(--success);">{{ approved_bookings|default:0 }}</span>
+            </div>
+        </div>
+        <div style="padding:10px 0; border-bottom:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Today's Bookings</span>
+                <span style="font-weight:600;">{{ today_bookings|default:0 }}</span>
+            </div>
+        </div>
+        <div style="padding:10px 0; border-bottom:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Total Revenue</span>
+                <span style="font-weight:600;">৳{{ total_revenue|default:0 }}</span>
+            </div>
+        </div>
+        <div style="padding:10px 0;">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Active Drivers</span>
+                <span style="font-weight:600;">{{ active_drivers|default:0 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Recent Bookings Table Section: Display latest bookings with action buttons -->
 <div class="content-card">
     <div class="card-header">
@@ -86,10 +163,8 @@
 
 <!-- JavaScript Section: Handle booking approval and rejection via AJAX -->
 <script>
-// Function to approve a pending booking via API call
 function approveBooking(bookingId) {
     if(!confirm('Approve this booking?')) return;
-    
     fetch(`/admin_page/bookings/${bookingId}/approve/`, {
         method: 'POST',
         headers: {
@@ -100,24 +175,15 @@ function approveBooking(bookingId) {
     })
     .then(res => res.json())
     .then(data => {
-        if(data.success) {
-            alert(data.message);
-            location.reload();
-        } else {
-            alert(data.message);
-        }
+        if(data.success) { alert(data.message); location.reload(); }
+        else { alert(data.message); }
     })
-    .catch(error => {
-        console.error('Error approving booking:', error);
-        alert('Failed to approve booking. Please try again.');
-    });
+    .catch(error => { console.error('Error:', error); alert('Failed. Try again.'); });
 }
 
-// Function to reject a pending booking with reason via API call
 function rejectBooking(bookingId) {
     const reason = prompt('Reason for rejection:');
     if(!reason) return;
-    
     fetch(`/admin_page/bookings/${bookingId}/reject/`, {
         method: 'POST',
         headers: {
@@ -128,17 +194,10 @@ function rejectBooking(bookingId) {
     })
     .then(res => res.json())
     .then(data => {
-        if(data.success) {
-            alert(data.message);
-            location.reload();
-        } else {
-            alert(data.message);
-        }
+        if(data.success) { alert(data.message); location.reload(); }
+        else { alert(data.message); }
     })
-    .catch(error => {
-        console.error('Error rejecting booking:', error);
-        alert('Failed to reject booking. Please try again.');
-    });
+    .catch(error => { console.error('Error:', error); alert('Failed. Try again.'); });
 }
 </script>
 {% endblock %}
