@@ -55,6 +55,7 @@
                     <th>SCHEDULE ID</th>
                     <th>ROUTE</th>
                     <th>BUS</th>
+                    <th>DRIVER</th>
                     <th>DATE</th>
                     <th>DEPARTURE</th>
                     <th>FARE</th>
@@ -64,10 +65,19 @@
             </thead>
             <tbody id="schedulesTableBody">
                 {% for schedule in schedules %}
-                <tr data-schedule-id="{{ schedule.id }}" data-date="{{ schedule.travel_date }}" data-status="{% if schedule.is_active %}active{% else %}inactive{% endif %}">
+                <tr data-schedule-id="{{ schedule.id }}" data-date="{{ schedule.travel_date|date:'Y-m-d' }}" data-status="{% if schedule.is_active %}active{% else %}inactive{% endif %}">
                     <td><strong>#{{ schedule.id }}</strong></td>
                     <td>{{ schedule.route.code }}: {{ schedule.route.start }} → {{ schedule.route.end }}</td>
                     <td>{{ schedule.bus.bus_number }}</td>
+                    <td>
+                        {% with trip=schedule.trip_set.first %}
+                            {% if trip and trip.driver %}
+                                {{ trip.driver.user.get_full_name|default:trip.driver.user.username }}
+                            {% else %}
+                                <span style="color: var(--text-muted);">Unassigned</span>
+                            {% endif %}
+                        {% endwith %}
+                    </td>
                     <td>{{ schedule.travel_date|date:"M d, Y" }}</td>
                     <td>{{ schedule.departure_time|time:"g:i A" }}</td>
                     <td>৳{{ schedule.fare }}</td>
@@ -85,7 +95,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="empty-row">No schedules found. Click "Add New Schedule" to create one.</td></tr>
+                <tr><td colspan="9" class="empty-row">No schedules found. Click "Add New Schedule" to create one.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -124,18 +134,19 @@
                 <small style="color:var(--text-muted);">All buses shown (inactive buses disabled)</small>
             </div>
             
-            <!-- ✅ FIXED: Driver Selection Dropdown - Populated from Django context -->
+            <!-- CRITICAL FIX: Driver Selection Dropdown - Populated from Django context -->
+            <!-- CHANGE REASON: Driver must be assigned to create Trip for driver dashboard -->
             <div class="form-group">
-                <label>Assign Driver</label>
+                <label>Assign Driver (Required for Driver Dashboard)</label>
                 <select id="driver" name="driver">
-                    <option value="">Select a Driver (Optional)</option>
+                    <option value="">Select a Driver</option>
                     {% for driver in drivers %}
                     <option value="{{ driver.id }}">
                         {{ driver.user.get_full_name|default:driver.user.username }} - {{ driver.license_number }}
                     </option>
                     {% endfor %}
                 </select>
-                <small style="color:var(--text-muted);">Assign a driver to create trip for dashboard</small>
+                <small style="color:var(--text-muted);">⚠️ Must assign driver to show trips on driver dashboard</small>
             </div>
             
             <!-- Date & Time Fields: Required schedule timing information -->
@@ -235,7 +246,7 @@
 
 <!-- JavaScript Section: Handle schedule CRUD operations and bus dropdown population -->
 <script>
-// ✅ FIXED: Load ALL buses into dropdown with Promise support for chaining
+// FIXED: Load ALL buses into dropdown with Promise support for chaining
 // CHANGE REASON: Enables proper async handling in editSchedule() function
 function loadBusesDropdown() {
     const busSelect = document.getElementById('bus');
@@ -246,32 +257,24 @@ function loadBusesDropdown() {
         headers: { 'X-CSRFToken': getCookie('csrftoken') }
     })
     .then(res => {
-        // Log response status for debugging
         console.log('Bus API response status:', res.status);
-        if(!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if(!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
     })
     .then(data => {
-        console.log('Bus API ', data);
+        console.log('Bus API response:', data);
         if(data.success) {
             busSelect.innerHTML = '<option value="">Select a Bus</option>';
-            
-            // Handle empty bus list case
             if(data.buses.length === 0) {
                 busSelect.innerHTML = '<option value="">No buses available</option>';
                 showToast('No buses found. Please add a bus first.', true);
                 return;
             }
-            
             data.buses.forEach(bus => {
                 const option = document.createElement('option');
                 option.value = bus.id;
-                // Show active/inactive status in dropdown text for clarity
                 const statusText = bus.is_active ? '' : ' (Inactive)';
                 option.textContent = `${bus.bus_number} (${bus.capacity} seats)${statusText}`;
-                // Disable inactive buses but keep them visible for reference
                 if(!bus.is_active) {
                     option.disabled = true;
                     option.style.color = 'var(--text-muted)';
@@ -291,20 +294,16 @@ function loadBusesDropdown() {
     });
 }
 
-// ✅ FIXED: Auto-fill available seats when bus is selected
+// FIXED: Auto-fill available seats when bus is selected
 // CHANGE REASON: Improves user experience by auto-populating seat count from bus capacity
 document.addEventListener('DOMContentLoaded', function() {
     const busSelect = document.getElementById('bus');
     const seatsInput = document.getElementById('availableSeats');
-    
     if(busSelect && seatsInput) {
         busSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
-            // Extract capacity from option text format: "BUS-001 (40 seats)" -> 40
             const match = selectedOption.textContent.match(/\((\d+)\s*seats?\)/);
-            if(match && match[1]) {
-                seatsInput.value = match[1];
-            }
+            if(match && match[1]) seatsInput.value = match[1];
         });
     }
 });
@@ -321,23 +320,17 @@ function filterTable() {
         const text = row.textContent.toLowerCase();
         const rowDate = row.dataset.date;
         const rowStatus = row.dataset.status;
-        
         const matchQ = !q || text.includes(q);
         const matchS = status === 'all' || rowStatus === status;
-        
         let matchDate = true;
-        if(dateFilter === 'today') {
-            matchDate = rowDate === today;
-        } else if(dateFilter === 'tomorrow') {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
+        if(dateFilter === 'today') matchDate = rowDate === today;
+        else if(dateFilter === 'tomorrow') {
+            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
             matchDate = rowDate === tomorrow.toISOString().split('T')[0];
         } else if(dateFilter === 'week') {
-            const weekEnd = new Date();
-            weekEnd.setDate(weekEnd.getDate() + 7);
+            const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
             matchDate = rowDate >= today && rowDate <= weekEnd.toISOString().split('T')[0];
         }
-        
         row.style.display = (matchQ && matchS && matchDate) ? '' : 'none';
     });
 }
@@ -348,20 +341,19 @@ function openAddScheduleModal() {
     document.getElementById('scheduleForm').reset();
     document.getElementById('scheduleId').value = '';
     document.getElementById('scheduleModal').style.display = 'flex';
-    loadBusesDropdown(); // Load buses when modal opens
+    loadBusesDropdown();
 }
 
-// ✅ FIXED: Edit schedule with proper Promise chaining for bus loading
+// FIXED: Edit schedule with proper Promise chaining for bus loading
 // CHANGE REASON: Ensures buses are loaded before setting selected value
 function editSchedule(scheduleId) {
     console.log('Editing schedule:', scheduleId);
-    
     fetch(`/admin_page/api/schedule/${scheduleId}/`, {
         headers: { 'X-CSRFToken': getCookie('csrftoken') }
     })
     .then(res => res.json())
     .then(data => {
-        console.log('Schedule ', data);
+        console.log('Schedule data:', data);
         if(data.success) {
             const schedule = data.schedule;
             document.getElementById('modalTitle').textContent = 'Edit Schedule';
@@ -373,15 +365,9 @@ function editSchedule(scheduleId) {
             document.getElementById('fare').value = schedule.fare;
             document.getElementById('availableSeats').value = schedule.available_seats;
             document.getElementById('isActive').value = schedule.is_active ? 'true' : 'false';
-            
-            // Load buses first, then set the selected bus value
             loadBusesDropdown().then(() => {
-                // Small delay to ensure DOM is updated before setting value
-                setTimeout(() => {
-                    document.getElementById('bus').value = schedule.bus;
-                }, 100);
+                setTimeout(() => { document.getElementById('bus').value = schedule.bus; }, 100);
             });
-            
             document.getElementById('scheduleModal').style.display = 'flex';
         } else {
             showToast(data.message || 'Failed to load schedule', true);
@@ -394,18 +380,21 @@ function editSchedule(scheduleId) {
     });
 }
 
-// Save schedule via API with proper error handling
+// CRITICAL FIX: Save schedule via API with driver field included
+// CHANGE REASON: Driver field was missing from formData - Trip was never created
+// Without Trip record, driver dashboard shows no data
 function saveSchedule(e) {
     e.preventDefault();
     const scheduleId = document.getElementById('scheduleId').value;
     const url = scheduleId ? `/admin_page/api/update-schedule/${scheduleId}/` : '/admin_page/api/add-schedule/';
     const method = scheduleId ? 'PUT' : 'POST';
     
-    // ✅ FIXED: Include driver field in formData
+    // FIXED: Include driver field in formData - THIS IS THE KEY FIX
+    // The driver value is sent to backend which creates Trip for driver dashboard
     const formData = {
         route: document.getElementById('route').value,
         bus: document.getElementById('bus').value,
-        driver: document.getElementById('driver')?.value || null,  // ✅ Add driver to formData
+        driver: document.getElementById('driver')?.value || null,
         travel_date: document.getElementById('travelDate').value,
         departure_time: document.getElementById('departureTime').value,
         arrival_time: document.getElementById('arrivalTime').value,
@@ -414,7 +403,7 @@ function saveSchedule(e) {
         is_active: document.getElementById('isActive').value === 'true'
     };
     
-    console.log('Saving schedule:', formData);  // Debug log
+    console.log('Saving schedule with driver:', formData.driver ? `Driver ID=${formData.driver}` : 'No driver assigned');
     
     fetch(url, {
         method: method,
@@ -423,7 +412,7 @@ function saveSchedule(e) {
     })
     .then(res => res.json())
     .then(data => {
-        console.log('Save response:', data);  // Debug log
+        console.log('Save response:', data);
         if(data.success) { 
             showToast(data.message); 
             closeModal(); 
@@ -508,7 +497,6 @@ document.getElementById('scheduleModal').addEventListener('click', function(e) {
     if(e.target === this) closeModal(); 
 });
 
-// ✅ DEBUG: Log page load for troubleshooting
-console.log('Admin Schedule page loaded');
+console.log('Admin Schedule page loaded - Driver assignment enabled');
 </script>
 {% endblock %}
