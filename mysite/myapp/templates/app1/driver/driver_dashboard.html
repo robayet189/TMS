@@ -5,836 +5,167 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Driver Dashboard — Easy Transport</title>
-    
-    <!-- Google Fonts: Syne for headings, DM Sans for body text -->
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;500;600;700&display=swap" rel="stylesheet">
-    
     <style>
-        /* =============================================
-           CSS RESET & ROOT VARIABLES
-           ============================================= */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        /* Dark Theme (Default) */
         :root, [data-theme="dark"] {
-            --bg: #0b0b14;
-            --card: #13131f;
-            --card2: #16162a;
-            --red: #ff4757;
-            --orange: #ff6b35;
-            --gold: #f5a623;
-            --green: #2ed573;
-            --blue: #1e90ff;
-            --text: #ffffff;
-            --muted: #9090b0;
-            --dim: #50507a;
-            --border: rgba(255,255,255,0.08);
-            --nav-bg: rgba(11,11,20,0.92);
-            --toast-bg: #1a1a30;
-            --glow: rgba(255,71,87,0.3);
-            --sidebar-w: 240px;
-            --nav-h: 72px;
+            --bg: #0b0b14; --card: #13131f; --card2: #16162a;
+            --red: #ff4757; --orange: #ff6b35; --gold: #f5a623;
+            --green: #2ed573; --blue: #1e90ff; --text: #ffffff;
+            --muted: #9090b0; --dim: #50507a; --border: rgba(255,255,255,0.08);
+            --nav-bg: rgba(11,11,20,0.92); --toast-bg: #1a1a30;
+            --glow: rgba(255,71,87,0.3); --sidebar-w: 240px; --nav-h: 72px;
         }
-        
-        /* Light Theme */
         [data-theme="light"] {
-            --bg: #f5f7fb;
-            --card: #ffffff;
-            --card2: #ffffff;
-            --red: #e63946;
-            --orange: #f4a261;
-            --gold: #d97706;
-            --green: #22c55e;
-            --blue: #3b82f6;
-            --text: #1e293b;
-            --muted: #5b6e8c;
-            --dim: #8c9bb0;
-            --border: rgba(0,0,0,0.08);
-            --nav-bg: rgba(255,255,255,0.92);
-            --toast-bg: #ffffff;
+            --bg: #f5f7fb; --card: #ffffff; --card2: #ffffff;
+            --red: #e63946; --orange: #f4a261; --gold: #d97706;
+            --green: #22c55e; --blue: #3b82f6; --text: #1e293b;
+            --muted: #5b6e8c; --dim: #8c9bb0; --border: rgba(0,0,0,0.08);
+            --nav-bg: rgba(255,255,255,0.92); --toast-bg: #ffffff;
             --glow: rgba(230,57,70,0.2);
         }
-        
-        /* =============================================
-           BASE STYLES
-           ============================================= */
         html { scroll-behavior: smooth; }
-        
         body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'DM Sans', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-            transition: background 0.3s ease, color 0.2s ease;
-            position: relative;
+            background: var(--bg); color: var(--text);
+            font-family: 'DM Sans', sans-serif; min-height: 100vh;
+            display: flex; flex-direction: column; overflow-x: hidden;
+            transition: background 0.3s ease, color 0.2s ease; position: relative;
         }
-        
-        /* Animated background gradient */
         body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: 
-                radial-gradient(ellipse 800px 600px at 20% 20%, rgba(255,71,87,0.08) 0%, transparent 60%),
-                radial-gradient(ellipse 600px 500px at 80% 80%, rgba(255,107,53,0.08) 0%, transparent 60%);
-            pointer-events: none;
-            z-index: 0;
-            animation: float 20s ease-in-out infinite;
+            content: ''; position: fixed; inset: 0;
+            background: radial-gradient(ellipse 800px 600px at 20% 20%, rgba(255,71,87,0.08) 0%, transparent 60%),
+                        radial-gradient(ellipse 600px 500px at 80% 80%, rgba(255,107,53,0.08) 0%, transparent 60%);
+            pointer-events: none; z-index: 0; animation: float 20s ease-in-out infinite;
         }
-        @keyframes float { 
-            0%, 100% { transform: translate(0, 0); } 
-            50% { transform: translate(20px, 20px); } 
-        }
-        
-        /* =============================================
-           NAVIGATION BAR
-           ============================================= */
+        @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, 20px); } }
         nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 24px;
-            height: var(--nav-h);
-            background: var(--nav-bg);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-            transition: all 0.3s;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; height: var(--nav-h); background: var(--nav-bg);
+            backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); transition: all 0.3s;
         }
-        
-        .logo { 
-            display: flex; 
-            align-items: center; 
-            gap: 14px; 
-            text-decoration: none; 
-        }
-        .logo-icon-custom { 
-            width: 75px; 
-            height: 65px; 
-            background: transparent; 
-            border-radius: 14px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-        }
-        .logo-text { 
-            font-family: 'Syne', sans-serif; 
-            font-size: 24px; 
-            font-weight: 800; 
-            background: linear-gradient(135deg, #fff, var(--orange)); 
-            -webkit-background-clip: text; 
-            background-clip: text; 
-            color: transparent; 
-        }
-        
-        .nav-right { 
-            display: flex; 
-            align-items: center; 
-            gap: 20px; 
-        }
-        .nav-status { 
-            display: flex; 
-            align-items: center; 
-            gap: 6px; 
-            font-size: 13px; 
-            color: var(--muted); 
-        }
-        .status-dot { 
-            width: 8px; 
-            height: 8px; 
-            border-radius: 50%; 
-            background: var(--green); 
-            box-shadow: 0 0 8px var(--green); 
-            animation: pulse 2s infinite; 
-        }
-        @keyframes pulse { 
-            0%, 100% { opacity: 1; } 
-            50% { opacity: 0.4; } 
-        }
-        
-        .nav-avatar { 
-            width: 40px; 
-            height: 40px; 
-            border-radius: 50%; 
-            background: linear-gradient(135deg, var(--orange), var(--gold)); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-weight: 700; 
-            font-size: 14px; 
-            color: #fff; 
-            cursor: pointer; 
-        }
-        
-        .theme-toggle { 
-            width: 48px; 
-            height: 48px; 
-            border-radius: 999px; 
-            background: var(--card2); 
-            border: 1px solid var(--border); 
-            cursor: pointer; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 22px; 
-            transition: all 0.4s; 
-        }
-        .theme-toggle:hover { 
-            transform: scale(1.05); 
-            border-color: var(--red); 
-            box-shadow: 0 0 12px var(--glow); 
-        }
-        
-        /* =============================================
-           LAYOUT: SIDEBAR + MAIN
-           ============================================= */
-        .layout { 
-            display: flex; 
-            margin-top: var(--nav-h); 
-            min-height: calc(100vh - var(--nav-h)); 
-        }
-        
-        /* Sidebar */
+        .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+        .logo-icon-custom { width: 75px; height: 65px; background: transparent; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+        .logo-text { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; background: linear-gradient(135deg, #fff, var(--orange)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .nav-right { display: flex; align-items: center; gap: 20px; }
+        .nav-status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .nav-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--orange), var(--gold)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; cursor: pointer; }
+        .theme-toggle { width: 48px; height: 48px; border-radius: 999px; background: var(--card2); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 22px; transition: all 0.4s; }
+        .theme-toggle:hover { transform: scale(1.05); border-color: var(--red); box-shadow: 0 0 12px var(--glow); }
+        .layout { display: flex; margin-top: var(--nav-h); min-height: calc(100vh - var(--nav-h)); }
         .sidebar {
-            position: fixed;
-            top: var(--nav-h);
-            left: 0;
-            bottom: 0;
-            width: var(--sidebar-w);
-            background: var(--card);
-            border-right: 1px solid var(--border);
-            padding: 24px 0;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            z-index: 90;
+            position: fixed; top: var(--nav-h); left: 0; bottom: 0; width: var(--sidebar-w);
+            background: var(--card); border-right: 1px solid var(--border);
+            padding: 24px 0; display: flex; flex-direction: column; overflow-y: auto; z-index: 90;
         }
-        .sidebar-section { 
-            padding: 0 12px; 
-            margin-bottom: 8px; 
-        }
-        .sidebar-label { 
-            font-size: 10px; 
-            font-weight: 600; 
-            letter-spacing: 0.12em; 
-            color: var(--muted); 
-            text-transform: uppercase; 
-            padding: 0 12px; 
-            margin-bottom: 6px; 
-            margin-top: 16px; 
-        }
-        .nav-item { 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            padding: 10px 12px; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            font-size: 14px; 
-            font-weight: 500; 
-            color: var(--muted); 
-            transition: all 0.2s; 
-            border: none; 
-            background: none; 
-            width: 100%; 
-            text-align: left; 
-        }
-        .nav-item:hover { 
-            background: rgba(255,255,255,0.05); 
-            color: var(--text); 
-        }
-        .nav-item.active { 
-            background: rgba(255,71,87,0.12); 
-            color: var(--red); 
-            border-right: 2px solid var(--red); 
-        }
-        .nav-item svg { 
-            width: 18px; 
-            height: 18px; 
-            flex-shrink: 0; 
-        }
-        .nav-badge { 
-            margin-left: auto; 
-            background: var(--red); 
-            color: #fff; 
-            font-size: 10px; 
-            font-weight: 700; 
-            padding: 2px 6px; 
-            border-radius: 10px; 
-        }
-        .sidebar-divider { 
-            height: 1px; 
-            background: var(--border); 
-            margin: 12px 24px; 
-        }
-        
-        /* Driver info card in sidebar */
-        .sidebar-driver-card { 
-            margin: 0 12px; 
-            background: rgba(255,107,53,0.08); 
-            border: 1px solid rgba(255,107,53,0.2); 
-            border-radius: 12px; 
-            padding: 12px; 
-        }
-        .driver-name { 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 700; 
-            font-size: 14px; 
-            color: var(--text); 
-        }
-        .driver-id { 
-            font-size: 11px; 
-            color: var(--muted); 
-            margin-top: 2px; 
-        }
-        .driver-meta { 
-            margin-top: 8px; 
-            display: flex; 
-            gap: 8px; 
-            flex-wrap: wrap; 
-        }
-        .driver-tag { 
-            font-size: 10px; 
-            font-weight: 600; 
-            padding: 3px 8px; 
-            border-radius: 6px; 
-            background: rgba(255,165,35,0.15); 
-            color: var(--gold); 
-        }
-        
-        /* Main content area */
-        .main { 
-            margin-left: var(--sidebar-w); 
-            flex: 1; 
-            padding: 28px; 
-            min-height: calc(100vh - var(--nav-h)); 
-        }
-        
-        /* Section visibility */
-        .section { 
-            display: none; 
-            animation: fadeUp 0.4s ease forwards; 
-        }
-        .section.active { 
-            display: block; 
-        }
-        @keyframes fadeUp { 
-            from { opacity: 0; transform: translateY(16px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
-        
-        /* =============================================
-           COMPONENTS: HEADERS, BUTTONS, CARDS
-           ============================================= */
-        .page-header { 
-            display: flex; 
-            align-items: flex-start; 
-            justify-content: space-between; 
-            margin-bottom: 28px; 
-            flex-wrap: wrap; 
-            gap: 16px; 
-        }
-        .page-title { 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 800; 
-            font-size: 26px; 
-            color: var(--text); 
-        }
-        .page-subtitle { 
-            font-size: 14px; 
-            color: var(--muted); 
-            margin-top: 4px; 
-        }
-        
-        /* Button styles */
-        .btn { 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 8px; 
-            padding: 10px 18px; 
-            border-radius: 10px; 
-            font-size: 14px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            border: none; 
-            transition: all 0.2s; 
-            font-family: 'DM Sans', sans-serif; 
-        }
-        .btn-primary { 
-            background: linear-gradient(135deg, var(--red), var(--orange)); 
-            color: #fff; 
-            box-shadow: 0 4px 16px rgba(255,71,87,0.3); 
-        }
-        .btn-outline { 
-            background: transparent; 
-            color: var(--text); 
-            border: 1px solid var(--border); 
-        }
-        .btn-green { 
-            background: rgba(46,213,115,0.15); 
-            color: var(--green); 
-            border: 1px solid rgba(46,213,115,0.3); 
-        }
-        .btn-red { 
-            background: rgba(255,71,87,0.12); 
-            color: var(--red); 
-            border: 1px solid rgba(255,71,87,0.25); 
-        }
-        .btn:disabled { 
-            opacity: 0.6; 
-            cursor: not-allowed; 
-        }
-        
-        /* Stats grid */
-        .stats-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
-            gap: 16px; 
-            margin-bottom: 24px; 
-        }
-        .stat-card { 
-            background: var(--card); 
-            border: 1px solid var(--border); 
-            border-radius: 14px; 
-            padding: 18px; 
-            position: relative; 
-            overflow: hidden; 
-        }
-        .stat-card::before { 
-            content: ''; 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            right: 0; 
-            height: 2px; 
-        }
+        .sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+        .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; padding: 0 12px; margin-bottom: 6px; margin-top: 16px; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); transition: all 0.2s; border: none; background: none; width: 100%; text-align: left; }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+        .nav-item.active { background: rgba(255,71,87,0.12); color: var(--red); border-right: 2px solid var(--red); }
+        .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+        .sidebar-divider { height: 1px; background: var(--border); margin: 12px 24px; }
+        .sidebar-driver-card { margin: 0 12px; background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.2); border-radius: 12px; padding: 12px; }
+        .driver-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+        .driver-id { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .driver-meta { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .driver-tag { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: rgba(255,165,35,0.15); color: var(--gold); }
+        .main { margin-left: var(--sidebar-w); flex: 1; padding: 28px; min-height: calc(100vh - var(--nav-h)); }
+        .section { display: none; animation: fadeUp 0.4s ease forwards; }
+        .section.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+        .page-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px; color: var(--text); }
+        .page-subtitle { font-size: 14px; color: var(--muted); margin-top: 4px; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+        .btn-primary { background: linear-gradient(135deg, var(--red), var(--orange)); color: #fff; box-shadow: 0 4px 16px rgba(255,71,87,0.3); }
+        .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+        .btn-green { background: rgba(46,213,115,0.15); color: var(--green); border: 1px solid rgba(46,213,115,0.3); }
+        .btn-red { background: rgba(255,71,87,0.12); color: var(--red); border: 1px solid rgba(255,71,87,0.25); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
         .stat-card.red::before { background: linear-gradient(90deg, var(--red), transparent); }
         .stat-card.orange::before { background: linear-gradient(90deg, var(--orange), transparent); }
         .stat-card.gold::before { background: linear-gradient(90deg, var(--gold), transparent); }
         .stat-card.green::before { background: linear-gradient(90deg, var(--green), transparent); }
         .stat-card.blue::before { background: linear-gradient(90deg, var(--blue), transparent); }
-        
-        .stat-icon { 
-            width: 36px; 
-            height: 36px; 
-            border-radius: 10px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin-bottom: 12px; 
-        }
+        .stat-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
         .stat-icon.red { background: rgba(255,71,87,0.12); color: var(--red); }
         .stat-icon.orange { background: rgba(255,107,53,0.12); color: var(--orange); }
         .stat-icon.gold { background: rgba(245,166,35,0.12); color: var(--gold); }
         .stat-icon.green { background: rgba(46,213,115,0.12); color: var(--green); }
         .stat-icon.blue { background: rgba(30,144,255,0.12); color: var(--blue); }
-        
-        .stat-label { 
-            font-size: 12px; 
-            color: var(--muted); 
-            font-weight: 500; 
-        }
-        .stat-value { 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 800; 
-            font-size: 26px; 
-            color: var(--text); 
-            margin-top: 4px; 
-        }
-        .stat-sub { 
-            font-size: 11px; 
-            color: var(--muted); 
-            margin-top: 4px; 
-        }
-        
-        /* Card */
-        .card { 
-            background: var(--card); 
-            border: 1px solid var(--border); 
-            border-radius: 14px; 
-            padding: 20px; 
-            margin-bottom: 20px; 
-        }
-        .card-title { 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 700; 
-            font-size: 16px; 
-            color: var(--text); 
-            margin-bottom: 16px; 
-            display: flex; 
-            align-items: center; 
-            gap: 8px; 
-        }
-        .card-title span.dot { 
-            width: 6px; 
-            height: 6px; 
-            border-radius: 50%; 
-            background: var(--orange); 
-            flex-shrink: 0; 
-        }
-        
-        /* Two column layout */
-        .two-col { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 20px; 
-        }
-        
-        /* Trip status card */
-        .trip-status-card { 
-            background: linear-gradient(135deg, rgba(255,71,87,0.08), rgba(255,107,53,0.05)); 
-            border: 1px solid rgba(255,107,53,0.2); 
-            border-radius: 16px; 
-            padding: 24px; 
-            margin-bottom: 20px; 
-        }
-        .trip-status-header { 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            margin-bottom: 20px; 
-            flex-wrap: wrap; 
-            gap: 12px; 
-        }
-        .trip-badge { 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 6px; 
-            padding: 6px 14px; 
-            border-radius: 20px; 
-            font-size: 12px; 
-            font-weight: 600; 
-        }
+        .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+        .stat-value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px; color: var(--text); margin-top: 4px; }
+        .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+        .card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .card-title span.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); flex-shrink: 0; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .trip-status-card { background: linear-gradient(135deg, rgba(255,71,87,0.08), rgba(255,107,53,0.05)); border: 1px solid rgba(255,107,53,0.2); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+        .trip-status-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+        .trip-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .trip-badge.active { background: rgba(46,213,115,0.15); color: var(--green); }
         .trip-badge.idle { background: rgba(245,166,35,0.15); color: var(--gold); }
         .trip-badge.completed { background: rgba(30,144,255,0.15); color: var(--blue); }
-        
-        /* Route line */
-        .route-line { 
-            display: flex; 
-            align-items: center; 
-            gap: 0; 
-            margin-bottom: 20px; 
-            flex-wrap: wrap; 
-        }
+        .route-line { display: flex; align-items: center; gap: 0; margin-bottom: 20px; flex-wrap: wrap; }
         .route-stop { flex: 1; min-width: 120px; }
-        .route-stop-name { 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 700; 
-            font-size: 14px; 
-            color: var(--text); 
-        }
-        .route-stop-label { 
-            font-size: 11px; 
-            color: var(--muted); 
-            margin-bottom: 4px; 
-        }
-        .route-connector { 
-            flex: 2; 
-            display: flex; 
-            align-items: center; 
-            padding: 0 12px; 
-            position: relative; 
-            min-width: 100px; 
-        }
-        .route-connector-line { 
-            height: 2px; 
-            background: linear-gradient(90deg, var(--orange), var(--red)); 
-            flex: 1; 
-            position: relative; 
-        }
-        .route-dot { 
-            width: 8px; 
-            height: 8px; 
-            border-radius: 50%; 
-            background: var(--orange); 
-            box-shadow: 0 0 8px var(--orange); 
-            position: absolute; 
-            left: 40%; 
-            animation: moveDot 3s linear infinite; 
-        }
+        .route-stop-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+        .route-stop-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+        .route-connector { flex: 2; display: flex; align-items: center; padding: 0 12px; position: relative; min-width: 100px; }
+        .route-connector-line { height: 2px; background: linear-gradient(90deg, var(--orange), var(--red)); flex: 1; position: relative; }
+        .route-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 8px var(--orange); position: absolute; left: 40%; animation: moveDot 3s linear infinite; }
         @keyframes moveDot { 0% { left: 0; } 100% { left: 100%; } }
-        
-        .trip-actions { 
-            display: flex; 
-            gap: 10px; 
-            flex-wrap: wrap; 
-        }
-        
-        /* Schedule items */
-        .schedule-item { 
-            display: flex; 
-            align-items: flex-start; 
-            gap: 16px; 
-            padding: 14px 0; 
-            border-bottom: 1px solid var(--border); 
-            flex-wrap: wrap; 
-        }
+        .trip-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .schedule-item { display: flex; align-items: flex-start; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
         .schedule-item:last-child { border-bottom: none; }
-        .schedule-time { 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 700; 
-            font-size: 14px; 
-            color: var(--text); 
-            width: 50px; 
-            flex-shrink: 0; 
-            text-align: right; 
-        }
-        .schedule-dot-col { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding-top: 4px; 
-        }
-        .schedule-dot { 
-            width: 10px; 
-            height: 10px; 
-            border-radius: 50%; 
-            background: var(--orange); 
-            flex-shrink: 0; 
-        }
+        .schedule-time { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); width: 50px; flex-shrink: 0; text-align: right; }
+        .schedule-dot-col { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
+        .schedule-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--orange); flex-shrink: 0; }
         .schedule-dot.done { background: var(--green); }
         .schedule-dot.upcoming { background: var(--border); }
-        .schedule-line { 
-            width: 2px; 
-            flex: 1; 
-            background: var(--border); 
-            margin-top: 4px; 
-            min-height: 24px; 
-        }
+        .schedule-line { width: 2px; flex: 1; background: var(--border); margin-top: 4px; min-height: 24px; }
         .schedule-info { flex: 1; min-width: 200px; }
-        .schedule-route { 
-            font-size: 14px; 
-            font-weight: 500; 
-            color: var(--text); 
-        }
-        .schedule-detail { 
-            font-size: 12px; 
-            color: var(--muted); 
-            margin-top: 2px; 
-        }
-        
-        /* Data table */
+        .schedule-route { font-size: 14px; font-weight: 500; color: var(--text); }
+        .schedule-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
         .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th { 
-            font-size: 11px; 
-            font-weight: 600; 
-            letter-spacing: 0.08em; 
-            color: var(--muted); 
-            text-transform: uppercase; 
-            padding: 8px 12px; 
-            text-align: left; 
-            border-bottom: 1px solid var(--border); 
-        }
-        .data-table td { 
-            padding: 12px 12px; 
-            font-size: 14px; 
-            color: var(--text); 
-            border-bottom: 1px solid rgba(255,255,255,0.04); 
-        }
-        
-        /* Badges */
-        .badge { 
-            display: inline-block; 
-            padding: 3px 10px; 
-            border-radius: 20px; 
-            font-size: 11px; 
-            font-weight: 600; 
-        }
+        .data-table th { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 12px 12px; font-size: 14px; color: var(--text); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         .badge-green { background: rgba(46,213,115,0.12); color: var(--green); }
         .badge-red { background: rgba(255,71,87,0.12); color: var(--red); }
         .badge-gold { background: rgba(245,166,35,0.12); color: var(--gold); }
         .badge-blue { background: rgba(30,144,255,0.12); color: var(--blue); }
-        .badge-muted { background: rgba(255,255,255,0.06); color: var(--muted); }
-        
-        /* Profile */
-        .profile-header { 
-            display: flex; 
-            align-items: center; 
-            gap: 20px; 
-            margin-bottom: 24px; 
-            flex-wrap: wrap; 
-        }
-        .profile-avatar-lg { 
-            width: 80px; 
-            height: 80px; 
-            border-radius: 50%; 
-            background: linear-gradient(135deg, var(--orange), var(--gold)); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 800; 
-            font-size: 28px; 
-            color: #fff; 
-            border: 3px solid rgba(255,107,53,0.3); 
-        }
-        .profile-info .name { 
-            font-family: 'Syne', sans-serif; 
-            font-weight: 800; 
-            font-size: 22px; 
-            color: var(--text); 
-        }
-        .profile-info .role { 
-            font-size: 13px; 
-            color: var(--muted); 
-            margin-top: 4px; 
-        }
-        .profile-info .tags { 
-            display: flex; 
-            gap: 8px; 
-            margin-top: 10px; 
-            flex-wrap: wrap; 
-        }
-        .profile-tag { 
-            font-size: 11px; 
-            font-weight: 600; 
-            padding: 4px 10px; 
-            border-radius: 6px; 
-            background: rgba(255,107,53,0.1); 
-            color: var(--orange); 
-            border: 1px solid rgba(255,107,53,0.2); 
-        }
-        .field-row { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 14px; 
-            margin-bottom: 14px; 
-        }
-        .field-group label { 
-            display: block; 
-            font-size: 11px; 
-            font-weight: 600; 
-            color: var(--muted); 
-            text-transform: uppercase; 
-            letter-spacing: 0.08em; 
-            margin-bottom: 6px; 
-        }
-        .field-value { 
-            background: rgba(255,255,255,0.04); 
-            border: 1px solid var(--border); 
-            border-radius: 8px; 
-            padding: 10px 14px; 
-            font-size: 14px; 
-            color: var(--text); 
-        }
-        
-        /* Chat */
-        .chat-box { 
-            height: 300px; 
-            overflow-y: auto; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 12px; 
-            margin-bottom: 14px; 
-            padding: 10px; 
-        }
+        .profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+        .profile-avatar-lg { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--orange), var(--gold)); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; color: #fff; border: 3px solid rgba(255,107,53,0.3); }
+        .profile-info .name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: var(--text); }
+        .profile-info .role { font-size: 13px; color: var(--muted); margin-top: 4px; }
+        .profile-info .tags { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .profile-tag { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: rgba(255,107,53,0.1); color: var(--orange); border: 1px solid rgba(255,107,53,0.2); }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .field-group label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+        .field-value { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--text); }
+        .chat-box { height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; padding: 10px; }
         .chat-msg { display: flex; gap: 10px; }
         .chat-msg.sent { flex-direction: row-reverse; }
-        .chat-avatar-small { 
-            width: 28px; 
-            height: 28px; 
-            border-radius: 50%; 
-            flex-shrink: 0; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 10px; 
-            font-weight: 700; 
-        }
-        .chat-bubble { 
-            max-width: 70%; 
-            padding: 10px 14px; 
-            border-radius: 12px; 
-            font-size: 13px; 
-        }
-        .chat-msg.recv .chat-bubble { 
-            background: rgba(255,255,255,0.06); 
-            color: var(--text); 
-        }
-        .chat-msg.sent .chat-bubble { 
-            background: rgba(255,107,53,0.15); 
-            color: var(--text); 
-        }
-        .chat-time { 
-            font-size: 10px; 
-            color: var(--muted); 
-            margin-top: 4px; 
-        }
+        .chat-avatar-small { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+        .chat-bubble { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 13px; }
+        .chat-msg.recv .chat-bubble { background: rgba(255,255,255,0.06); color: var(--text); }
+        .chat-msg.sent .chat-bubble { background: rgba(255,107,53,0.15); color: var(--text); }
+        .chat-time { font-size: 10px; color: var(--muted); margin-top: 4px; }
         .chat-input-row { display: flex; gap: 10px; }
-        .chat-input { 
-            flex: 1; 
-            background: rgba(255,255,255,0.05); 
-            border: 1px solid var(--border); 
-            border-radius: 10px; 
-            padding: 10px 14px; 
-            color: var(--text); 
-            font-size: 13px; 
-            font-family: 'DM Sans', sans-serif; 
-            outline: none; 
-        }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; }
         .chat-input:focus { border-color: var(--orange); }
-        
-        /* Emergency button */
-        .emergency-btn {
-            width: 100%;
-            padding: 20px;
-            border-radius: 14px;
-            background: rgba(255,71,87,0.08);
-            border: 2px solid rgba(255,71,87,0.3);
-            color: var(--red);
-            font-family: 'Syne', sans-serif;
-            font-weight: 800;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        .emergency-btn:hover { 
-            background: rgba(255,71,87,0.15); 
-            border-color: var(--red); 
-            box-shadow: 0 0 24px rgba(255,71,87,0.2); 
-        }
-        
-        /* Toast notification */
-        .toast { 
-            position: fixed; 
-            bottom: 24px; 
-            right: 24px; 
-            z-index: 999; 
-            background: var(--toast-bg); 
-            border: 1px solid var(--border); 
-            border-radius: 12px; 
-            padding: 14px 20px; 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            font-size: 14px; 
-            color: var(--text); 
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4); 
-            transform: translateY(80px); 
-            opacity: 0; 
-            transition: all 0.3s; 
-            backdrop-filter: blur(16px); 
-        }
+        .emergency-btn { width: 100%; padding: 20px; border-radius: 14px; background: rgba(255,71,87,0.08); border: 2px solid rgba(255,71,87,0.3); color: var(--red); font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; }
+        .emergency-btn:hover { background: rgba(255,71,87,0.15); border-color: var(--red); box-shadow: 0 0 24px rgba(255,71,87,0.2); }
+        .toast { position: fixed; bottom: 24px; right: 24px; z-index: 999; background: var(--toast-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: translateY(80px); opacity: 0; transition: all 0.3s; backdrop-filter: blur(16px); }
         .toast.show { transform: translateY(0); opacity: 1; }
         .toast-icon { font-size: 20px; }
         .toast.error { border-color: rgba(255,71,87,0.3); color: var(--red); }
-        
-        /* =============================================
-           RESPONSIVE BREAKPOINTS
-           ============================================= */
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
             .sidebar.open { transform: translateX(0); }
@@ -843,11 +174,7 @@
             .field-row { grid-template-columns: 1fr; }
             .two-col { grid-template-columns: 1fr; }
         }
-        @media (max-width: 480px) { 
-            .stats-grid { grid-template-columns: 1fr; } 
-        }
-        
-        /* Custom scrollbar */
+        @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -855,839 +182,262 @@
 </head>
 <body>
 
-    <!-- =============================================
-    NAVIGATION BAR
-    ============================================= -->
-    <nav>
-        <a href="{% url 'homepage' %}" class="logo">
-            <div class="logo-icon-custom">
-                <img style="width:100%;height:100%" src="{% static 'app1/logo.png' %}" alt="Easy Transport Logo">
-            </div>
-            <span class="logo-text">Easy Transport</span>
-        </a>
-        <div class="nav-right">
-            <div class="nav-status">
-                <div class="status-dot"></div>
-                <span id="dutyStatus">On Duty</span>
-            </div>
-            <div class="nav-avatar" onclick="navigate('profile')" title="View Profile">
-                {{ request.user.first_name|default:"D"|first|upper }}
-            </div>
-            <div class="theme-toggle" id="themeToggle">
-                <span id="toggleIcon">🌙</span>
+<nav>
+    <a href="{% url 'homepage' %}" class="logo">
+        <div class="logo-icon-custom"><img style="width:100%;height:100%" src="{% static 'app1/logo.png' %}" alt="Easy Transport Logo"></div>
+        <span class="logo-text">Easy Transport</span>
+    </a>
+    <div class="nav-right">
+        <div class="nav-status"><div class="status-dot"></div><span id="dutyStatus">On Duty</span></div>
+        <div class="nav-avatar" onclick="navigate('profile')" title="View Profile">{{ request.user.first_name|default:"D"|first|upper }}</div>
+        <div class="theme-toggle" id="themeToggle"><span id="toggleIcon">🌙</span></div>
+    </div>
+</nav>
+
+<div class="layout">
+    <aside class="sidebar" id="sidebar">
+        <div style="padding:0 12px;margin-bottom:16px;">
+            <div class="sidebar-driver-card">
+                <div class="driver-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                <div class="driver-id">Driver ID: {{ driver.license_number|default:"DRV-XXXX" }}</div>
+                <div class="driver-meta">
+                    <span class="driver-tag">🚌 Bus {{ driver.bus.bus_number|default:"B-XX" }}</span>
+                    <span class="driver-tag">🛣️ Route {{ driver.route.code|default:"XX" }}</span>
+                </div>
             </div>
         </div>
-    </nav>
+        <div class="sidebar-label">Main</div>
+        <div class="sidebar-section">
+            <button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Dashboard</button>
+            <button class="nav-item" onclick="navigate('route')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg> My Route</button>
+            <button class="nav-item" onclick="navigate('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Schedule</button>
+            <button class="nav-item" onclick="navigate('passengers')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> Passengers <span class="nav-badge" id="passengerCount">{{ passenger_count|default:0 }}</span></button>
+        </div>
+        <div class="sidebar-label">Trip</div>
+        <div class="sidebar-section">
+            <button class="nav-item" onclick="navigate('trip')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Trip Status</button>
+            <button class="nav-item" onclick="navigate('earnings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Earnings</button>
+        </div>
+        <div class="sidebar-label">Communication</div>
+        <div class="sidebar-section">
+            <button class="nav-item" onclick="navigate('chat')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Chat <span class="nav-badge" id="chatBadge">0</span></button>
+            <button class="nav-item" onclick="navigate('alerts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Alerts</button>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+            <button class="nav-item" onclick="navigate('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Profile</button>
+            <button class="nav-item" onclick="window.location.href=`{% url 'driver_logout' %}`"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Logout</button>
+        </div>
+    </aside>
 
-    <!-- =============================================
-    SIDEBAR + MAIN LAYOUT
-    ============================================= -->
-    <div class="layout">
-        
-        <!-- SIDEBAR -->
-        <aside class="sidebar" id="sidebar">
-            
-            <!-- Driver Info Card -->
-            <div style="padding:0 12px;margin-bottom:16px;">
-                <div class="sidebar-driver-card">
-                    <div class="driver-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                    <div class="driver-id">Driver ID: {{ driver.license_number|default:"DRV-XXXX" }}</div>
-                    <div class="driver-meta">
-                        <span class="driver-tag">🚌 Bus {{ driver.bus.bus_number|default:"B-XX" }}</span>
-                        <span class="driver-tag">🛣️ Route {{ driver.route.code|default:"XX" }}</span>
-                    </div>
-                </div>
+    <main class="main">
+        <!-- HOME SECTION -->
+        <section id="sec-home" class="section active">
+            <div class="page-header"><div><div class="page-title">Good Morning, {{ request.user.first_name|default:"Driver" }} 👋</div><div class="page-subtitle" id="currentDate">Route {{ driver.route.code|default:"XX" }}</div></div><button class="btn btn-primary" onclick="navigate('trip')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="10 8 16 12 10 16 10 8"/></svg> Start Trip</button></div>
+            <div class="stats-grid">
+                <div class="stat-card green"><div class="stat-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="stat-label">Passengers Today</div><div class="stat-value" id="passengerStat">{{ passenger_count|default:0 }}</div><div class="stat-sub">Capacity: {{ driver.bus.capacity|default:"40" }} seats</div></div>
+                <div class="stat-card orange"><div class="stat-icon orange"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="stat-label">Trips Completed</div><div class="stat-value" id="tripsCompleted">{{ trips_completed|default:0 }}</div><div class="stat-sub">{{ upcoming_trips.count|default:0 }} more scheduled</div></div>
+                <div class="stat-card gold"><div class="stat-icon gold"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="stat-label">Today's Earnings</div><div class="stat-value" id="todayEarnings">৳{{ today_earnings|floatformat:0|default:0 }}</div><div class="stat-sub">From confirmed bookings</div></div>
+                <div class="stat-card blue"><div class="stat-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-label">On-Time Rate</div><div class="stat-value">94%</div><div class="stat-sub">This week</div></div>
             </div>
-
-            <!-- Main Navigation -->
-            <div class="sidebar-label">Main</div>
-            <div class="sidebar-section">
-                <button class="nav-item active" onclick="navigate('home')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    Dashboard
-                </button>
-                <button class="nav-item" onclick="navigate('route')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-                    My Route
-                </button>
-                <button class="nav-item" onclick="navigate('schedule')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    Schedule
-                </button>
-                <button class="nav-item" onclick="navigate('passengers')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Passengers
-                    <span class="nav-badge" id="passengerCount">{{ passenger_count|default:0 }}</span>
-                </button>
-            </div>
-
-            <!-- Trip Section -->
-            <div class="sidebar-label">Trip</div>
-            <div class="sidebar-section">
-                <button class="nav-item" onclick="navigate('trip')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Trip Status
-                </button>
-                <button class="nav-item" onclick="navigate('earnings')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    Earnings
-                </button>
-            </div>
-
-            <!-- Communication -->
-            <div class="sidebar-label">Communication</div>
-            <div class="sidebar-section">
-                <button class="nav-item" onclick="navigate('chat')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    Chat
-                    <span class="nav-badge" id="chatBadge">0</span>
-                </button>
-                <button class="nav-item" onclick="navigate('alerts')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                    Alerts
-                </button>
-            </div>
-
-            <div class="sidebar-divider"></div>
-            
-            <!-- Profile & Logout -->
-            <div class="sidebar-section">
-                <button class="nav-item" onclick="navigate('profile')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    Profile
-                </button>
-                <button class="nav-item" onclick="window.location.href=`{% url 'driver_logout' %}`">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Logout
-                </button>
-            </div>
-        </aside>
-
-        <!-- =============================================
-        MAIN CONTENT AREA
-        ============================================= -->
-        <main class="main">
-
-            <!-- =============================================
-            SECTION 1: DASHBOARD HOME
-            ============================================= -->
-            <section id="sec-home" class="section active">
-                
-                <!-- Page Header -->
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">Good Morning, {{ request.user.first_name|default:"Driver" }} 👋</div>
-                        <div class="page-subtitle" id="currentDate">Route {{ driver.route.code|default:"XX" }}</div>
-                    </div>
-                    <button class="btn btn-primary" onclick="navigate('trip')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="10 8 16 12 10 16 10 8"/></svg>
-                        Start Trip
-                    </button>
-                </div>
-
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <!-- Passengers Today -->
-                    <div class="stat-card green">
-                        <div class="stat-icon green">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        </div>
-                        <div class="stat-label">Passengers Today</div>
-                        <div class="stat-value" id="passengerStat">{{ passenger_count|default:0 }}</div>
-                        <div class="stat-sub">Capacity: {{ driver.bus.capacity|default:"40" }} seats</div>
-                    </div>
-                    <!-- Trips Completed -->
-                    <div class="stat-card orange">
-                        <div class="stat-icon orange">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        </div>
-                        <div class="stat-label">Trips Completed</div>
-                        <div class="stat-value" id="tripsCompleted">{{ trips_completed|default:0 }}</div>
-                        <div class="stat-sub">{{ upcoming_trips.count|default:0 }} more scheduled</div>
-                    </div>
-                    <!-- Today's Earnings -->
-                    <div class="stat-card gold">
-                        <div class="stat-icon gold">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        </div>
-                        <div class="stat-label">Today's Earnings</div>
-                        <div class="stat-value" id="todayEarnings">৳{{ today_earnings|floatformat:0|default:0 }}</div>
-                        <div class="stat-sub">From confirmed bookings</div>
-                    </div>
-                    <!-- On-Time Rate -->
-                    <div class="stat-card blue">
-                        <div class="stat-icon blue">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        </div>
-                        <div class="stat-label">On-Time Rate</div>
-                        <div class="stat-value">94%</div>
-                        <div class="stat-sub">This week</div>
-                    </div>
-                </div>
-
-                <!-- Two Column Layout -->
-                <div class="two-col">
-                    
-                    <!-- Left Column -->
-                    <div>
-                        <!-- Current Trip Status Card -->
-                        <div class="trip-status-card">
-                            <div class="trip-status-header">
-                                <div style="font-weight:700;font-size:15px;">Current Trip</div>
-                                {% if ongoing_trip %}
-                                    <span class="trip-badge active">🚌 In Progress</span>
-                                {% else %}
-                                    <span class="trip-badge idle">⏸️ Idle – Not Started</span>
-                                {% endif %}
-                            </div>
-                            <!-- Route FROM → TO -->
-                            <div class="route-line">
-                                <div class="route-stop">
-                                    <div class="route-stop-label">FROM</div>
-                                    <div class="route-stop-name">{{ driver.route.start|default:"Signboard" }}</div>
-                                </div>
-                                <div class="route-connector">
-                                    <div class="route-connector-line">
-                                        <div class="route-dot"></div>
-                                    </div>
-                                </div>
-                                <div class="route-stop" style="text-align:right;">
-                                    <div class="route-stop-label">TO</div>
-                                    <div class="route-stop-name">{{ driver.route.end|default:"Mirpur 10" }}</div>
-                                </div>
-                            </div>
-                            <!-- Trip Meta Info -->
-                            <div style="display:flex;gap:10px;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:18px;flex-wrap:wrap;">
-                                <span>🕐 Depart: {{ driver.departure_time|default:"8:00 AM" }}</span>
-                                <span>📍 Distance: {{ driver.route.distance_km|default:"35.0" }} km</span>
-                                <span>👥 <span id="seatCount">{{ passenger_count|default:0 }}</span>/{{ driver.bus.capacity|default:"30" }} seats</span>
-                            </div>
-                            <!-- Trip Actions -->
-                            <div class="trip-actions">
-                                <button class="btn btn-green" style="flex:1;" onclick="navigate('trip')">▶ Start Trip</button>
-                                <button class="btn btn-outline" onclick="navigate('route')">🗺️ View Route</button>
-                            </div>
-                        </div>
-
-                        <!-- Today's Trips -->
-                        <div class="card">
-                            <div class="card-title"><span class="dot"></span>Today's Trips</div>
-                            {% if today_trips %}
-                                {% for trip in today_trips %}
-                                <div class="schedule-item">
-                                    <div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div>
-                                    <div class="schedule-dot-col">
-                                        <div class="schedule-dot {% if trip.status == 'completed' %}done{% elif trip.status == 'ongoing' %}done{% else %}upcoming{% endif %}"></div>
-                                        {% if not forloop.last %}<div class="schedule-line"></div>{% endif %}
-                                    </div>
-                                    <div class="schedule-info">
-                                        <div class="schedule-route">{{ trip.route.start }} → {{ trip.route.end }}</div>
-                                        <div class="schedule-detail">
-                                            <span class="badge badge-{% if trip.status == 'completed' %}green{% elif trip.status == 'ongoing' %}blue{% else %}gold{% endif %}">
-                                                {{ trip.get_status_display }}
-                                            </span>
-                                            · 🚌 {{ trip.bus.bus_number }}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div style="text-align:center;color:var(--muted);padding:20px;">
-                                    📅 No trips scheduled for today
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Right Column -->
-                    <div>
-                        <!-- Upcoming Trips -->
-                        <div class="card">
-                            <div class="card-title"><span class="dot"></span>Upcoming Trips</div>
-                            {% if upcoming_trips %}
-                                {% for trip in upcoming_trips %}
-                                <div class="schedule-item">
-                                    <div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div>
-                                    <div class="schedule-dot-col">
-                                        <div class="schedule-dot upcoming"></div>
-                                        {% if not forloop.last %}<div class="schedule-line"></div>{% endif %}
-                                    </div>
-                                    <div class="schedule-info">
-                                        <div class="schedule-route">{{ trip.route.start }} → {{ trip.route.end }}</div>
-                                        <div class="schedule-detail">
-                                            <span class="badge badge-gold">📋 Scheduled</span>
-                                            · {{ trip.travel_date|date:"M d" }}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div style="text-align:center;color:var(--muted);padding:20px;">
-                                    📅 No upcoming trips
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Route Alerts -->
-                        <div class="card">
-                            <div class="card-title"><span class="dot"></span>🚨 Route Alerts</div>
-                            <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
-                                <div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:6px;"></div>
-                                <div>
-                                    <div style="font-size:13px;font-weight:500;">⚠️ Traffic on Progati Sarani</div>
-                                    <div style="font-size:11px;color:var(--muted);">Expect 10 min delay · Admin notified</div>
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;">
-                                <div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:6px;"></div>
-                                <div>
-                                    <div style="font-size:13px;font-weight:500;">✅ Route {{ driver.route.code|default:"J1" }} is clear</div>
-                                    <div style="font-size:11px;color:var(--muted);">Updated 5 mins ago by admin</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- =============================================
-            SECTION 2: MY ROUTE
-            ============================================= -->
-            <section id="sec-route" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">🛣️ My Route</div>
-                        <div class="page-subtitle">Route {{ driver.route.code|default:"J1" }}: {{ driver.route.start|default:"Signboard" }} → {{ driver.route.end|default:"Mirpur 10" }}</div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-title"><span class="dot"></span>Route Details</div>
-                    <div style="font-size:16px;margin-bottom:12px;">📏 Distance: {{ driver.route.distance_km|default:"35.0" }} km</div>
-                    <div style="font-size:16px;margin-bottom:12px;">🚌 Assigned Bus: {{ driver.bus.bus_number|default:"Olam-1" }} ({{ driver.bus.capacity|default:"30" }} seats, AC: {{ driver.bus.has_ac|yesno:"Yes,No" }})</div>
-                    <div style="font-size:16px;margin-bottom:12px;">🕐 Scheduled Departure: {{ driver.departure_time|default:"1:37 PM" }}</div>
-                    <div style="font-size:16px;margin-bottom:12px;">👥 Passengers Today: {{ passenger_count|default:0 }}</div>
-                </div>
-            </section>
-
-            <!-- =============================================
-            SECTION 3: SCHEDULE
-            ============================================= -->
-            <section id="sec-schedule" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">📅 My Schedule</div>
-                        <div class="page-subtitle">Today's and upcoming trip schedules</div>
-                    </div>
-                </div>
-                {% if today_trips %}
-                    {% for trip in today_trips %}
-                    <div class="card" style="margin-bottom:12px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-size:16px;font-weight:600;">{{ trip.route.start }} → {{ trip.route.end }}</div>
-                                <div style="color:var(--muted);">🕐 {{ trip.departure_time|time:"g:i A" }} | 📅 {{ trip.travel_date|date:"M d, Y" }} | 🚌 {{ trip.bus.bus_number }}</div>
-                            </div>
-                            <span class="badge badge-{% if trip.status == 'pending' %}gold{% elif trip.status == 'ongoing' %}blue{% else %}green{% endif %}">
-                                {{ trip.get_status_display }}
-                            </span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="card"><p style="text-align:center;color:var(--muted);">📅 No schedules for today</p></div>
-                {% endif %}
-            </section>
-
-            <!-- =============================================
-            SECTION 4: PASSENGERS
-            ============================================= -->
-            <section id="sec-passengers" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">👥 Passengers</div>
-                        <div class="page-subtitle">Today's passenger list (Total: <span id="totalPassengers">0</span>)</div>
-                    </div>
-                </div>
-                <div class="card">
-                    <table class="data-table" style="width:100%;">
-                        <thead>
-                            <tr>
-                                <th>🎫 SEAT</th>
-                                <th>👤 NAME</th>
-                                <th>🏷️ TYPE</th>
-                                <th>🆔 ID</th>
-                                <th>📍 STOP</th>
-                                <th>✅ STATUS</th>
-                            </tr>
-                        </thead>
-                        <tbody id="passengerTable">
-                            <!-- Populated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- =============================================
-            SECTION 5: TRIP STATUS
-            ============================================= -->
-            <section id="sec-trip" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">🚌 Trip Status</div>
-                        <div class="page-subtitle">Manage your current and upcoming trips</div>
-                    </div>
-                </div>
-                
-                {% if ongoing_trip %}
-                    <!-- Ongoing Trip Card -->
+            <div class="two-col">
+                <div>
                     <div class="trip-status-card">
-                        <div class="trip-status-header">
-                            <div style="font-weight:700;">{{ ongoing_trip.route.start }} → {{ ongoing_trip.route.end }}</div>
-                            <span class="trip-badge active">🚌 In Progress</span>
-                        </div>
-                        <div style="margin-top:12px;">
-                            <p>🕐 Started: {{ ongoing_trip.departure_time|time:"g:i A" }}</p>
-                            <p>📍 Route: {{ ongoing_trip.route.code }}</p>
-                            <p>🚌 Bus: {{ ongoing_trip.bus.bus_number }}</p>
-                        </div>
-                        <div class="trip-actions" style="margin-top:16px;">
-                            <!-- FIXED: Using data attribute to pass trip ID safely -->
-                            <button class="btn btn-green" data-trip-id="{{ ongoing_trip.id }}" onclick="completeTripAPI(this.dataset.tripId)">
-                                ✅ Complete Trip
-                            </button>
-                        </div>
+                        <div class="trip-status-header"><div style="font-weight:700;font-size:15px;">Current Trip</div>{% if ongoing_trip %}<span class="trip-badge active">🚌 In Progress</span>{% else %}<span class="trip-badge idle">⏸️ Idle – Not Started</span>{% endif %}</div>
+                        <div class="route-line"><div class="route-stop"><div class="route-stop-label">FROM</div><div class="route-stop-name">{{ driver.route.start|default:"Signboard" }}</div></div><div class="route-connector"><div class="route-connector-line"><div class="route-dot"></div></div></div><div class="route-stop" style="text-align:right;"><div class="route-stop-label">TO</div><div class="route-stop-name">{{ driver.route.end|default:"Mirpur 10" }}</div></div></div>
+                        <div style="display:flex;gap:10px;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:18px;flex-wrap:wrap;"><span>🕐 Depart: {{ driver.departure_time|default:"8:00 AM" }}</span><span>📍 Distance: {{ driver.route.distance_km|default:"35.0" }} km</span><span>👥 <span id="seatCount">{{ passenger_count|default:0 }}</span>/{{ driver.bus.capacity|default:"30" }} seats</span></div>
+                        <div class="trip-actions"><button class="btn btn-green" style="flex:1;" onclick="navigate('trip')">▶ Start Trip</button><button class="btn btn-outline" onclick="navigate('route')">🗺️ View Route</button></div>
                     </div>
-                {% elif today_trips %}
-                    <!-- Pending Trips List -->
-                    {% for trip in today_trips %}
-                    <div class="card" style="margin-bottom:12px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <div style="font-weight:600;">{{ trip.route.start }} → {{ trip.route.end }}</div>
-                                <div style="color:var(--muted);">🕐 {{ trip.departure_time|time:"g:i A" }} | 🚌 {{ trip.bus.bus_number }}</div>
-                            </div>
-                            <!-- FIXED: Using data attribute to pass trip ID safely -->
-                            <button class="btn btn-green" data-trip-id="{{ trip.id }}" onclick="startTripAPI(this.dataset.tripId)">
-                                ▶ Start Trip
-                            </button>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="card">
-                        <p style="text-align:center;color:var(--muted);padding:20px;">
-                            📅 No trips scheduled. Contact admin to assign a trip.
-                        </p>
-                    </div>
-                {% endif %}
-            </section>
-
-            <!-- =============================================
-            SECTION 6: EARNINGS
-            ============================================= -->
-            <section id="sec-earnings" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">💰 Earnings</div>
-                        <div class="page-subtitle">Today's earnings summary from confirmed bookings</div>
+                    <div class="card"><div class="card-title"><span class="dot"></span>Today's Trips</div>
+                        {% if today_trips %}{% for trip in today_trips %}<div class="schedule-item"><div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div><div class="schedule-dot-col"><div class="schedule-dot {% if trip.status == 'completed' %}done{% elif trip.status == 'ongoing' %}done{% else %}upcoming{% endif %}"></div>{% if not forloop.last %}<div class="schedule-line"></div>{% endif %}</div><div class="schedule-info"><div class="schedule-route">{{ trip.route.start }} → {{ trip.route.end }}</div><div class="schedule-detail"><span class="badge badge-{% if trip.status == 'completed' %}green{% elif trip.status == 'ongoing' %}blue{% else %}gold{% endif %}">{{ trip.get_status_display }}</span> · 🚌 {{ trip.bus.bus_number }}</div></div></div>{% endfor %}{% else %}<div style="text-align:center;color:var(--muted);padding:20px;">📅 No trips scheduled for today</div>{% endif %}</div>
+                </div>
+                <div>
+                    <div class="card"><div class="card-title"><span class="dot"></span>Upcoming Trips</div>
+                        {% if upcoming_trips %}{% for trip in upcoming_trips %}<div class="schedule-item"><div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div><div class="schedule-dot-col"><div class="schedule-dot upcoming"></div>{% if not forloop.last %}<div class="schedule-line"></div>{% endif %}</div><div class="schedule-info"><div class="schedule-route">{{ trip.route.start }} → {{ trip.route.end }}</div><div class="schedule-detail"><span class="badge badge-gold">📋 Scheduled</span> · {{ trip.travel_date|date:"M d" }}</div></div></div>{% endfor %}{% else %}<div style="text-align:center;color:var(--muted);padding:20px;">📅 No upcoming trips</div>{% endif %}</div>
+                    <div class="card"><div class="card-title"><span class="dot"></span>🚨 Route Alerts</div>
+                        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);"><div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:6px;"></div><div><div style="font-size:13px;font-weight:500;">⚠️ Traffic on Progati Sarani</div><div style="font-size:11px;color:var(--muted);">Expect 10 min delay · Admin notified</div></div></div>
+                        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;"><div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:6px;"></div><div><div style="font-size:13px;font-weight:500;">✅ Route {{ driver.route.code|default:"J1" }} is clear</div><div style="font-size:11px;color:var(--muted);">Updated 5 mins ago by admin</div></div></div>
                     </div>
                 </div>
-                <div class="stats-grid">
-                    <div class="stat-card gold">
-                        <div class="stat-icon gold">💰</div>
-                        <div class="stat-label">Today's Earnings</div>
-                        <div class="stat-value">৳{{ today_earnings|floatformat:0|default:0 }}</div>
-                        <div class="stat-sub">From confirmed bookings</div>
-                    </div>
-                    <div class="stat-card green">
-                        <div class="stat-icon green">✅</div>
-                        <div class="stat-label">Trips Completed</div>
-                        <div class="stat-value">{{ trips_completed|default:0 }}</div>
-                        <div class="stat-sub">Total completed trips</div>
-                    </div>
-                    <div class="stat-card orange">
-                        <div class="stat-icon orange">👥</div>
-                        <div class="stat-label">Passengers Today</div>
-                        <div class="stat-value">{{ passenger_count|default:0 }}</div>
-                        <div class="stat-sub">Revenue: ৳{{ today_earnings|floatformat:0|default:0 }}</div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-title"><span class="dot"></span>Earnings Breakdown</div>
-                    {% if today_trips %}
-                        {% for trip in today_trips %}
-                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-                            <span>{{ trip.route.code }} - {{ trip.departure_time|time:"g:i A" }}</span>
-                            <span style="font-weight:600;">৳{{ trip.route.schedules.first.fare|default:0|floatformat:0 }}</span>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p style="text-align:center;color:var(--muted);">No trips today - earnings will update automatically when trips are completed.</p>
-                    {% endif %}
-                </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- =============================================
-            SECTION 7: CHAT
-            ============================================= -->
-            <section id="sec-chat" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">💬 Chat</div>
-                        <div class="page-subtitle">Communicate with admin in real-time</div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="chat-box" id="chatBox">
-                        <div class="chat-msg recv">
-                            <div class="chat-avatar-small" style="background:rgba(30,144,255,0.15);color:var(--blue);">AD</div>
-                            <div>
-                                <div class="chat-bubble">Hello {{ request.user.first_name|default:"Driver" }}, drive safe today! 🚌</div>
-                                <div class="chat-time">8:00 AM</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="chat-input-row">
-                        <input type="text" id="chatInput" class="chat-input" placeholder="Type your message here...">
-                        <button class="btn btn-primary" onclick="sendChat()">📨 Send</button>
-                    </div>
-                </div>
-            </section>
+        <!-- MY ROUTE SECTION -->
+        <section id="sec-route" class="section">
+            <div class="page-header"><div><div class="page-title">🛣️ My Route</div><div class="page-subtitle">Route {{ driver.route.code|default:"J1" }}: {{ driver.route.start|default:"Signboard" }} → {{ driver.route.end|default:"Mirpur 10" }}</div></div></div>
+            <div class="card"><div class="card-title"><span class="dot"></span>Route Details</div><div style="font-size:16px;margin-bottom:12px;">📏 Distance: {{ driver.route.distance_km|default:"35.0" }} km</div><div style="font-size:16px;margin-bottom:12px;">🚌 Assigned Bus: {{ driver.bus.bus_number|default:"Olam-1" }} ({{ driver.bus.capacity|default:"30" }} seats)</div><div style="font-size:16px;margin-bottom:12px;">🕐 Scheduled Departure: {{ driver.departure_time|default:"1:37 PM" }}</div><div style="font-size:16px;margin-bottom:12px;">👥 Passengers Today: {{ passenger_count|default:0 }}</div></div>
+        </section>
 
-            <!-- =============================================
-            SECTION 8: EMERGENCY ALERTS
-            ============================================= -->
-            <section id="sec-alerts" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">🚨 Emergency Alerts</div>
-                        <div class="page-subtitle">Send emergency notification to admin immediately</div>
-                    </div>
-                </div>
-                <button class="emergency-btn" onclick="sendEmergencyAlert()">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                        <line x1="12" y1="9" x2="12" y2="13"/>
-                        <line x1="12" y1="17" x2="12.01" y2="17"/>
-                    </svg>
-                    SEND EMERGENCY ALERT
-                </button>
-                <div class="card">
-                    <div class="card-title"><span class="dot"></span>Recent Alerts</div>
-                    <p style="color:var(--muted);text-align:center;padding:20px;">
-                        🟢 All clear! No recent emergency alerts.
-                    </p>
-                </div>
-            </section>
+        <!-- SCHEDULE SECTION -->
+        <section id="sec-schedule" class="section">
+            <div class="page-header"><div><div class="page-title">📅 My Schedule</div><div class="page-subtitle">Today's and upcoming trip schedules</div></div></div>
+            {% if today_trips %}{% for trip in today_trips %}<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:16px;font-weight:600;">{{ trip.route.start }} → {{ trip.route.end }}</div><div style="color:var(--muted);">🕐 {{ trip.departure_time|time:"g:i A" }} | 📅 {{ trip.travel_date|date:"M d, Y" }} | 🚌 {{ trip.bus.bus_number }}</div></div><span class="badge badge-{% if trip.status == 'pending' %}gold{% elif trip.status == 'ongoing' %}blue{% else %}green{% endif %}">{{ trip.get_status_display }}</span></div></div>{% endfor %}{% else %}<div class="card"><p style="text-align:center;color:var(--muted);">📅 No schedules for today</p></div>{% endif %}
+        </section>
 
-            <!-- =============================================
-            SECTION 9: PROFILE
-            ============================================= -->
-            <section id="sec-profile" class="section">
-                <div class="page-header">
-                    <div>
-                        <div class="page-title">👤 My Profile</div>
-                        <div class="page-subtitle">Driver account information</div>
-                    </div>
-                    <button class="btn btn-outline" onclick="window.location.href=`{% url 'driver_profile' %}`">
-                        ✏️ Edit Profile
-                    </button>
-                </div>
-                <div class="card">
-                    <div class="profile-header">
-                        <div class="profile-avatar-lg">{{ request.user.first_name|default:"D"|first|upper }}</div>
-                        <div class="profile-info">
-                            <div class="name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                            <div class="role">🚌 Bus Driver · Easy Transport</div>
-                            <div class="tags">
-                                <span class="profile-tag">🛣️ Route {{ driver.route.code|default:"J1" }}</span>
-                                <span class="profile-tag">🚌 Bus {{ driver.bus.bus_number|default:"Olam-1" }}</span>
-                                <span class="profile-tag">🟢 On Duty</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="field-row">
-                        <div class="field-group"><label>Driver ID</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div>
-                        <div class="field-group"><label>Phone</label><div class="field-value">{{ driver.phone|default:"N/A" }}</div></div>
-                        <div class="field-group"><label>License No.</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div>
-                        <div class="field-group"><label>Experience</label><div class="field-value">6+ years</div></div>
-                        <div class="field-group"><label>Assigned Bus</label><div class="field-value">🚌 {{ driver.bus.bus_number|default:"Olam-1" }} ({{ driver.bus.capacity|default:"30" }} seats)</div></div>
-                        <div class="field-group"><label>Assigned Route</label><div class="field-value">🛣️ {{ driver.route.code|default:"J1" }} — {{ driver.route.start|default:"Signboard" }} ↔ {{ driver.route.end|default:"Mirpur 10" }}</div></div>
-                    </div>
-                </div>
-            </section>
+        <!-- PASSENGERS SECTION -->
+        <section id="sec-passengers" class="section">
+            <div class="page-header"><div><div class="page-title">👥 Passengers</div><div class="page-subtitle">Today's passenger list (Total: <span id="totalPassengers">0</span>)</div></div></div>
+            <div class="card"><table class="data-table" style="width:100%;"><thead><tr><th>🎫 SEAT</th><th>👤 NAME</th><th>🏷️ TYPE</th><th>🆔 ID</th><th>📍 STOP</th><th>✅ STATUS</th></tr></thead><tbody id="passengerTable"></tbody></table></div>
+        </section>
 
-        </main>
-    </div>
+        <!-- TRIP STATUS SECTION -->
+        <section id="sec-trip" class="section">
+            <div class="page-header"><div><div class="page-title">🚌 Trip Status</div><div class="page-subtitle">Manage your current and upcoming trips</div></div></div>
+            {% if ongoing_trip %}<div class="trip-status-card"><div class="trip-status-header"><div style="font-weight:700;">{{ ongoing_trip.route.start }} → {{ ongoing_trip.route.end }}</div><span class="trip-badge active">🚌 In Progress</span></div><div style="margin-top:12px;"><p>🕐 Started: {{ ongoing_trip.departure_time|time:"g:i A" }}</p><p>📍 Route: {{ ongoing_trip.route.code }}</p><p>🚌 Bus: {{ ongoing_trip.bus.bus_number }}</p></div><div class="trip-actions" style="margin-top:16px;"><button class="btn btn-green" data-trip-id="{{ ongoing_trip.id }}" onclick="completeTripAPI(parseInt(this.dataset.tripId))">✅ Complete Trip</button></div></div>
+            {% elif today_trips %}{% for trip in today_trips %}<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">{{ trip.route.start }} → {{ trip.route.end }}</div><div style="color:var(--muted);">🕐 {{ trip.departure_time|time:"g:i A" }} | 🚌 {{ trip.bus.bus_number }}</div></div><button class="btn btn-green" data-trip-id="{{ trip.id }}" onclick="startTripAPI(parseInt(this.dataset.tripId))">▶ Start Trip</button></div></div>{% endfor %}
+            {% else %}<div class="card"><p style="text-align:center;color:var(--muted);padding:20px;">📅 No trips scheduled. Contact admin to assign a trip.</p></div>{% endif %}
+        </section>
 
-    <!-- =============================================
-    TOAST NOTIFICATION
-    ============================================= -->
-    <div class="toast" id="toast">
-        <span class="toast-icon" id="toastIcon">✅</span>
-        <span id="toastMsg">Action completed successfully!</span>
-    </div>
+        <!-- EARNINGS SECTION -->
+        <section id="sec-earnings" class="section">
+            <div class="page-header"><div><div class="page-title">💰 Earnings</div><div class="page-subtitle">Today's earnings summary</div></div></div>
+            <div class="stats-grid"><div class="stat-card gold"><div class="stat-icon gold">💰</div><div class="stat-label">Today's Earnings</div><div class="stat-value">৳{{ today_earnings|floatformat:0|default:0 }}</div></div><div class="stat-card green"><div class="stat-icon green">✅</div><div class="stat-label">Trips Completed</div><div class="stat-value">{{ trips_completed|default:0 }}</div></div><div class="stat-card orange"><div class="stat-icon orange">👥</div><div class="stat-label">Passengers Today</div><div class="stat-value">{{ passenger_count|default:0 }}</div></div></div>
+        </section>
 
-    <!-- =============================================
-    JAVASCRIPT
-    ============================================= -->
-    <script>
-        // =============================================
-        // THEME TOGGLE
-        // =============================================
-        const themeToggle = document.getElementById('themeToggle');
-        const toggleIcon = document.getElementById('toggleIcon');
-        const html = document.documentElement;
-        const savedTheme = localStorage.getItem('driverTheme') || 'dark';
-        html.setAttribute('data-theme', savedTheme);
-        toggleIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-        
-        themeToggle.addEventListener('click', () => {
-            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', next);
-            localStorage.setItem('driverTheme', next);
-            toggleIcon.textContent = next === 'dark' ? '☀️' : '🌙';
-        });
+        <!-- CHAT SECTION -->
+        <section id="sec-chat" class="section">
+            <div class="page-header"><div><div class="page-title">💬 Chat</div><div class="page-subtitle">Communicate with admin</div></div></div>
+            <div class="card"><div class="chat-box" id="chatBox"><div class="chat-msg recv"><div class="chat-avatar-small" style="background:rgba(30,144,255,0.15);color:var(--blue);">AD</div><div><div class="chat-bubble">Hello {{ request.user.first_name|default:"Driver" }}, drive safe today! 🚌</div><div class="chat-time">8:00 AM</div></div></div></div><div class="chat-input-row"><input type="text" id="chatInput" class="chat-input" placeholder="Type your message..."><button class="btn btn-primary" onclick="sendChat()">📨 Send</button></div></div>
+        </section>
 
-        // =============================================
-        // NAVIGATION BETWEEN SECTIONS
-        // =============================================
-        function navigate(sectionId) {
-            // Hide all sections
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            
-            // Show target section
-            const targetSection = document.getElementById('sec-' + sectionId);
-            if (targetSection) targetSection.classList.add('active');
-            
-            // Update active nav item
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            const btn = document.querySelector(`[onclick="navigate('${sectionId}')"]`);
-            if (btn) btn.classList.add('active');
-            
-            // Close sidebar on mobile
-            if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
-            
-            // Load content based on section
-            if (sectionId === 'passengers') loadPassengers();
-            if (sectionId === 'chat') {
-                const chatBox = document.getElementById('chatBox');
-                if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
-            }
-        }
+        <!-- ALERTS SECTION -->
+        <section id="sec-alerts" class="section">
+            <div class="page-header"><div><div class="page-title">🚨 Emergency Alerts</div><div class="page-subtitle">Send emergency notification to admin</div></div></div>
+            <button class="emergency-btn" onclick="sendEmergencyAlert()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SEND EMERGENCY ALERT</button>
+            <div class="card"><div class="card-title"><span class="dot"></span>Recent Alerts</div><p style="color:var(--muted);text-align:center;padding:20px;">🟢 All clear! No recent emergency alerts.</p></div>
+        </section>
 
-        // =============================================
-        // PASSENGER MANAGEMENT (Demo Data)
-        // =============================================
-        const passengers = [
-            {seat:'A-01', name:'Shahrin Rahman', type:'Student', id:'2021-1-60-045', stop:'Mirpur 10', boarded:false},
-            {seat:'A-02', name:'Rahim Uddin', type:'Student', id:'2022-1-60-028', stop:'Mirpur 10', boarded:false},
-            {seat:'B-01', name:'Mr. Mizanur Haque', type:'Teacher', id:'CSE Dept.', stop:'Mirpur 10', boarded:false},
-            {seat:'C-01', name:'Farhan Ahmed', type:'Employee', id:'Admin Office', stop:'Mirpur 10', boarded:false},
-        ];
-        
-        function renderPassengers() {
-            const tbody = document.getElementById('passengerTable');
-            if (!tbody) return;
-            
-            tbody.innerHTML = passengers.map((p, i) => `
-                <tr>
-                    <td><span class="badge badge-gold">${p.seat}</span></td>
-                    <td>${p.name}</td>
-                    <td><span class="badge badge-${p.type==='Student'?'blue':p.type==='Teacher'?'green':'gold'}">${p.type}</span></td>
-                    <td>${p.id}</td>
-                    <td>${p.stop}</td>
-                    <td>
-                        <button class="btn ${p.boarded?'btn-green':'btn-outline'}" style="padding:4px 12px;font-size:12px;" onclick="toggleBoard(${i})">
-                            ${p.boarded ? '✅ Boarded' : '⬜ Mark'}
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-            
-            // Update passenger count badges
-            const count = passengers.length;
-            document.querySelectorAll('#passengerCount,#passengerStat,#seatCount,#totalPassengers').forEach(el => {
-                if (el) el.textContent = count;
-            });
-        }
-        
-        function toggleBoard(i) { 
-            passengers[i].boarded = !passengers[i].boarded; 
-            renderPassengers(); 
-            showToast(passengers[i].boarded ? '✅ Passenger boarded!' : '🔄 Boarding undone');
-        }
-        
-        function loadPassengers() { 
-            renderPassengers(); 
-        }
+        <!-- PROFILE SECTION -->
+        <section id="sec-profile" class="section">
+            <div class="page-header"><div><div class="page-title">👤 My Profile</div><div class="page-subtitle">Driver account information</div></div><button class="btn btn-outline" onclick="window.location.href=`{% url 'driver_profile' %}`">✏️ Edit Profile</button></div>
+            <div class="card"><div class="profile-header"><div class="profile-avatar-lg">{{ request.user.first_name|default:"D"|first|upper }}</div><div class="profile-info"><div class="name">{{ request.user.get_full_name|default:request.user.username }}</div><div class="role">🚌 Bus Driver · Easy Transport</div><div class="tags"><span class="profile-tag">🛣️ Route {{ driver.route.code|default:"J1" }}</span><span class="profile-tag">🚌 Bus {{ driver.bus.bus_number|default:"Olam-1" }}</span><span class="profile-tag">🟢 On Duty</span></div></div></div>
+            <div class="field-row"><div class="field-group"><label>Driver ID</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div><div class="field-group"><label>Phone</label><div class="field-value">{{ driver.phone|default:"N/A" }}</div></div><div class="field-group"><label>License No.</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div><div class="field-group"><label>Experience</label><div class="field-value">6+ years</div></div><div class="field-group"><label>Assigned Bus</label><div class="field-value">🚌 {{ driver.bus.bus_number|default:"Olam-1" }} ({{ driver.bus.capacity|default:"30" }} seats)</div></div><div class="field-group"><label>Assigned Route</label><div class="field-value">🛣️ {{ driver.route.code|default:"J1" }} — {{ driver.route.start|default:"Signboard" }} ↔ {{ driver.route.end|default:"Mirpur 10" }}</div></div></div></div>
+        </section>
+    </main>
+</div>
 
-        // =============================================
-        // CHAT FUNCTIONALITY
-        // =============================================
-        function sendChat() {
-            const input = document.getElementById('chatInput');
-            const msg = input?.value.trim();
-            if (!msg) return;
-            
-            const box = document.getElementById('chatBox');
-            if (!box) return;
-            
-            const now = new Date();
-            const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
-            
-            box.innerHTML += `
-                <div class="chat-msg sent">
-                    <div class="chat-avatar-small" style="background:rgba(255,107,53,0.15);color:var(--orange);">
-                        {{ request.user.first_name|default:"D"|first|upper }}
-                    </div>
-                    <div>
-                        <div class="chat-bubble">${msg}</div>
-                        <div class="chat-time">${time}</div>
-                    </div>
-                </div>
-            `;
-            
-            input.value = '';
-            box.scrollTop = box.scrollHeight;
-        }
+<div class="toast" id="toast"><span class="toast-icon" id="toastIcon">✅</span><span id="toastMsg">Action completed successfully!</span></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:85;"></div>
 
-        // =============================================
-        // EMERGENCY ALERT
-        // =============================================
-        function sendEmergencyAlert() {
-            if (!confirm('🚨 Are you sure you want to send an emergency alert? This will immediately notify all admins.')) return;
-            
-            const btn = document.querySelector('.emergency-btn');
-            if (btn) { 
-                btn.disabled = true; 
-                btn.innerHTML = '⏳ Sending Alert...'; 
-            }
-            
-            setTimeout(() => { 
-                showToast('🚨 Emergency alert sent to admin! Help is on the way.');
-                if (btn) { 
-                    btn.disabled = false; 
-                    btn.innerHTML = `
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                            <line x1="12" y1="9" x2="12" y2="13"/>
-                            <line x1="12" y1="17" x2="12.01" y2="17"/>
-                        </svg>
-                        SEND EMERGENCY ALERT
-                    `; 
-                }
-            }, 1500);
-        }
+<script>
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const toggleIcon = document.getElementById('toggleIcon');
+    const html = document.documentElement;
+    const savedTheme = localStorage.getItem('driverTheme') || 'dark';
+    html.setAttribute('data-theme', savedTheme);
+    toggleIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+    themeToggle.addEventListener('click', () => {
+        const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('driverTheme', next);
+        toggleIcon.textContent = next === 'dark' ? '☀️' : '🌙';
+    });
 
-        // =============================================
-        // TRIP API FUNCTIONS (Real Backend Calls)
-        // =============================================
-        async function startTripAPI(tripId) {
-            if (!tripId) {
-                showToast('❌ Invalid trip ID', true);
-                return;
-            }
-            showToast('⏳ Starting trip...');
-            const result = await apiRequest(`/driver/trip/${tripId}/start/`, 'POST');
-            if (result && result.success) { 
-                showToast('✅ Trip started successfully! Drive safe 🚌'); 
-                setTimeout(() => location.reload(), 1500); 
-            } else {
-                showToast('❌ ' + (result?.message || 'Failed to start trip'), true);
-            }
-        }
-        
-        async function completeTripAPI(tripId) {
-            if (!tripId) {
-                showToast('❌ Invalid trip ID', true);
-                return;
-            }
-            showToast('⏳ Completing trip...');
-            const result = await apiRequest(`/driver/trip/${tripId}/complete/`, 'POST');
-            if (result && result.success) { 
-                showToast('✅ Trip completed! Great job! 🎉'); 
-                setTimeout(() => location.reload(), 1500); 
-            } else {
-                showToast('❌ ' + (result?.message || 'Failed to complete trip'), true);
-            }
-        }
+    // Navigation function
+    function navigate(sectionId) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        const targetSection = document.getElementById('sec-' + sectionId);
+        if (targetSection) targetSection.classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        const btn = document.querySelector(`[onclick="navigate('${sectionId}')"]`);
+        if (btn) btn.classList.add('active');
+        if (window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').style.display = 'none'; }
+        if (sectionId === 'passengers') loadPassengers();
+        if (sectionId === 'chat') { const chatBox = document.getElementById('chatBox'); if (chatBox) chatBox.scrollTop = chatBox.scrollHeight; }
+    }
 
-        // =============================================
-        // TOAST NOTIFICATION
-        // =============================================
-        function showToast(msg, isError = false) {
-            const toast = document.getElementById('toast');
-            if (!toast) return;
-            document.getElementById('toastMsg').textContent = msg;
-            document.getElementById('toastIcon').textContent = isError ? '❌' : '✅';
-            toast.className = `toast show${isError ? ' error' : ''}`;
-            setTimeout(() => { toast.classList.remove('show'); }, 3500);
-        }
+    // Toggle sidebar for mobile
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const isOpen = sidebar.classList.contains('open');
+        if (isOpen) { sidebar.classList.remove('open'); overlay.style.display = 'none'; }
+        else { sidebar.classList.add('open'); overlay.style.display = 'block'; }
+    }
 
-        // =============================================
-        // CSRF TOKEN & API HELPER
-        // =============================================
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie) {
-                for (let c of document.cookie.split(';')) {
-                    c = c.trim();
-                    if (c.startsWith(name + '=')) { 
-                        cookieValue = decodeURIComponent(c.substring(name.length + 1)); 
-                        break; 
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        
-        async function apiRequest(endpoint, method = 'GET', data = null) {
-            const options = { 
-                method, 
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'X-CSRFToken': getCookie('csrftoken') 
-                } 
-            };
-            if (data && (method === 'POST' || method === 'PUT')) options.body = JSON.stringify(data);
-            try { 
-                const res = await fetch(endpoint, options); 
-                return await res.json(); 
-            } catch (error) { 
-                console.error('API error:', error); 
-                showToast('❌ Connection failed. Check your internet.', true); 
-                return null; 
-            }
-        }
+    // Passenger data
+    const passengers = [
+        {seat:'A-01', name:'Shahrin Rahman', type:'Student', id:'2021-1-60-045', stop:'Mirpur 10', boarded:false},
+        {seat:'A-02', name:'Rahim Uddin', type:'Student', id:'2022-1-60-028', stop:'Mirpur 10', boarded:false},
+        {seat:'B-01', name:'Mr. Mizanur Haque', type:'Teacher', id:'CSE Dept.', stop:'Mirpur 10', boarded:false},
+        {seat:'C-01', name:'Farhan Ahmed', type:'Employee', id:'Admin Office', stop:'Mirpur 10', boarded:false},
+    ];
+    function renderPassengers() {
+        const tbody = document.getElementById('passengerTable');
+        if (!tbody) return;
+        tbody.innerHTML = passengers.map((p, i) => `<tr><td><span class="badge badge-gold">${p.seat}</span></td><td>${p.name}</td><td><span class="badge badge-${p.type==='Student'?'blue':p.type==='Teacher'?'green':'gold'}">${p.type}</span></td><td>${p.id}</td><td>${p.stop}</td><td><button class="btn ${p.boarded?'btn-green':'btn-outline'}" style="padding:4px 12px;font-size:12px;" onclick="toggleBoard(${i})">${p.boarded?'✅ Boarded':'⬜ Mark'}</button></td></tr>`).join('');
+        document.querySelectorAll('#passengerCount,#passengerStat,#seatCount,#totalPassengers').forEach(el => { if(el) el.textContent = passengers.length; });
+    }
+    function toggleBoard(i) { passengers[i].boarded = !passengers[i].boarded; renderPassengers(); showToast(passengers[i].boarded?'✅ Passenger boarded!':'🔄 Boarding undone'); }
+    function loadPassengers() { renderPassengers(); }
 
-        // =============================================
-        // INITIALIZATION ON PAGE LOAD
-        // =============================================
-        document.addEventListener('DOMContentLoaded', function() {
-            // Load passengers on page load
-            loadPassengers();
-            
-            // Update date display
-            const dateEl = document.getElementById('currentDate');
-            if (dateEl) {
-                const now = new Date();
-                dateEl.innerHTML = now.toLocaleDateString('en-US', {
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric'
-                }) + ' · Route {{ driver.route.code|default:"J1" }}';
-            }
-            
-            // Chat input Enter key handler
-            document.getElementById('chatInput')?.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { 
-                    e.preventDefault(); 
-                    sendChat(); 
-                }
-            });
-        });
-    </script>
+    // Chat
+    function sendChat() {
+        const input = document.getElementById('chatInput');
+        const msg = input?.value.trim();
+        if (!msg) return;
+        const box = document.getElementById('chatBox');
+        if (!box) return;
+        const now = new Date();
+        const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+        box.innerHTML += `<div class="chat-msg sent"><div class="chat-avatar-small" style="background:rgba(255,107,53,0.15);color:var(--orange);">D</div><div><div class="chat-bubble">${msg}</div><div class="chat-time">${time}</div></div></div>`;
+        input.value = '';
+        box.scrollTop = box.scrollHeight;
+    }
+
+    // Emergency alert
+    function sendEmergencyAlert() {
+        if (!confirm('🚨 Send emergency alert to admin?')) return;
+        const btn = document.querySelector('.emergency-btn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Sending Alert...'; }
+        setTimeout(() => { showToast('🚨 Emergency alert sent!'); if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SEND EMERGENCY ALERT'; } }, 1500);
+    }
+
+    // Trip API
+    async function startTripAPI(tripId) {
+        if (!tripId) { showToast('❌ Invalid trip ID', true); return; }
+        showToast('⏳ Starting trip...');
+        const result = await apiRequest(`/driver/trip/${tripId}/start/`, 'POST');
+        if (result && result.success) { showToast('✅ Trip started! Drive safe 🚌'); setTimeout(() => location.reload(), 1500); }
+        else showToast('❌ ' + (result?.message || 'Failed to start trip'), true);
+    }
+    async function completeTripAPI(tripId) {
+        if (!tripId) { showToast('❌ Invalid trip ID', true); return; }
+        showToast('⏳ Completing trip...');
+        const result = await apiRequest(`/driver/trip/${tripId}/complete/`, 'POST');
+        if (result && result.success) { showToast('✅ Trip completed! 🎉'); setTimeout(() => location.reload(), 1500); }
+        else showToast('❌ ' + (result?.message || 'Failed to complete trip'), true);
+    }
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        document.getElementById('toastMsg').textContent = msg;
+        document.getElementById('toastIcon').textContent = isError ? '❌' : '✅';
+        toast.className = `toast show${isError ? ' error' : ''}`;
+        setTimeout(() => { toast.classList.remove('show'); }, 3500);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie) for (let c of document.cookie.split(';')) { c = c.trim(); if (c.startsWith(name + '=')) { cookieValue = decodeURIComponent(c.substring(name.length + 1)); break; } }
+        return cookieValue;
+    }
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+        const options = { method, headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') } };
+        if (data && (method === 'POST' || method === 'PUT')) options.body = JSON.stringify(data);
+        try { const res = await fetch(endpoint, options); return await res.json(); }
+        catch (error) { console.error('API error:', error); showToast('❌ Connection failed', true); return null; }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadPassengers();
+        const dateEl = document.getElementById('currentDate');
+        if (dateEl) { const now = new Date(); dateEl.innerHTML = now.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + ' · Route {{ driver.route.code|default:"J1" }}'; }
+        document.getElementById('chatInput')?.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
+    });
+</script>
+
 </body>
 </html>
