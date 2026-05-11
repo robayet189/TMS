@@ -867,12 +867,13 @@ def driver_login(request):
     else:
         return JsonResponse({'success': False, 'message': 'Invalid username or password'}, status=401)
 
+
 @login_required
 def driver_dashboard(request):
     """
     Driver dashboard - shows assigned trips and stats
-    ✅ FIXED: Calculate REAL passenger count and earnings from database
-    CHANGE REASON: Previously hardcoded values (24 passengers, 480 earnings) now dynamically calculated
+    FIXED: Added fallback to Schedule+Booking when Trip model has no data
+    Driver dashboard now works even if admin hasn't created Trip records yet
     """
     if not hasattr(request.user, 'driver_profile'):
         messages.error(request, 'You are not registered as a driver.')
@@ -881,40 +882,63 @@ def driver_dashboard(request):
     driver = request.user.driver_profile
     today = timezone.now().date()
     
-    # Fetch trips for today, upcoming, and ongoing
-    today_trips = Trip.objects.filter(driver=driver, travel_date=today).select_related('route', 'bus').order_by('departure_time')
-    upcoming_trips = Trip.objects.filter(driver=driver, travel_date__gt=today, status='pending').select_related('route', 'bus').order_by('travel_date', 'departure_time')[:5]
-    ongoing_trip = Trip.objects.filter(driver=driver, status='ongoing').select_related('route', 'bus').first()
+    # Try to get trips from Trip model first
+    today_trips = Trip.objects.filter(
+        driver=driver, travel_date=today
+    ).select_related('route', 'bus').order_by('departure_time')
     
-    # ✅ FIXED: Calculate REAL passenger count from confirmed bookings for today's trips
-    # Get all schedule IDs from today's trips
-    today_trip_schedules = [t.schedule.id for t in today_trips if hasattr(t, 'schedule') and t.schedule]
-    if today_trip_schedules:
-        passenger_count = Booking.objects.filter(
-            schedule_id__in=today_trip_schedules, 
-            status='confirmed'
-        ).count()
-        # ✅ FIXED: Calculate REAL earnings from confirmed bookings
-        earnings_data = Booking.objects.filter(
-            schedule_id__in=today_trip_schedules, 
-            status='confirmed'
-        ).aggregate(total=Sum('amount'))
-        today_earnings = earnings_data['total'] or 0
+    upcoming_trips = Trip.objects.filter(
+        driver=driver, travel_date__gt=today, status='pending'
+    ).select_related('route', 'bus').order_by('travel_date', 'departure_time')[:5]
+    
+    ongoing_trip = Trip.objects.filter(
+        driver=driver, status='ongoing'
+    ).select_related('route', 'bus').first()
+    
+    # FIXED: Calculate passenger count from Schedule + Booking (not from Trip)
+    passenger_count = 0
+    today_earnings = 0
+    
+    if today_trips.exists():
+        # Use today's trips to find matching schedules
+        trip = today_trips.first()
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
+        if schedule:
+            passenger_count = Booking.objects.filter(
+                schedule=schedule, status='confirmed'
+            ).count()
+            today_earnings = passenger_count * float(schedule.fare)
     else:
-        passenger_count = 0
-        today_earnings = 0
+        # FALLBACK: Trip table is empty, use Schedule + Booking directly
+        # This fixes the issue when admin created schedules but Trip wasn't created
+        schedule = Schedule.objects.filter(
+            route=driver.assigned_route,
+            travel_date=today,
+            is_active=True
+        ).first()
+        if schedule:
+            passenger_count = Booking.objects.filter(
+                schedule=schedule, status='confirmed'
+            ).count()
+            today_earnings = passenger_count * float(schedule.fare)
+    
+    # Count completed trips
+    trips_completed = driver.trips.filter(status='completed').count()
     
     context = {
         'driver': driver,
         'today_trips': today_trips,
         'upcoming_trips': upcoming_trips,
         'ongoing_trip': ongoing_trip,
-        'passenger_count': passenger_count,  # ✅ Dynamic value from database
-        'trips_completed': driver.trips.filter(status='completed').count(),
-        'today_earnings': today_earnings,    # ✅ Dynamic value from database
+        'passenger_count': passenger_count,
+        'trips_completed': trips_completed,
+        'today_earnings': today_earnings,
     }
     return render(request, 'app1/driver/driver_dashboard.html', context)
-
 @login_required
 def driver_profile(request):
     """
