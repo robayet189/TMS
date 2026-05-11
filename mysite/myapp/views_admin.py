@@ -35,6 +35,12 @@ def admin_dashboard(request):
     today_revenue = Booking.objects.filter(schedule__travel_date=today, status='approved').aggregate(total=Sum('amount'))['total'] or 0
     total_revenue = Booking.objects.filter(status='approved').aggregate(total=Sum('amount'))['total'] or 0
     recent_bookings = Booking.objects.select_related('user', 'schedule__route').order_by('-booking_date')[:10]
+    
+    # ✅ ADD THIS LINE for notifications
+    recent_notifications = Notification.objects.filter(is_read=False).order_by('-created_at')[:5]
+    
+    # ✅ ADD THIS LINE for active drivers count
+    active_drivers = Driver.objects.filter(is_active=True, is_approved=True).count()
 
     context = {
         'active': 'overview', 'total_users': total_users, 'active_buses': active_buses,
@@ -42,10 +48,10 @@ def admin_dashboard(request):
         'approved_bookings': approved_bookings, 'today_bookings': today_bookings,
         'today_revenue': today_revenue, 'total_revenue': total_revenue,
         'recent_bookings': recent_bookings,
+        'recent_notifications': recent_notifications,  # ✅ Add this
+        'active_drivers': active_drivers,               # ✅ Add this
     }
     return render(request, 'app1/admin/admin_dashboard.html', context)
-
-
 @login_required
 @user_passes_test(is_admin)
 def admin_users(request):
