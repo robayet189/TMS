@@ -6,7 +6,7 @@ from . import views, views_admin
 urlpatterns = [
     # ================= AUTH & HOME =================
     path('', views.homepage, name='homepage'),
-    path('login/', views.login_page, name='login_page'),
+    path('login/', views.login_page, name='login_page'),  # ✅ Unified login for all
     path('api/login/', views.login_user, name='login_user'),
     path('register/', views.register_page, name='register_page'),
     path('api/register/', views.register_user, name='register_user'),
@@ -112,8 +112,8 @@ urlpatterns = [
 
 
     # ==================== DRIVER MODULE URLs ====================
-    # ✅ FIXED: Changed name from 'driver_login' to 'driver_login_page' to match template
-    path('driver/login/', views.driver_login_page, name='driver_login_page'),
+    # ✅ FIXED: Changed to use unified login
+    path('driver/login/', views.login_page, name='driver_login'),  # ✅ Now uses same login page
     path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
     path('driver/logout/', views.driver_logout, name='driver_logout'),
     path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
