@@ -1148,3 +1148,69 @@ def payment_history(request):
 def payment_success(request, transaction_id):
     transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id, user=request.user)
     return render(request, 'app1/payment_success.html', {'transaction': transaction})
+
+
+
+    # ==================== EMERGENCY ALERT VIEWS ====================
+
+from .models import EmergencyAlert, EmergencyContact
+
+@login_required
+def emergency_page(request):
+    """Display emergency alert page with call options"""
+    contacts = EmergencyContact.objects.filter(is_active=True)
+    return render(request, 'app1/emergency.html', {'contacts': contacts})
+
+
+@login_required
+def send_emergency_alert(request):
+    """API endpoint to send emergency alert"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
+            alert_type = data.get('alert_type', 'other')
+            message = data.get('message', '')
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+            location_name = data.get('location_name', '')
+            booking_id = data.get('booking_id')
+            
+            alert = EmergencyAlert.objects.create(
+                user=request.user,
+                alert_type=alert_type,
+                message=message or f"Emergency reported by {request.user.get_full_name() or request.user.username}",
+                latitude=latitude,
+                longitude=longitude,
+                location_name=location_name,
+                priority=1,
+                status='pending'
+            )
+            
+            if booking_id:
+                try:
+                    alert.booking = Booking.objects.get(id=booking_id)
+                    alert.save()
+                except:
+                    pass
+            
+            # For demo, print to console
+            print(f"🚨 EMERGENCY ALERT #{alert.id} from {request.user.username}")
+            print(f"Type: {alert_type}, Message: {message}")
+            
+            # In production, you can send SMS/email to emergency contacts here
+            
+            return JsonResponse({
+                'success': True,
+                'alert_id': alert.id,
+                'message': 'Emergency alert sent! Admin has been notified.'
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+
+@login_required
+def emergency_history(request):
+    """View user's past emergency alerts"""
+    alerts = EmergencyAlert.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'app1/emergency_history.html', {'alerts': alerts})

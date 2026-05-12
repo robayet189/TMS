@@ -1,0 +1,26 @@
+{% extends 'app1/base.html' %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 40px auto; padding: 20px;">
+    <h1>📋 Emergency Alert History</h1>
+    <table class="table" style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr><th>Date</th><th>Type</th><th>Message</th><th>Status</th><th>Response</th></tr>
+        </thead>
+        <tbody>
+            {% for alert in alerts %}
+            <tr style="border-bottom:1px solid #ddd;">
+                <td>{{ alert.created_at|date:"M d, Y H:i" }}</td>
+                <td>{{ alert.get_alert_type_display }}</td>
+                <td>{{ alert.message|truncatechars:50 }}</td>
+                <td><span style="background:{% if alert.status == 'pending' %}#ff4757{% elif alert.status == 'acknowledged' %}#ffa500{% else %}#4caf50{% endif %}; color:white; padding:2px 8px; border-radius:12px;">{{ alert.get_status_display }}</span></td>
+                <td>{{ alert.response_message|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;">No emergency alerts found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'dashboard' %}" class="btn">← Back to Dashboard</a>
+</div>
+{% endblock %}
