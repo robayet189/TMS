@@ -132,7 +132,6 @@ align-items: center;
 gap: 10px;
 text-decoration: none;
 }
-/* Fixed logo styling - proper display */
 .logo-icon-custom {
 width: 75px;
 height: 65px;
@@ -1022,7 +1021,8 @@ footer { padding: 48px 28px; }
 <p>Join thousands of users who trust Next Route for their daily commute.</p>
 <div class="cta-btns">
 <a href="{% url 'register_page' %}" class="cta-btn-main">🚀 Get Started Free</a>
-<a href="{% url 'driver_login' %}" class="cta-btn-ghost">Driver Portal</a>
+<!-- ✅ FIXED: Changed 'driver_login' to 'driver_login_page' to match urls.py -->
+<a href="{% url 'driver_login_page' %}" class="cta-btn-ghost">Driver Portal</a>
 <a href="{% url 'admin_dashboard' %}" class="cta-btn-ghost">Admin Portal</a>
 </div>
 </div>
@@ -1062,7 +1062,6 @@ else nav.classList.remove('scrolled');
 // THEME TOGGLE (Light / Dark mode)
 const themeToggle = document.getElementById('themeToggle');
 const body = document.body;
-// Check for saved theme preference
 const savedTheme = localStorage.getItem('theme');
 if (savedTheme === 'dark') {
 body.classList.add('dark');
@@ -1082,8 +1081,6 @@ function handleContactSubmit(e) {
 e.preventDefault();
 const formData = new FormData(e.target);
 const data = Object.fromEntries(formData);
-
-// Show success message (you can replace this with actual API call)
 alert('Thank you for your message! We will get back to you soon.');
 e.target.reset();
 }
