@@ -23,6 +23,7 @@ from .models import (
 )
 import json, random, string, re
 from datetime import datetime, timedelta
+from django.db.models import Sum, Q, Count
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -69,6 +70,7 @@ def account_created_page(request):
     """Render the account creation success page template"""
     return render(request, 'app1/account_created.html')
 
+
 @require_http_methods(["POST"])
 def register_user(request):
     """
@@ -77,7 +79,7 @@ def register_user(request):
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
-    
+
     full_name = request.POST.get('full_name', '').strip()
     email = request.POST.get('email', '').strip().lower()
     password = request.POST.get('password', '')
@@ -85,57 +87,82 @@ def register_user(request):
     institution_type = request.POST.get('institution_type', '').strip().lower()
     user_type = request.POST.get('user_type', 'student').strip().lower()
     institution_id = request.POST.get('institution_id', '').strip()
-    
+
     if not all([full_name, email, password, phone, institution_type, user_type, institution_id]):
         return JsonResponse({'success': False, 'message': 'All fields are required'}, status=400)
-    
+
     if User.objects.filter(email=email).exists():
         return JsonResponse({'success': False, 'message': 'Email already registered'}, status=400)
-    
+
     if len(password) < 6:
         return JsonResponse({'success': False, 'message': 'Password must be at least 6 characters'}, status=400)
-    
+
     if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
         return JsonResponse({'success': False, 'message': 'Invalid email format'}, status=400)
-    
+
     try:
         username = email.split('@')[0]
         counter = 1
         while User.objects.filter(username=username).exists():
             username = f"{email.split('@')[0]}_{counter}"
             counter += 1
-        
+
         user = User.objects.create_user(
             username=username, email=email, password=password,
             first_name=full_name.split()[0] if ' ' in full_name else full_name,
             last_name=full_name.split()[-1] if ' ' in full_name and len(full_name.split()) > 1 else ''
         )
-        
+
         UserProfile.objects.create(
             user=user, phone=phone, institution_type=institution_type,
             user_type=user_type, institution_id=institution_id
         )
-        
+
         if user_type == 'driver':
             unique_license = f"DL-{timezone.now().strftime('%Y%m%d')}-{random.randint(10000, 99999)}-{user.id}"
+
+            # ✅ NEW: Get a default route and bus for new drivers
+            # You can customize which route/bus to assign
+            default_route = Route.objects.first()
+            default_bus = Bus.objects.first()
+
+            # If no default route/bus exists, try to get any route/bus
+            if not default_route:
+                default_route = Route.objects.first()
+            if not default_bus:
+                default_bus = Bus.objects.first()
+
             if not Driver.objects.filter(user=user).exists():
-                Driver.objects.create(
+                driver = Driver.objects.create(
                     user=user,
                     license_number=unique_license,
-                    license_expiry=timezone.now().date() + timedelta(days=365*5),
+                    license_expiry=timezone.now().date() + timedelta(days=365 * 5),
                     phone=phone,
                     address='',
                     emergency_contact='',
                     is_approved=True,
-                    is_active=True
+                    is_active=True,
+                    assigned_route=default_route,
+                    assigned_bus=default_bus  
                 )
-        
+
+                # Log the assignment for debugging
+                if default_route:
+                    print(f"✅ New driver {username} assigned to route: {default_route.code}")
+                else:
+                    print(f"⚠️ No route available to assign to driver {username}")
+
+                if default_bus:
+                    print(f"✅ New driver {username} assigned to bus: {default_bus.bus_number}")
+                else:
+                    print(f"⚠️ No bus available to assign to driver {username}")
+
         return JsonResponse({
-            'success': True, 
+            'success': True,
             'message': 'Account created successfully! Please login to continue.',
             'redirect_url': '/account-created/'
         })
-        
+
     except Exception as e:
         print(f"Registration error: {str(e)}")
         return JsonResponse({'success': False, 'message': f'Registration failed: {str(e)}'}, status=500)
@@ -915,46 +942,71 @@ def driver_get_passengers(request):
     
     return JsonResponse({'success': True, 'passengers': passengers})
 
+
 @login_required
 def driver_dashboard(request):
-    """Driver dashboard - shows REAL assigned trips, passengers, earnings from database"""
+    """Driver dashboard - Shows ONLY driver's assigned routes and schedules"""
     if not hasattr(request.user, 'driver_profile'):
         messages.error(request, 'You are not registered as a driver.')
         return redirect('homepage')
-    
+
     driver = request.user.driver_profile
     today = timezone.now().date()
-    
+
+    # ========== TRIPS (from Trip model) ==========
     today_trips = Trip.objects.filter(
         driver=driver, travel_date=today
     ).select_related('route', 'bus').order_by('departure_time')
-    
+
     upcoming_trips = Trip.objects.filter(
         driver=driver, travel_date__gt=today, status='pending'
     ).select_related('route', 'bus').order_by('travel_date', 'departure_time')[:5]
-    
+
     ongoing_trip = Trip.objects.filter(
         driver=driver, status='ongoing'
     ).select_related('route', 'bus').first()
-    
+
+    # ========== ROUTES - ONLY driver's assigned route ==========
+    assigned_route = driver.assigned_route  # This is the ONLY route this driver should see
+
+    # ========== SCHEDULES - ONLY for driver's assigned route ==========
+    schedules_for_driver = []
+    upcoming_schedules = []
+
+    if assigned_route:
+        # Get ONLY schedules for this driver's assigned route
+        schedules_for_driver = Schedule.objects.filter(
+            route=assigned_route,
+            travel_date__gte=today,
+            is_active=True
+        ).select_related('route', 'bus').order_by('travel_date', 'departure_time')
+
+        # Upcoming schedules (next 7 days) - only for this driver's route
+        upcoming_schedules = schedules_for_driver.filter(
+            travel_date__lte=today + timedelta(days=7)
+        )[:10]
+
+    # ========== PASSENGER & EARNINGS CALCULATION ==========
     passenger_count = 0
     today_earnings = 0
-    
+
     if today_trips.exists():
         for trip in today_trips:
             schedule = Schedule.objects.filter(
-                route=trip.route, travel_date=trip.travel_date,
+                route=trip.route,
+                travel_date=trip.travel_date,
                 departure_time=trip.departure_time
             ).first()
             if schedule:
-                count = Booking.objects.filter(
-                    schedule=schedule, status='confirmed'
-                ).count()
-                passenger_count += count
-                today_earnings += count * float(schedule.fare)
-    
+                bookings = Booking.objects.filter(
+                    schedule=schedule,
+                    status='approved'
+                )
+                passenger_count += bookings.count()
+                today_earnings += sum(b.amount for b in bookings)
+
     trips_completed = driver.trips.filter(status='completed').count()
-    
+
     context = {
         'driver': driver,
         'today_trips': today_trips,
@@ -963,6 +1015,11 @@ def driver_dashboard(request):
         'passenger_count': passenger_count,
         'trips_completed': trips_completed,
         'today_earnings': today_earnings,
+        # Routes - ONLY the driver's assigned route
+        'assigned_route': assigned_route,  # This is the ONLY route
+        # Schedules - ONLY for driver's assigned route
+        'schedules_for_driver': schedules_for_driver,
+        'upcoming_schedules': upcoming_schedules,
     }
     return render(request, 'app1/driver/driver_dashboard.html', context)
 
@@ -1014,6 +1071,50 @@ def driver_profile(request):
         'user': user,
     })
 
+
+# Add to views.py
+
+@login_required
+def driver_trips_api(request):
+    """API endpoint to get driver's trips as JSON"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
+
+    driver = request.user.driver_profile
+    today = timezone.now().date()
+
+    trips = Trip.objects.filter(
+        driver=driver, travel_date__gte=today
+    ).select_related('route', 'bus').order_by('travel_date', 'departure_time')
+
+    trips_data = []
+    for trip in trips:
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
+
+        passenger_count = 0
+        if schedule:
+            passenger_count = Booking.objects.filter(
+                schedule=schedule, status='approved'
+            ).count()
+
+        trips_data.append({
+            'id': trip.id,
+            'route_code': trip.route.code,
+            'start': trip.route.start,
+            'end': trip.route.end,
+            'departure_time': trip.departure_time.strftime('%I:%M %p'),
+            'travel_date': trip.travel_date.strftime('%b %d, %Y'),
+            'status': trip.status,
+            'bus_number': trip.bus.bus_number,
+            'passenger_count': passenger_count,
+        })
+
+    return JsonResponse({'success': True, 'trips': trips_data})
+
 @login_required
 def trip_detail(request, trip_id):
     """Display detailed trip information with stop sequence"""
@@ -1053,6 +1154,74 @@ def complete_trip(request, trip_id):
         return JsonResponse({'success': True, 'message': 'Trip completed successfully'})
     else:
         return JsonResponse({'success': False, 'message': 'Trip cannot be completed in current status'}, status=400)
+
+
+@login_required
+def driver_routes_api(request):
+    """API endpoint - returns ONLY the driver's assigned route"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
+
+    driver = request.user.driver_profile
+    assigned_route = driver.assigned_route
+
+    if assigned_route:
+        route_data = {
+            'id': assigned_route.id,
+            'code': assigned_route.code,
+            'start': assigned_route.start,
+            'end': assigned_route.end,
+            'distance_km': float(assigned_route.distance_km) if assigned_route.distance_km else None,
+        }
+    else:
+        route_data = None
+
+    return JsonResponse({
+        'success': True,
+        'assigned_route': route_data
+    })
+
+
+@login_required
+def driver_schedules_api(request):
+    """API endpoint - returns ONLY schedules for driver's assigned route"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
+
+    driver = request.user.driver_profile
+    today = timezone.now().date()
+    assigned_route = driver.assigned_route
+
+    schedules_data = []
+
+    if assigned_route:
+        schedules = Schedule.objects.filter(
+            route=assigned_route,
+            travel_date__gte=today,
+            is_active=True
+        ).select_related('route', 'bus').order_by('travel_date', 'departure_time')
+
+        for s in schedules:
+            schedules_data.append({
+                'id': s.id,
+                'route_id': s.route.id,
+                'route_code': s.route.code,
+                'start': s.route.start,
+                'end': s.route.end,
+                'travel_date': s.travel_date.strftime('%Y-%m-%d'),
+                'travel_date_formatted': s.travel_date.strftime('%b %d, %Y'),
+                'departure_time': s.departure_time.strftime('%I:%M %p'),
+                'fare': float(s.fare),
+                'bus_number': s.bus.bus_number,
+                'bus_capacity': s.bus.capacity,
+                'available_seats': s.available_seats,
+            })
+
+    return JsonResponse({
+        'success': True,
+        'has_assigned_route': assigned_route is not None,
+        'schedules': schedules_data
+    })
 
 @login_required
 @require_http_methods(["POST"])

@@ -41,6 +41,7 @@ class Bus(models.Model):
     capacity = models.IntegerField(default=40)
     driver_name = models.CharField(max_length=100)
     driver_phone = models.CharField(max_length=15, blank=True)
+    driver = models.ForeignKey('Driver', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_buses')
     has_ac = models.BooleanField(default=False)
     has_wifi = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -55,6 +56,7 @@ class Route(models.Model):
     start = models.CharField(max_length=100)
     end = models.CharField(max_length=100)
     distance_km = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.code}: {self.start} → {self.end}"
@@ -244,38 +246,23 @@ class Driver(models.Model):
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.license_number}"
 
+    # ✅ REMOVE the dummy classes - just return None if not assigned
     @property
     def bus(self):
-        """Safe fallback for bus - prevents template errors"""
-        if self.assigned_bus:
-            return self.assigned_bus
-        class DummyBus:
-            bus_number = "B-XX"
-            capacity = 40
-            has_ac = False
-            has_wifi = False
-        return DummyBus()
+        """Returns assigned bus or None"""
+        return self.assigned_bus
 
     @property
     def route(self):
-        """Safe fallback for route - prevents template errors"""
-        if self.assigned_route:
-            return self.assigned_route
-        class DummyRoute:
-            code = "XX"
-            start = "UAP Campus"
-            end = "Uttara"
-            distance_km = "18.4"
-        return DummyRoute()
+        """Returns assigned route or None"""
+        return self.assigned_route
 
     @property
     def departure_time(self):
-        """Safe fallback for departure time"""
-        if hasattr(self, 'trips') and self.trips.exists():
-            trip = self.trips.filter(status='pending').first()
-            if trip and trip.departure_time:
-                return trip.departure_time
-        return "8:00 AM"
+        """Returns departure time from today's first pending trip"""
+        today = timezone.now().date()
+        trip = self.trips.filter(status='pending', travel_date=today).first()
+        return trip.departure_time if trip else None
 
 
 class Trip(models.Model):

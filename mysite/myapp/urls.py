@@ -78,6 +78,9 @@ urlpatterns = [
     path('admin_page/api/route/<int:route_id>/', views_admin.admin_route_detail, name='admin_route_detail'),
     path('admin_page/api/update-route/<int:route_id>/', views_admin.admin_update_route, name='admin_update_route'),
     path('admin_page/api/delete-route/<int:route_id>/', views_admin.admin_delete_route, name='admin_delete_route'),
+    path('admin_page/api/get-routes/', views_admin.admin_get_routes, name='admin_get_routes'),
+    path('admin_page/api/get-route/<int:route_id>/', views_admin.admin_get_route, name='admin_get_route'),
+    path('admin_page/api/toggle-route/<int:route_id>/', views_admin.admin_toggle_route_status, name='admin_toggle_route'),
     
     # ✅ NEW: Schedule Management URLs
     path('admin_page/schedule/', views_admin.admin_schedule, name='admin_schedule'),
@@ -110,20 +113,27 @@ urlpatterns = [
     path('chat/messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
     path('chat/close/<int:room_id>/', views.close_chat, name='close_chat'),
 
-
     # ==================== DRIVER MODULE URLs ====================
-    # ✅ FIXED: Changed to use unified login
-    path('driver/login/', views.login_page, name='driver_login'),  # ✅ Now uses same login page
+
+    # Authentication
+    path('driver/login/', views.login_page, name='driver_login'),
     path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
     path('driver/logout/', views.driver_logout, name='driver_logout'),
+
+    # Dashboard & Profile
     path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
     path('driver/profile/', views.driver_profile, name='driver_profile'),
+
+    # Trip Management
     path('driver/trip/<int:trip_id>/', views.trip_detail, name='trip_detail'),
     path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
     path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
     path('driver/stop/<int:stop_id>/update/', views.update_stop_status, name='update_stop_status'),
 
-    # ✅ Driver Emergency Alert & Passenger API
+    # API Endpoints
     path('driver/api/send-alert/', views.driver_send_alert, name='driver_send_alert'),
     path('driver/api/passengers/', views.driver_get_passengers, name='driver_get_passengers'),
+    path('driver/api/trips/', views.driver_trips_api, name='driver_trips_api'),
+    path('driver/api/routes/', views.driver_routes_api, name='driver_routes_api'),
+    path('driver/api/schedules/', views.driver_schedules_api, name='driver_schedules_api'),
 ]

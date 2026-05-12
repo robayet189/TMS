@@ -223,7 +223,8 @@
         .badge-cancelled { background:rgba(160,154,184,0.15); color:var(--text-muted); }
         
         @media (max-width: 768px) {
-            .sidebar { transform:translateX(-100%); }
+            .sidebar { transform:translateX(-100%); position:fixed; transition:transform 0.3s; }
+            .sidebar.open { transform:translateX(0); }
             .main { margin-left:0; }
         }
     </style>
@@ -245,7 +246,7 @@
                     Overview
                 </a>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-label">Management</div>
                 <a href="{% url 'admin_users' %}" class="{% if active == 'users' %}active{% endif %}">
@@ -264,8 +265,13 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 5.618L15 7m0 13V7"/></svg>
                     Routes
                 </a>
+                <!-- ✅ ADDED: Schedule Management Link -->
+                <a href="{% url 'admin_schedule' %}" class="{% if active == 'schedule' %}active{% endif %}">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Schedules
+                </a>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-label">Analytics</div>
                 <a href="{% url 'admin_revenue' %}" class="{% if active == 'revenue' %}active{% endif %}">
@@ -273,7 +279,7 @@
                     Revenue
                 </a>
             </div>
-            
+
             <div class="nav-section">
                 <div class="nav-label">System</div>
                 <a href="{% url 'admin_alerts' %}" class="{% if active == 'alerts' %}active{% endif %}">
@@ -298,7 +304,7 @@
                 <button class="theme-btn" onclick="toggleTheme()">🌓 Theme</button>
             </div>
         </div>
-        
+
         {% block content %}{% endblock %}
     </main>
 
@@ -306,11 +312,16 @@
         const html = document.documentElement;
         const saved = localStorage.getItem('admin_theme') || 'dark';
         html.setAttribute('data-theme', saved);
-        
+
         function toggleTheme() {
             const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             html.setAttribute('data-theme', next);
             localStorage.setItem('admin_theme', next);
+        }
+
+        // Mobile sidebar toggle (optional)
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
         }
     </script>
 </body>

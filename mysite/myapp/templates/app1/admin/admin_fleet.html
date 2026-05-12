@@ -3,7 +3,7 @@
 
 {% block title %}Fleet Management{% endblock %}
 {% block page_title %}Fleet Management{% endblock %}
-{% block page_subtitle %}Manage your bus fleet and maintenance{% endblock %}
+{% block page_subtitle %}Manage your bus fleet and driver assignments{% endblock %}
 
 {% block content %}
 <div class="stats-grid">
@@ -19,34 +19,135 @@
     <button class="btn-add" onclick="openAddBusModal()">➕ Add New Bus</button>
 </div>
 
-<div class="card"><div class="table-container"><table class="data-table"><thead><tr><th>BUS ID</th><th>CAPACITY</th><th>STATUS</th><th>DRIVER</th><th>PHONE</th><th>AMENITIES</th><th>ACTIONS</th></tr></thead><tbody id="busesTableBody">
+<div class="card"><div class="table-container"><table class="data-table"><thead><tr><th>BUS ID</th><th>CAPACITY</th><th>STATUS</th><th>DRIVER</th><th>PHONE</th><th>ROUTE</th><th>AMENITIES</th><th>ACTIONS</th></tr></thead><tbody id="busesTableBody">
     {% for bus in buses %}
     <tr data-bus-id="{{ bus.id }}" data-status="{% if bus.is_active %}active{% else %}inactive{% endif %}">
-        <td><strong>{{ bus.bus_number }}</strong></td><td>{{ bus.capacity }} seats</td>
+        <td><strong>{{ bus.bus_number }}</strong></td>
+        <td>{{ bus.capacity }} seats</td>
         <td><span class="status-badge {% if bus.is_active %}status-active{% else %}status-inactive{% endif %}">{% if bus.is_active %}Active{% else %}Inactive{% endif %}</span></td>
-        <td>{{ bus.driver_name|default:"—" }}</td><td>{{ bus.driver_phone|default:"—" }}</td>
+        <td>{{ bus.driver_name|default:"—" }}</td>
+        <td>{{ bus.driver_phone|default:"—" }}</td>
+        <td>
+            {% with bus.assigned_drivers.first as assigned_driver %}
+                {% if assigned_driver and assigned_driver.assigned_route %}
+                    {{ assigned_driver.assigned_route.code }}
+                {% else %}
+                    —
+                {% endif %}
+            {% endwith %}
+        </td>
         <td>{% if bus.has_ac %}<span class="amenity-badge">❄️ AC</span>{% endif %}{% if bus.has_wifi %}<span class="amenity-badge">📶 WiFi</span>{% endif %}</td>
         <td><div class="action-buttons"><button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')">✏️</button><button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')">🔄</button><button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')">🗑️</button></div></td>
     </tr>
     {% empty %}
-    <tr><td colspan="7" class="empty-row">No buses found. Click "Add New Bus" to create one.</td></tr>
+    <tr><td colspan="8" class="empty-row">No buses found. Click "Add New Bus" to create one.</td></tr>
     {% endfor %}
 </tbody></table></div></div>
 
-<div id="busModal" class="modal-overlay" style="display:none;"><div class="modal"><div class="modal-header"><h2 id="modalTitle">Add New Bus</h2><button class="modal-close" onclick="closeModal()">×</button></div>
-<form id="busForm" onsubmit="return false;">
-    {% csrf_token %}<input type="hidden" id="busId">
-    <div class="form-group"><label>Bus Number *</label><input type="text" id="busNumber" required placeholder="e.g., UAP-104"></div>
-    <div class="form-group"><label>Capacity *</label><input type="number" id="capacity" required placeholder="Number of seats" min="1" max="100"></div>
-    <div class="form-group"><label>Driver Name</label><input type="text" id="driverName" placeholder="Driver's full name"></div>
-    <div class="form-group"><label>Driver Phone</label><input type="tel" id="driverPhone" placeholder="Driver's contact number"></div>
-    <div class="form-group"><label>Amenities</label><div class="checkbox-group"><label><input type="checkbox" id="hasAc"> Air Conditioned (AC)</label><label><input type="checkbox" id="hasWifi"> WiFi Available</label></div></div>
-    <div class="form-group"><label>Status</label><select id="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
-    <div class="modal-actions"><button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button><button type="button" class="btn-save" onclick="saveBus()">Save Bus</button></div>
-</form></div></div>
+<!-- Bus Modal with Driver Dropdown and Route Selection -->
+<div id="busModal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modalTitle">Add New Bus</h2>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <form id="busForm" onsubmit="return false;">
+            {% csrf_token %}
+            <input type="hidden" id="busId">
+
+            <div class="form-group">
+                <label>Bus Number *</label>
+                <input type="text" id="busNumber" required placeholder="e.g., UAP-104">
+            </div>
+
+            <div class="form-group">
+                <label>Capacity *</label>
+                <input type="number" id="capacity" required placeholder="Number of seats" min="1" max="100">
+            </div>
+
+            <!-- Driver Dropdown Section -->
+            <div class="form-group">
+                <label>Select Driver</label>
+                <select id="driverSelect" class="form-select" onchange="updateDriverInfo()">
+                    <option value="">-- Select a Driver --</option>
+                    {% for driver in drivers %}
+                    <option value="{{ driver.id }}"
+                            data-name="{{ driver.user.get_full_name|default:driver.user.username }}"
+                            data-phone="{{ driver.phone }}"
+                            data-route-id="{% if driver.assigned_route %}{{ driver.assigned_route.id }}{% endif %}"
+                            data-route-code="{% if driver.assigned_route %}{{ driver.assigned_route.code }}{% endif %}">
+                        {{ driver.user.get_full_name|default:driver.user.username }} - License: {{ driver.license_number }}
+                        {% if driver.assigned_bus %} (Assigned to: {{ driver.assigned_bus.bus_number }}){% endif %}
+                    </option>
+                    {% empty %}
+                    <option value="" disabled>No drivers available. Please add drivers first.</option>
+                    {% endfor %}
+                    <option value="other">-- Other (Enter Manually) --</option>
+                </select>
+                {% if not drivers %}
+                <small style="color: var(--red); display: block; margin-top: 5px;">
+                    ⚠️ No drivers found. Please add drivers in the Driver Management section first.
+                </small>
+                {% endif %}
+            </div>
+
+            <!-- Route Selection -->
+            <div class="form-group">
+                <label>Assign Route</label>
+                <select id="routeSelect" class="form-select">
+                    <option value="">-- Select a Route --</option>
+                    {% for route in routes %}
+                    <option value="{{ route.id }}">
+                        {{ route.code }}: {{ route.start }} → {{ route.end }} ({{ route.distance_km|default:"N/A" }} km)
+                    </option>
+                    {% endfor %}
+                </select>
+                <small style="color: var(--muted); display: block; margin-top: 5px;">
+                    💡 This will assign the selected route to the driver
+                </small>
+            </div>
+
+            <!-- Manual Driver Entry Fields -->
+            <div id="manualDriverFields" style="display: none;">
+                <div class="form-group">
+                    <label>Driver Name (Manual)</label>
+                    <input type="text" id="driverName" class="form-control" placeholder="Driver's full name">
+                </div>
+                <div class="form-group">
+                    <label>Driver Phone (Manual)</label>
+                    <input type="tel" id="driverPhone" class="form-control" placeholder="Driver's contact number">
+                </div>
+            </div>
+
+            <!-- Hidden field for selected driver ID -->
+            <input type="hidden" id="selectedDriverId" value="">
+
+            <div class="form-group">
+                <label>Amenities</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" id="hasAc"> Air Conditioned (AC)</label>
+                    <label><input type="checkbox" id="hasWifi"> WiFi Available</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Status</label>
+                <select id="isActive">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button type="button" class="btn-save" onclick="saveBus()">Save Bus</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <style>
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:20px}.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px}.stat-label{font-size:13px;color:var(--text-muted);margin-bottom:6px}.stat-value{font-size:28px;font-weight:700}.search-filter-section{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}.search-wrapper{flex:1;min-width:200px;position:relative}.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted)}.search-input{width:100%;padding:10px 14px 10px 42px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.filter-select{padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.btn-add{padding:10px 20px;background:var(--accent-red);color:white;border:none;border-radius:12px;cursor:pointer;font-weight:600}.card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}.table-container{overflow-x:auto}.data-table{width:100%;border-collapse:collapse}.data-table th,.data-table td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--border)}.data-table th{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase}.status-badge{padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600}.status-active{background:rgba(0,200,150,0.12);color:#00c896}.status-inactive{background:rgba(255,71,87,0.12);color:#ff4757}.amenity-badge{font-size:11px;padding:2px 8px;background:rgba(138,99,255,0.1);border-radius:6px;margin-right:4px}.action-buttons{display:flex;gap:6px}.btn-icon{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:14px;transition:transform 0.15s}.btn-icon:hover{transform:scale(1.1)}.btn-edit{background:rgba(138,99,255,0.1);color:var(--accent-purple)}.btn-toggle{background:rgba(0,200,150,0.1);color:var(--accent-green)}.btn-delete{background:rgba(255,71,87,0.1);color:var(--accent-red)}.empty-row{text-align:center;padding:40px!important;color:var(--text-muted)}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;width:90%;max-width:500px;padding:24px}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.modal-close{background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer}.form-group{margin-bottom:16px}.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px}.form-group input,.form-group select{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:14px}.checkbox-group{display:flex;gap:16px;flex-wrap:wrap}.checkbox-group label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}.btn-cancel,.btn-save{padding:10px 20px;border-radius:10px;border:none;font-weight:600;cursor:pointer}.btn-cancel{background:rgba(255,255,255,0.05);color:var(--text-primary)}.btn-save{background:var(--accent-red);color:white}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:20px}.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px}.stat-label{font-size:13px;color:var(--text-muted);margin-bottom:6px}.stat-value{font-size:28px;font-weight:700}.search-filter-section{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}.search-wrapper{flex:1;min-width:200px;position:relative}.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted)}.search-input{width:100%;padding:10px 14px 10px 42px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.filter-select{padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-size:14px}.btn-add{padding:10px 20px;background:var(--accent-red);color:white;border:none;border-radius:12px;cursor:pointer;font-weight:600}.card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}.table-container{overflow-x:auto}.data-table{width:100%;border-collapse:collapse}.data-table th,.data-table td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--border)}.data-table th{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase}.status-badge{padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600}.status-active{background:rgba(0,200,150,0.12);color:#00c896}.status-inactive{background:rgba(255,71,87,0.12);color:#ff4757}.amenity-badge{font-size:11px;padding:2px 8px;background:rgba(138,99,255,0.1);border-radius:6px;margin-right:4px}.action-buttons{display:flex;gap:6px}.btn-icon{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:14px;transition:transform 0.15s}.btn-icon:hover{transform:scale(1.1)}.btn-edit{background:rgba(138,99,255,0.1);color:var(--accent-purple)}.btn-toggle{background:rgba(0,200,150,0.1);color:var(--accent-green)}.btn-delete{background:rgba(255,71,87,0.1);color:var(--accent-red)}.empty-row{text-align:center;padding:40px!important;color:var(--text-muted)}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;width:90%;max-width:550px;padding:24px;max-height:90vh;overflow-y:auto}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.modal-close{background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer}.form-group{margin-bottom:16px}.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px}.form-group input,.form-group select{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:14px}.form-select{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:14px;cursor:pointer}.form-select:focus{outline:none;border-color:var(--accent-red)}.checkbox-group{display:flex;gap:16px;flex-wrap:wrap}.checkbox-group label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}.btn-cancel,.btn-save{padding:10px 20px;border-radius:10px;border:none;font-weight:600;cursor:pointer}.btn-cancel{background:rgba(255,255,255,0.05);color:var(--text-primary)}.btn-save{background:var(--accent-red);color:white}#manualDriverFields{margin-top:16px;padding-top:16px;border-top:1px dashed var(--border)}.form-control{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:14px}
 </style>
 
 <script>
@@ -67,7 +168,6 @@ function getCSRFToken() {
         var tokenInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
         if (tokenInput) cookieValue = tokenInput.value;
     }
-    console.log('CSRF Token:', cookieValue ? 'Found' : 'NOT FOUND');
     return cookieValue;
 }
 
@@ -84,10 +184,65 @@ function filterTable() {
     });
 }
 
+// Update driver info when selection changes
+function updateDriverInfo() {
+    const select = document.getElementById('driverSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const driverId = select.value;
+    const manualFields = document.getElementById('manualDriverFields');
+    const driverNameInput = document.getElementById('driverName');
+    const driverPhoneInput = document.getElementById('driverPhone');
+    const hiddenDriverId = document.getElementById('selectedDriverId');
+    const routeSelect = document.getElementById('routeSelect');
+
+    if (driverId === 'other') {
+        // Show manual entry fields
+        manualFields.style.display = 'block';
+        driverNameInput.required = true;
+        driverPhoneInput.required = true;
+        hiddenDriverId.value = '';
+        driverNameInput.value = '';
+        driverPhoneInput.value = '';
+        // Don't auto-select route
+    } else if (driverId && driverId !== '') {
+        // Selected a driver from dropdown
+        manualFields.style.display = 'none';
+        const driverName = selectedOption.getAttribute('data-name');
+        const driverPhone = selectedOption.getAttribute('data-phone');
+        const driverRouteId = selectedOption.getAttribute('data-route-id');
+
+        // Pre-fill the manual fields (hidden but ready for form submission)
+        driverNameInput.value = driverName;
+        driverPhoneInput.value = driverPhone;
+        driverNameInput.required = false;
+        driverPhoneInput.required = false;
+        hiddenDriverId.value = driverId;
+
+        // Auto-select the driver's existing route if available
+        if (driverRouteId && driverRouteId !== '') {
+            routeSelect.value = driverRouteId;
+        }
+    } else {
+        // No driver selected
+        manualFields.style.display = 'none';
+        driverNameInput.value = '';
+        driverPhoneInput.value = '';
+        driverNameInput.required = false;
+        driverPhoneInput.required = false;
+        hiddenDriverId.value = '';
+    }
+}
+
 function openAddBusModal() {
     document.getElementById('modalTitle').textContent = 'Add New Bus';
     document.getElementById('busForm').reset();
     document.getElementById('busId').value = '';
+    document.getElementById('selectedDriverId').value = '';
+    document.getElementById('driverSelect').value = '';
+    document.getElementById('routeSelect').value = '';
+    document.getElementById('manualDriverFields').style.display = 'none';
+    document.getElementById('driverName').value = '';
+    document.getElementById('driverPhone').value = '';
     document.getElementById('busModal').style.display = 'flex';
 }
 
@@ -103,8 +258,48 @@ function editBus(busId) {
             document.getElementById('busId').value = bus.id;
             document.getElementById('busNumber').value = bus.bus_number;
             document.getElementById('capacity').value = bus.capacity;
-            document.getElementById('driverName').value = bus.driver_name || '';
-            document.getElementById('driverPhone').value = bus.driver_phone || '';
+
+            // Set driver selection
+            if (bus.driver_id) {
+                // Find and select the driver in dropdown
+                const select = document.getElementById('driverSelect');
+                let found = false;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value == bus.driver_id) {
+                        select.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    document.getElementById('selectedDriverId').value = bus.driver_id;
+                    document.getElementById('manualDriverFields').style.display = 'none';
+                    document.getElementById('driverName').value = bus.driver_name;
+                    document.getElementById('driverPhone').value = bus.driver_phone;
+
+                    // Trigger updateDriverInfo to auto-select route
+                    updateDriverInfo();
+                } else {
+                    // Driver not found in dropdown (maybe inactive)
+                    document.getElementById('driverSelect').value = 'other';
+                    document.getElementById('manualDriverFields').style.display = 'block';
+                    document.getElementById('driverName').value = bus.driver_name;
+                    document.getElementById('driverPhone').value = bus.driver_phone;
+                    document.getElementById('selectedDriverId').value = '';
+                }
+            } else if (bus.driver_name) {
+                // Has manual driver entry
+                document.getElementById('driverSelect').value = 'other';
+                document.getElementById('manualDriverFields').style.display = 'block';
+                document.getElementById('driverName').value = bus.driver_name;
+                document.getElementById('driverPhone').value = bus.driver_phone;
+                document.getElementById('selectedDriverId').value = '';
+            } else {
+                document.getElementById('driverSelect').value = '';
+                document.getElementById('manualDriverFields').style.display = 'none';
+                document.getElementById('selectedDriverId').value = '';
+            }
+
             document.getElementById('hasAc').checked = bus.has_ac;
             document.getElementById('hasWifi').checked = bus.has_wifi;
             document.getElementById('isActive').value = bus.is_active ? 'true' : 'false';
@@ -123,57 +318,71 @@ function saveBus() {
     var busId = document.getElementById('busId').value;
     var url = busId ? '/admin_page/api/update-bus/' + busId + '/' : '/admin_page/api/add-bus/';
     var method = busId ? 'PUT' : 'POST';
-    
+
     var busNumber = document.getElementById('busNumber').value.trim();
     var capacity = parseInt(document.getElementById('capacity').value);
-    
+
     if (!busNumber) { showToast('Bus Number is required', true); return; }
     if (!capacity || capacity < 1) { showToast('Valid capacity is required', true); return; }
-    
+
+    // Get driver info
+    var selectedDriverId = document.getElementById('selectedDriverId').value;
+    var driverName = document.getElementById('driverName').value.trim();
+    var driverPhone = document.getElementById('driverPhone').value.trim();
+    var selectedRouteId = document.getElementById('routeSelect').value;
+
+    // If a driver was selected from dropdown, use that driver's info
+    if (selectedDriverId) {
+        const select = document.getElementById('driverSelect');
+        const selectedOption = select.options[select.selectedIndex];
+        driverName = selectedOption.getAttribute('data-name');
+        driverPhone = selectedOption.getAttribute('data-phone');
+    }
+
     var formData = {
         bus_number: busNumber,
         capacity: capacity,
-        driver_name: document.getElementById('driverName').value.trim(),
-        driver_phone: document.getElementById('driverPhone').value.trim(),
+        driver_id: selectedDriverId || null,
+        driver_name: driverName,
+        driver_phone: driverPhone,
+        route_id: selectedRouteId || null,
         has_ac: document.getElementById('hasAc').checked,
         has_wifi: document.getElementById('hasWifi').checked,
         is_active: document.getElementById('isActive').value === 'true'
     };
-    
+
     var csrfToken = getCSRFToken();
-    console.log('Saving bus...', formData);
-    console.log('CSRF Token found:', csrfToken ? 'YES' : 'NO');
-    
+
     if (!csrfToken) {
         showToast('CSRF token not found. Please refresh the page.', true);
         return;
     }
-    
+
+    showToast('Saving bus...', false);
+
     fetch(url, {
         method: method,
-        headers: { 
-            'Content-Type': 'application/json', 
-            'X-CSRFToken': csrfToken 
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify(formData)
     })
-    .then(function(res) { 
-        console.log('Response status:', res.status);
-        return res.json(); 
+    .then(function(res) {
+        return res.json();
     })
     .then(function(data) {
-        console.log('Response data:', data);
-        if (data.success) { 
-            showToast(data.message || 'Bus saved!'); 
-            closeModal(); 
-            setTimeout(function() { location.reload(); }, 1000); 
-        } else { 
-            showToast(data.message || 'Failed to save bus', true); 
+        if (data.success) {
+            showToast(data.message || 'Bus saved successfully!');
+            closeModal();
+            setTimeout(function() { location.reload(); }, 1500);
+        } else {
+            showToast(data.message || 'Failed to save bus', true);
         }
     })
-    .catch(function(error) { 
+    .catch(function(error) {
         console.error('Save bus error:', error);
-        showToast('An error occurred while saving', true); 
+        showToast('An error occurred while saving', true);
     });
 }
 
@@ -183,7 +392,10 @@ function toggleBusStatus(busId) {
         headers: { 'X-CSRFToken': getCSRFToken() }
     })
     .then(function(res) { return res.json(); })
-    .then(function(data) { showToast(data.message); setTimeout(function() { location.reload(); }, 1000); })
+    .then(function(data) {
+        showToast(data.message);
+        setTimeout(function() { location.reload(); }, 1000);
+    })
     .catch(function() { showToast('Failed to toggle status', true); });
 }
 
@@ -194,11 +406,16 @@ function deleteBus(busId) {
         headers: { 'X-CSRFToken': getCSRFToken() }
     })
     .then(function(res) { return res.json(); })
-    .then(function(data) { showToast(data.message); if (data.success) setTimeout(function() { location.reload(); }, 1000); })
+    .then(function(data) {
+        showToast(data.message);
+        if (data.success) setTimeout(function() { location.reload(); }, 1000);
+    })
     .catch(function() { showToast('Failed to delete bus', true); });
 }
 
-function closeModal() { document.getElementById('busModal').style.display = 'none'; }
+function closeModal() {
+    document.getElementById('busModal').style.display = 'none';
+}
 
 function showToast(msg, isError) {
     isError = isError || false;
@@ -210,6 +427,29 @@ function showToast(msg, isError) {
     setTimeout(function() { toast.style.transform = 'translateY(60px)'; toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 250); }, 2800);
 }
 
-document.getElementById('busModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+// Initialize form on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up driver selection change handler
+    const driverSelect = document.getElementById('driverSelect');
+    if (driverSelect) {
+        driverSelect.addEventListener('change', updateDriverInfo);
+    }
+
+    // Add click outside modal to close
+    const modal = document.getElementById('busModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+    }
+});
+
+// Allow Enter key to submit in manual fields
+document.getElementById('driverName')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') saveBus();
+});
+document.getElementById('driverPhone')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') saveBus();
+});
 </script>
 {% endblock %}

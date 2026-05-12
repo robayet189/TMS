@@ -60,38 +60,41 @@
 
 <script>
 // Load buses into dropdown with Promise support
-function loadBusesDropdown(){
-    const busSelect=document.getElementById('bus');
-    busSelect.innerHTML='<option value="">Loading buses...</option>';
-    return fetch('/admin_page/api/get-buses/',{headers:{'X-CSRFToken':getCookie('csrftoken')}})
-    .then(res=>res.json())
-    .then(data=>{
-        if(data.success){
-            busSelect.innerHTML='<option value="">Select a Bus</option>';
-            if(data.buses.length===0){busSelect.innerHTML='<option value="">No buses available</option>';return;}
-            data.buses.forEach(bus=>{
-                const option=document.createElement('option');
-                option.value=bus.id;
-                option.textContent=`${bus.bus_number} (${bus.capacity} seats)${bus.is_active?'':' (Inactive)'}`;
-                if(!bus.is_active){option.disabled=true;option.style.color='var(--text-muted)';}
+function loadBusesDropdown() {
+    const busSelect = document.getElementById('bus');
+    busSelect.innerHTML = '<option value="">Loading buses...</option>';
+
+    return fetch('/admin_page/api/get-buses/', {
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            busSelect.innerHTML = '<option value="">Select a Bus</option>';
+            if(data.buses.length === 0) {
+                busSelect.innerHTML = '<option value="">No buses available</option>';
+                return;
+            }
+            data.buses.forEach(bus => {
+                const option = document.createElement('option');
+                option.value = bus.id;
+                option.textContent = `${bus.bus_number} (${bus.capacity} seats)${bus.is_active ? '' : ' (Inactive)'}`;
+                option.dataset.capacity = bus.capacity;  // ✅ Store capacity for auto-fill
+                if(!bus.is_active) {
+                    option.disabled = true;
+                    option.style.color = 'var(--text-muted)';
+                }
                 busSelect.appendChild(option);
             });
+        } else {
+            busSelect.innerHTML = '<option value="">Error loading buses</option>';
         }
     })
-    .catch(error=>{console.error('Error loading buses:',error);busSelect.innerHTML='<option value="">Error</option>';});
+    .catch(error => {
+        console.error('Error loading buses:', error);
+        busSelect.innerHTML = '<option value="">Error loading buses</option>';
+    });
 }
-
-// Auto-fill seats when bus selected
-document.addEventListener('DOMContentLoaded',function(){
-    const busSelect=document.getElementById('bus');
-    const seatsInput=document.getElementById('availableSeats');
-    if(busSelect&&seatsInput){
-        busSelect.addEventListener('change',function(){
-            const match=this.options[this.selectedIndex].textContent.match(/\((\d+)\s*seats?\)/);
-            if(match&&match[1])seatsInput.value=match[1];
-        });
-    }
-});
 
 function filterTable(){
     const q=document.getElementById('searchInput').value.toLowerCase();
@@ -142,43 +145,87 @@ function editSchedule(scheduleId){
 }
 
 // CRITICAL FIX: saveSchedule with driver field properly handled
-function saveSchedule(e){
+function saveSchedule(e) {
     e.preventDefault();
-    const scheduleId=document.getElementById('scheduleId').value;
-    const url=scheduleId?`/admin_page/api/update-schedule/${scheduleId}/`:'/admin_page/api/add-schedule/';
-    const method=scheduleId?'PUT':'POST';
-    
-    // Get driver value - handle empty string
-    const driverSelect=document.getElementById('driver');
-    const driverValue=driverSelect&&driverSelect.value?parseInt(driverSelect.value):null;
-    
-    const formData={
-        route:parseInt(document.getElementById('route').value),
-        bus:parseInt(document.getElementById('bus').value),
-        driver: document.getElementById('driver')?.value ? parseInt(document.getElementById('driver').value) : null,
-        travel_date:document.getElementById('travelDate').value,
-        departure_time:document.getElementById('departureTime').value,
-        arrival_time:document.getElementById('arrivalTime').value||null,
-        fare:parseFloat(document.getElementById('fare').value),
-        available_seats:parseInt(document.getElementById('availableSeats').value)||null,
-        is_active:document.getElementById('isActive').value==='true'
+
+    // Get values with proper validation
+    const routeId = document.getElementById('route').value;
+    const busId = document.getElementById('bus').value;
+    const travelDate = document.getElementById('travelDate').value;
+    const departureTime = document.getElementById('departureTime').value;
+    const fare = parseFloat(document.getElementById('fare').value);
+
+    // ✅ FIX: Get available seats - if empty, use bus capacity
+    let availableSeats = document.getElementById('availableSeats').value;
+    if (!availableSeats || availableSeats === '') {
+        // Try to get bus capacity from selected bus
+        const busSelect = document.getElementById('bus');
+        const selectedOption = busSelect.options[busSelect.selectedIndex];
+        const capacity = selectedOption?.getAttribute('data-capacity');
+        availableSeats = capacity || 40;  // Default to 40 if no capacity found
+    }
+
+    // Validate required fields
+    if (!routeId) {
+        showToast('Please select a route', true);
+        return;
+    }
+    if (!busId) {
+        showToast('Please select a bus', true);
+        return;
+    }
+    if (!travelDate) {
+        showToast('Please select travel date', true);
+        return;
+    }
+    if (!departureTime) {
+        showToast('Please select departure time', true);
+        return;
+    }
+    if (!fare || isNaN(fare) || fare <= 0) {
+        showToast('Please enter a valid fare', true);
+        return;
+    }
+
+    const formData = {
+        route: parseInt(routeId),
+        bus: parseInt(busId),
+        travel_date: travelDate,
+        departure_time: departureTime,
+        arrival_time: document.getElementById('arrivalTime').value || null,
+        fare: fare,
+        available_seats: parseInt(availableSeats),
+        is_active: document.getElementById('isActive').value === 'true'
     };
-    
-    console.log('SAVING SCHEDULE - FormData:',JSON.stringify(formData,null,2));
-    console.log('Driver value being sent:',formData.driver);
-    
-    fetch(url,{
-        method:method,
-        headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
-        body:JSON.stringify(formData)
+
+    console.log('Saving schedule:', formData);
+
+    const scheduleId = document.getElementById('scheduleId').value;
+    const url = scheduleId ? `/admin_page/api/update-schedule/${scheduleId}/` : '/admin_page/api/add-schedule/';
+    const method = scheduleId ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(formData)
     })
-    .then(res=>res.json())
-    .then(data=>{
-        console.log('SAVE RESPONSE:',data);
-        if(data.success){showToast(data.message);closeModal();setTimeout(()=>location.reload(),1000);}
-        else{showToast(data.message||'Failed to save',true);}
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            showToast(data.message || 'Schedule saved successfully!');
+            closeModal();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Failed to save schedule', true);
+        }
     })
-    .catch(error=>{console.error('Error:',error);showToast('Error saving schedule',true);});
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while saving', true);
+    });
 }
 
 function toggleScheduleStatus(scheduleId){

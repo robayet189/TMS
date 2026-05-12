@@ -100,11 +100,26 @@ def admin_update_booking_status(request, booking_id):
         return JsonResponse({'success': False, 'message': 'Invalid status'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
+
+# In views_admin.py - Update the admin_fleet function
 @login_required
 @user_passes_test(is_admin)
 def admin_fleet(request):
     buses = Bus.objects.all().order_by('bus_number')
-    return render(request, 'app1/admin/admin_fleet.html', {'active': 'fleet', 'buses': buses, 'total_buses': buses.count(), 'active_buses': buses.filter(is_active=True).count(), 'inactive_buses': buses.filter(is_active=False).count()})
+    drivers = Driver.objects.filter(is_approved=True, is_active=True).select_related('user')
+    routes = Route.objects.all().order_by('code')  # ✅ Add this
+
+    context = {
+        'active': 'fleet',
+        'buses': buses,
+        'total_buses': buses.count(),
+        'active_buses': buses.filter(is_active=True).count(),
+        'inactive_buses': buses.filter(is_active=False).count(),
+        'maintenance_buses': 0,
+        'drivers': drivers,
+        'routes': routes,  # ✅ Add this
+    }
+    return render(request, 'app1/admin/admin_fleet.html', context)
 
 @login_required
 @user_passes_test(is_admin)
@@ -179,7 +194,27 @@ def admin_add_schedule(request):
 def admin_get_bus(request, bus_id):
     if request.method == 'GET':
         bus = get_object_or_404(Bus, id=bus_id)
-        return JsonResponse({'success': True, 'bus': {'id': bus.id, 'bus_number': bus.bus_number, 'capacity': bus.capacity, 'driver_name': bus.driver_name or '', 'driver_phone': bus.driver_phone or '', 'has_ac': bus.has_ac, 'has_wifi': bus.has_wifi, 'is_active': bus.is_active}})
+
+        # Find which driver is assigned to this bus
+        driver_id = None
+        driver = Driver.objects.filter(assigned_bus=bus).first()
+        if driver:
+            driver_id = driver.id
+
+        return JsonResponse({
+            'success': True,
+            'bus': {
+                'id': bus.id,
+                'bus_number': bus.bus_number,
+                'capacity': bus.capacity,
+                'driver_id': driver_id,  # Driver ID from Driver model
+                'driver_name': bus.driver_name or '',
+                'driver_phone': bus.driver_phone or '',
+                'has_ac': bus.has_ac,
+                'has_wifi': bus.has_wifi,
+                'is_active': bus.is_active
+            }
+        })
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
 @login_required
@@ -189,35 +224,143 @@ def admin_get_buses(request):
         return JsonResponse({'success': True, 'buses': list(Bus.objects.all().values('id', 'bus_number', 'capacity', 'is_active'))})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
+
 @login_required
 @user_passes_test(is_admin)
 def admin_add_bus(request):
+    """Add new bus and automatically assign to driver if selected"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            if Bus.objects.filter(bus_number=data.get('bus_number')).exists(): return JsonResponse({'success': False, 'message': 'Bus number already exists'})
-            bus = Bus.objects.create(bus_number=data['bus_number'], capacity=data.get('capacity', 40), driver_name=data.get('driver_name', ''), driver_phone=data.get('driver_phone', ''), has_ac=data.get('has_ac', False), has_wifi=data.get('has_wifi', False), is_active=data.get('is_active', True))
-            return JsonResponse({'success': True, 'message': 'Bus added', 'bus_id': bus.id})
-        except Exception as e: return JsonResponse({'success': False, 'message': str(e)})
+
+            if Bus.objects.filter(bus_number=data.get('bus_number')).exists():
+                return JsonResponse({'success': False, 'message': 'Bus number already exists'})
+
+            driver_id = data.get('driver_id')
+            driver_name = data.get('driver_name', '')
+            driver_phone = data.get('driver_phone', '')
+            route_id = data.get('route_id')
+
+            # Create the bus first
+            bus = Bus.objects.create(
+                bus_number=data['bus_number'],
+                capacity=data.get('capacity', 40),
+                driver_name=driver_name,
+                driver_phone=driver_phone,
+                has_ac=data.get('has_ac', False),
+                has_wifi=data.get('has_wifi', False),
+                is_active=data.get('is_active', True)
+            )
+
+            # Handle driver assignment
+            if driver_id and driver_id not in ['', 'null', 'none']:
+                try:
+                    driver = Driver.objects.get(id=int(driver_id))
+
+                    # Update driver's assigned bus
+                    driver.assigned_bus = bus
+
+                    # Update driver's assigned route if provided
+                    if route_id and route_id not in ['', 'null', 'none']:
+                        try:
+                            route = Route.objects.get(id=int(route_id))
+                            driver.assigned_route = route
+                        except Route.DoesNotExist:
+                            pass
+
+                    driver.save()
+
+                    # Update bus with driver info from database
+                    bus.driver_name = driver.user.get_full_name() or driver.user.username
+                    bus.driver_phone = driver.phone
+                    bus.save()
+
+                    print(f"✅ Created bus {bus.bus_number} and assigned to driver {driver.user.username}")
+
+                except Driver.DoesNotExist:
+                    print(f"⚠️ Driver ID {driver_id} not found")
+
+            return JsonResponse({'success': True, 'message': 'Bus added successfully!', 'bus_id': bus.id})
+
+        except Exception as e:
+            print(f"Error in admin_add_bus: {str(e)}")
+            return JsonResponse({'success': False, 'message': str(e)})
+
     return JsonResponse({'success': False, 'message': 'Invalid method'})
+
 
 @login_required
 @user_passes_test(is_admin)
 def admin_update_bus(request, bus_id):
+    """Update bus and automatically sync driver's assigned bus/route"""
     if request.method in ['POST', 'PUT']:
         try:
             bus = get_object_or_404(Bus, id=bus_id)
             data = json.loads(request.body)
+
+            # Get the old driver assigned to this bus (if any)
+            old_driver_id = bus.driver_id
+
+            # Get new driver info from request
+            driver_id = data.get('driver_id')
+            driver_name = data.get('driver_name', '')
+            driver_phone = data.get('driver_phone', '')
+            route_id = data.get('route_id')  # Get route_id if provided
+
+            # Update bus info
             bus.bus_number = data.get('bus_number', bus.bus_number)
             bus.capacity = data.get('capacity', bus.capacity)
-            bus.driver_name = data.get('driver_name', bus.driver_name)
-            bus.driver_phone = data.get('driver_phone', bus.driver_phone)
             bus.has_ac = data.get('has_ac', bus.has_ac)
             bus.has_wifi = data.get('has_wifi', bus.has_wifi)
             bus.is_active = data.get('is_active', bus.is_active)
+
+            # Handle driver assignment
+            if driver_id and driver_id not in ['', 'null', 'none']:
+                try:
+                    driver = Driver.objects.get(id=int(driver_id))
+                    driver_name = driver.user.get_full_name() or driver.user.username
+                    driver_phone = driver.phone
+
+                    # ✅ CRITICAL: Update driver's assigned bus
+                    driver.assigned_bus = bus
+
+                    # ✅ Also assign route if provided
+                    if route_id and route_id not in ['', 'null', 'none']:
+                        try:
+                            route = Route.objects.get(id=int(route_id))
+                            driver.assigned_route = route
+                            print(f"✅ Assigned route {route.code} to driver {driver.user.username}")
+                        except Route.DoesNotExist:
+                            print(f"⚠️ Route ID {route_id} not found")
+
+                    driver.save()
+                    print(f"✅ Assigned bus {bus.bus_number} to driver {driver.user.username}")
+
+                except Driver.DoesNotExist:
+                    print(f"⚠️ Driver ID {driver_id} not found")
+
+            else:
+                # No driver selected - clear assignment from old driver if exists
+                if old_driver_id:
+                    try:
+                        old_driver = Driver.objects.get(id=old_driver_id)
+                        old_driver.assigned_bus = None
+                        old_driver.save()
+                        print(f"⚠️ Cleared bus assignment from driver {old_driver.user.username}")
+                    except Driver.DoesNotExist:
+                        pass
+
+            # Update bus with driver info
+            bus.driver_name = driver_name
+            bus.driver_phone = driver_phone
             bus.save()
-            return JsonResponse({'success': True, 'message': 'Bus updated'})
-        except Exception as e: return JsonResponse({'success': False, 'message': str(e)})
+
+            return JsonResponse({'success': True, 'message': 'Bus updated and driver assignment synced!'})
+
+        except Exception as e:
+            print(f"Error in admin_update_bus: {str(e)}")
+            return JsonResponse({'success': False, 'message': str(e)})
+
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
 @login_required
@@ -238,6 +381,38 @@ def admin_delete_bus(request, bus_id):
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
 # ==================== ROUTE API ====================
+
+@login_required
+@user_passes_test(is_admin)
+def admin_get_routes(request):
+    """Get all routes as JSON for AJAX requests"""
+    if request.method == 'GET':
+        routes = Route.objects.all().values('id', 'code', 'start', 'end', 'distance_km')
+        return JsonResponse({'success': True, 'routes': list(routes)})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_get_route(request, route_id):
+    """Get a single route by ID for editing"""
+    if request.method == 'GET':
+        try:
+            route = get_object_or_404(Route, id=route_id)
+            return JsonResponse({
+                'success': True,
+                'route': {
+                    'id': route.id,
+                    'code': route.code,
+                    'start': route.start,
+                    'end': route.end,
+                    'distance_km': float(route.distance_km) if route.distance_km else None
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
 @login_required
 @user_passes_test(is_admin)
 def admin_add_route(request):
@@ -266,13 +441,39 @@ def admin_update_route(request, route_id):
         return JsonResponse({'success': True, 'message': 'Route updated'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
+
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_route(request, route_id):
     if request.method in ['POST', 'DELETE']:
         route = get_object_or_404(Route, id=route_id)
-        if route.schedules.exists(): return JsonResponse({'success': False, 'message': 'Route has schedules'})
-        route.delete(); return JsonResponse({'success': True, 'message': 'Route deleted'})
+
+        # Check for any schedules (active or inactive)
+        if route.schedules.exists():
+            return JsonResponse({
+                'success': False,
+                'message': f'Cannot delete route {route.code} because it has {route.schedules.count()} schedule(s). Delete or deactivate all schedules first.'
+            })
+
+        route.delete()
+        return JsonResponse({'success': True, 'message': f'Route {route.code} deleted successfully!'})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+@login_required
+@user_passes_test(is_admin)
+def admin_toggle_route_status(request, route_id):
+    """Toggle route active/inactive status"""
+    if request.method == 'POST':
+        try:
+            route = get_object_or_404(Route, id=route_id)
+            route.is_active = not route.is_active
+            route.save()
+            return JsonResponse({
+                'success': True,
+                'message': f'Route {route.code} {"activated" if route.is_active else "deactivated"}'
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
 # ==================== SCHEDULE API ====================
