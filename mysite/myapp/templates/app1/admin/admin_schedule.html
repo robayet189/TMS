@@ -155,7 +155,7 @@ function saveSchedule(e){
     const formData={
         route:parseInt(document.getElementById('route').value),
         bus:parseInt(document.getElementById('bus').value),
-        driver:driverValue,  // Integer or null
+        driver: document.getElementById('driver')?.value ? parseInt(document.getElementById('driver').value) : null,
         travel_date:document.getElementById('travelDate').value,
         departure_time:document.getElementById('departureTime').value,
         arrival_time:document.getElementById('arrivalTime').value||null,

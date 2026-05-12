@@ -274,10 +274,10 @@
             {% if today_trips %}{% for trip in today_trips %}<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:16px;font-weight:600;">{{ trip.route.start }} → {{ trip.route.end }}</div><div style="color:var(--muted);">🕐 {{ trip.departure_time|time:"g:i A" }} | 📅 {{ trip.travel_date|date:"M d, Y" }} | 🚌 {{ trip.bus.bus_number }}</div></div><span class="badge badge-{% if trip.status == 'pending' %}gold{% elif trip.status == 'ongoing' %}blue{% else %}green{% endif %}">{{ trip.get_status_display }}</span></div></div>{% endfor %}{% else %}<div class="card"><p style="text-align:center;color:var(--muted);">📅 No schedules for today</p></div>{% endif %}
         </section>
 
-        <!-- PASSENGERS SECTION -->
+        <!-- PASSENGERS SECTION - REAL DATA FROM DATABASE -->
         <section id="sec-passengers" class="section">
             <div class="page-header"><div><div class="page-title">👥 Passengers</div><div class="page-subtitle">Today's passenger list (Total: <span id="totalPassengers">0</span>)</div></div></div>
-            <div class="card"><table class="data-table" style="width:100%;"><thead><tr><th>🎫 SEAT</th><th>👤 NAME</th><th>🏷️ TYPE</th><th>🆔 ID</th><th>📍 STOP</th><th>✅ STATUS</th></tr></thead><tbody id="passengerTable"></tbody></table></div>
+            <div class="card"><table class="data-table" style="width:100%;"><thead><tr><th>🎫 SEAT</th><th>👤 NAME</th><th>🏷️ TYPE</th><th>🆔 ID</th><th>📍 STOP</th><th>✅ STATUS</th></tr></thead><tbody id="passengerTable"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted);">Loading passengers...</td></tr></tbody></table></div>
         </section>
 
         <!-- TRIP STATUS SECTION -->
@@ -300,10 +300,10 @@
             <div class="card"><div class="chat-box" id="chatBox"><div class="chat-msg recv"><div class="chat-avatar-small" style="background:rgba(30,144,255,0.15);color:var(--blue);">AD</div><div><div class="chat-bubble">Hello {{ request.user.first_name|default:"Driver" }}, drive safe today! 🚌</div><div class="chat-time">8:00 AM</div></div></div></div><div class="chat-input-row"><input type="text" id="chatInput" class="chat-input" placeholder="Type your message..."><button class="btn btn-primary" onclick="sendChat()">📨 Send</button></div></div>
         </section>
 
-        <!-- ALERTS SECTION -->
+        <!-- ALERTS SECTION - REAL SAVE TO DATABASE -->
         <section id="sec-alerts" class="section">
             <div class="page-header"><div><div class="page-title">🚨 Emergency Alerts</div><div class="page-subtitle">Send emergency notification to admin</div></div></div>
-            <button class="emergency-btn" onclick="sendEmergencyAlert()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SEND EMERGENCY ALERT</button>
+            <button class="emergency-btn" id="emergencyBtn" onclick="sendEmergencyAlert()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SEND EMERGENCY ALERT</button>
             <div class="card"><div class="card-title"><span class="dot"></span>Recent Alerts</div><p style="color:var(--muted);text-align:center;padding:20px;">🟢 All clear! No recent emergency alerts.</p></div>
         </section>
 
@@ -317,18 +317,17 @@
 </div>
 
 <div class="toast" id="toast"><span class="toast-icon" id="toastIcon">✅</span><span id="toastMsg">Action completed successfully!</span></div>
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:85;"></div>
 
 <script>
     // Theme toggle
-    const themeToggle = document.getElementById('themeToggle');
-    const toggleIcon = document.getElementById('toggleIcon');
-    const html = document.documentElement;
-    const savedTheme = localStorage.getItem('driverTheme') || 'dark';
+    var themeToggle = document.getElementById('themeToggle');
+    var toggleIcon = document.getElementById('toggleIcon');
+    var html = document.documentElement;
+    var savedTheme = localStorage.getItem('driverTheme') || 'dark';
     html.setAttribute('data-theme', savedTheme);
     toggleIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-    themeToggle.addEventListener('click', () => {
-        const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    themeToggle.addEventListener('click', function() {
+        var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-theme', next);
         localStorage.setItem('driverTheme', next);
         toggleIcon.textContent = next === 'dark' ? '☀️' : '🌙';
@@ -336,106 +335,170 @@
 
     // Navigation function
     function navigate(sectionId) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        const targetSection = document.getElementById('sec-' + sectionId);
+        document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+        var targetSection = document.getElementById('sec-' + sectionId);
         if (targetSection) targetSection.classList.add('active');
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        const btn = document.querySelector(`[onclick="navigate('${sectionId}')"]`);
+        document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+        var btn = document.querySelector('[onclick="navigate(\'' + sectionId + '\')"]');
         if (btn) btn.classList.add('active');
-        if (window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').style.display = 'none'; }
+        if (window.innerWidth <= 768) {
+            var sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.remove('open');
+        }
         if (sectionId === 'passengers') loadPassengers();
-        if (sectionId === 'chat') { const chatBox = document.getElementById('chatBox'); if (chatBox) chatBox.scrollTop = chatBox.scrollHeight; }
+        if (sectionId === 'chat') { var chatBox = document.getElementById('chatBox'); if (chatBox) chatBox.scrollTop = chatBox.scrollHeight; }
     }
 
-    // Toggle sidebar for mobile
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        const isOpen = sidebar.classList.contains('open');
-        if (isOpen) { sidebar.classList.remove('open'); overlay.style.display = 'none'; }
-        else { sidebar.classList.add('open'); overlay.style.display = 'block'; }
-    }
-
-    // Passenger data
-    const passengers = [
-        {seat:'A-01', name:'Shahrin Rahman', type:'Student', id:'2021-1-60-045', stop:'Mirpur 10', boarded:false},
-        {seat:'A-02', name:'Rahim Uddin', type:'Student', id:'2022-1-60-028', stop:'Mirpur 10', boarded:false},
-        {seat:'B-01', name:'Mr. Mizanur Haque', type:'Teacher', id:'CSE Dept.', stop:'Mirpur 10', boarded:false},
-        {seat:'C-01', name:'Farhan Ahmed', type:'Employee', id:'Admin Office', stop:'Mirpur 10', boarded:false},
-    ];
-    function renderPassengers() {
-        const tbody = document.getElementById('passengerTable');
+    // =============================================
+    // REAL PASSENGER DATA FROM DATABASE VIA API
+    // =============================================
+    function loadPassengers() {
+        var tbody = document.getElementById('passengerTable');
         if (!tbody) return;
-        tbody.innerHTML = passengers.map((p, i) => `<tr><td><span class="badge badge-gold">${p.seat}</span></td><td>${p.name}</td><td><span class="badge badge-${p.type==='Student'?'blue':p.type==='Teacher'?'green':'gold'}">${p.type}</span></td><td>${p.id}</td><td>${p.stop}</td><td><button class="btn ${p.boarded?'btn-green':'btn-outline'}" style="padding:4px 12px;font-size:12px;" onclick="toggleBoard(${i})">${p.boarded?'✅ Boarded':'⬜ Mark'}</button></td></tr>`).join('');
-        document.querySelectorAll('#passengerCount,#passengerStat,#seatCount,#totalPassengers').forEach(el => { if(el) el.textContent = passengers.length; });
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted);">Loading passengers...</td></tr>';
+        
+        fetch('/driver/api/passengers/', {
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data && data.success && data.passengers && data.passengers.length > 0) {
+                renderPassengerTable(data.passengers);
+                var count = data.passengers.length;
+                updateCounts(count);
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted);">No passengers booked for today</td></tr>';
+                updateCounts(0);
+            }
+        })
+        .catch(function() {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted);">Failed to load passengers</td></tr>';
+        });
     }
-    function toggleBoard(i) { passengers[i].boarded = !passengers[i].boarded; renderPassengers(); showToast(passengers[i].boarded?'✅ Passenger boarded!':'🔄 Boarding undone'); }
-    function loadPassengers() { renderPassengers(); }
 
-    // Chat
+    function renderPassengerTable(passengerList) {
+        var tbody = document.getElementById('passengerTable');
+        if (!tbody) return;
+        var html = '';
+        passengerList.forEach(function(p) {
+            var badgeClass = p.type === 'Student' ? 'blue' : (p.type === 'Teacher' ? 'green' : 'gold');
+            html += '<tr>' +
+                '<td><span class="badge badge-gold">' + p.seat + '</span></td>' +
+                '<td>' + p.name + '</td>' +
+                '<td><span class="badge badge-' + badgeClass + '">' + p.type + '</span></td>' +
+                '<td>' + p.id + '</td>' +
+                '<td>' + p.stop + '</td>' +
+                '<td><span style="color:var(--green);">📋 Confirmed</span></td>' +
+                '</tr>';
+        });
+        tbody.innerHTML = html;
+    }
+
+    function updateCounts(count) {
+        document.querySelectorAll('#passengerCount,#passengerStat,#seatCount,#totalPassengers').forEach(function(el) { if(el) el.textContent = count; });
+    }
+
+    // =============================================
+    // CHAT
+    // =============================================
     function sendChat() {
-        const input = document.getElementById('chatInput');
-        const msg = input?.value.trim();
+        var input = document.getElementById('chatInput');
+        var msg = input ? input.value.trim() : '';
         if (!msg) return;
-        const box = document.getElementById('chatBox');
+        var box = document.getElementById('chatBox');
         if (!box) return;
-        const now = new Date();
-        const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
-        box.innerHTML += `<div class="chat-msg sent"><div class="chat-avatar-small" style="background:rgba(255,107,53,0.15);color:var(--orange);">D</div><div><div class="chat-bubble">${msg}</div><div class="chat-time">${time}</div></div></div>`;
+        var now = new Date();
+        var time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+        box.innerHTML += '<div class="chat-msg sent"><div class="chat-avatar-small" style="background:rgba(255,107,53,0.15);color:var(--orange);">D</div><div><div class="chat-bubble">' + msg + '</div><div class="chat-time">' + time + '</div></div></div>';
         input.value = '';
         box.scrollTop = box.scrollHeight;
     }
 
-    // Emergency alert
+    // =============================================
+    // EMERGENCY ALERT - SAVES TO DATABASE
+    // =============================================
     function sendEmergencyAlert() {
-        if (!confirm('🚨 Send emergency alert to admin?')) return;
-        const btn = document.querySelector('.emergency-btn');
+        if (!confirm('🚨 Send emergency alert to admin? This will immediately notify all admins.')) return;
+        var btn = document.getElementById('emergencyBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Sending Alert...'; }
-        setTimeout(() => { showToast('🚨 Emergency alert sent!'); if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SEND EMERGENCY ALERT'; } }, 1500);
+        
+        fetch('/driver/api/send-alert/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ message: 'Emergency alert triggered by driver. Immediate attention required!' })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data && data.success) {
+                showToast('🚨 Emergency alert sent to admin! Help is on the way.');
+            } else {
+                showToast('❌ Failed to send alert', true);
+            }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SEND EMERGENCY ALERT'; }
+        })
+        .catch(function() {
+            showToast('❌ Connection failed', true);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SEND EMERGENCY ALERT'; }
+        });
     }
 
     // Trip API
-    async function startTripAPI(tripId) {
+    function startTripAPI(tripId) {
         if (!tripId) { showToast('❌ Invalid trip ID', true); return; }
         showToast('⏳ Starting trip...');
-        const result = await apiRequest(`/driver/trip/${tripId}/start/`, 'POST');
-        if (result && result.success) { showToast('✅ Trip started! Drive safe 🚌'); setTimeout(() => location.reload(), 1500); }
-        else showToast('❌ ' + (result?.message || 'Failed to start trip'), true);
+        apiRequest('/driver/trip/' + tripId + '/start/', 'POST')
+            .then(function(result) {
+                if (result && result.success) { showToast('✅ Trip started! Drive safe 🚌'); setTimeout(function() { location.reload(); }, 1500); }
+                else showToast('❌ ' + (result ? result.message : 'Failed to start trip'), true);
+            });
     }
-    async function completeTripAPI(tripId) {
+    function completeTripAPI(tripId) {
         if (!tripId) { showToast('❌ Invalid trip ID', true); return; }
         showToast('⏳ Completing trip...');
-        const result = await apiRequest(`/driver/trip/${tripId}/complete/`, 'POST');
-        if (result && result.success) { showToast('✅ Trip completed! 🎉'); setTimeout(() => location.reload(), 1500); }
-        else showToast('❌ ' + (result?.message || 'Failed to complete trip'), true);
+        apiRequest('/driver/trip/' + tripId + '/complete/', 'POST')
+            .then(function(result) {
+                if (result && result.success) { showToast('✅ Trip completed! 🎉'); setTimeout(function() { location.reload(); }, 1500); }
+                else showToast('❌ ' + (result ? result.message : 'Failed to complete trip'), true);
+            });
     }
 
-    function showToast(msg, isError = false) {
-        const toast = document.getElementById('toast');
+    function showToast(msg, isError) {
+        isError = isError || false;
+        var toast = document.getElementById('toast');
         if (!toast) return;
         document.getElementById('toastMsg').textContent = msg;
         document.getElementById('toastIcon').textContent = isError ? '❌' : '✅';
-        toast.className = `toast show${isError ? ' error' : ''}`;
-        setTimeout(() => { toast.classList.remove('show'); }, 3500);
+        toast.className = 'toast show' + (isError ? ' error' : '');
+        setTimeout(function() { toast.classList.remove('show'); }, 3500);
     }
 
     function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie) for (let c of document.cookie.split(';')) { c = c.trim(); if (c.startsWith(name + '=')) { cookieValue = decodeURIComponent(c.substring(name.length + 1)); break; } }
+        var cookieValue = null;
+        if (document.cookie) {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
         return cookieValue;
     }
-    async function apiRequest(endpoint, method = 'GET', data = null) {
-        const options = { method, headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') } };
+    function apiRequest(endpoint, method, data) {
+        method = method || 'GET';
+        var options = { method: method, headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') } };
         if (data && (method === 'POST' || method === 'PUT')) options.body = JSON.stringify(data);
-        try { const res = await fetch(endpoint, options); return await res.json(); }
-        catch (error) { console.error('API error:', error); showToast('❌ Connection failed', true); return null; }
+        return fetch(endpoint, options).then(function(res) { return res.json(); });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         loadPassengers();
-        const dateEl = document.getElementById('currentDate');
-        if (dateEl) { const now = new Date(); dateEl.innerHTML = now.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + ' · Route {{ driver.route.code|default:"J1" }}'; }
-        document.getElementById('chatInput')?.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
+        var dateEl = document.getElementById('currentDate');
+        if (dateEl) { var now = new Date(); dateEl.innerHTML = now.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + ' · Route {{ driver.route.code|default:"J1" }}'; }
+        var chatInput = document.getElementById('chatInput');
+        if (chatInput) { chatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } }); }
     });
 </script>
 

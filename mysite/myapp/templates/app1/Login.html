@@ -187,8 +187,6 @@
         }
         .eye-btn:hover { color: var(--red); }
         
-        /* ✅ FIXED: Removed forgot-link styles since link is removed from login page */
-        
         .btn-login {
             width: 100%; padding: 15px;
             background: linear-gradient(135deg, var(--red), var(--orange));
@@ -273,14 +271,15 @@
 <body>
 
 <nav>
-    <a href="/" class="logo">
+    <a href="{% url 'homepage' %}" class="logo">
         <div class="logo-icon-custom">
             <img style="width: 100%; height: 100%" src="{% static 'app1/logo.png' %}" alt="Easy Transport Logo">
         </div>
         <span class="logo-text">Easy Transport</span>
     </a>
     <div class="nav-right">
-        <a href="/register/" class="nav-register">Don't have an account? <strong>Register →</strong></a>
+        <!-- ✅ FIXED: Changed hardcoded /register/ to {% url 'register_page' %} -->
+        <a href="{% url 'register_page' %}" class="nav-register">Don't have an account? <strong>Register →</strong></a>
         <div class="theme-toggle" id="themeToggle">
             <span class="toggle-icon" id="toggleIcon">🌙</span>
         </div>
@@ -313,8 +312,6 @@
                     <input type="password" name="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
                     <button class="eye-btn" type="button" onclick="togglePwd('password', this)" aria-label="Toggle password visibility">👁️</button>
                 </div>
-                <!-- ✅ FIXED: Removed Forgot Password link from login page -->
-                <!-- Forgot Password link is now ONLY available in forgot_password.html -->
             </div>
 
             <button type="submit" class="btn-login" id="loginBtn">
@@ -331,7 +328,7 @@
         </div>
 
         <div class="register-link">
-            New to Easy Transport? <a href="/register/">Create an account</a>
+            New to Easy Transport? <a href="{% url 'register_page' %}">Create an account</a>
         </div>
     </div>
 </div>
@@ -400,7 +397,6 @@
         return cookieValue;
     }
 
-    // ✅ FIXED: Proper error handling instead of fake "internet" error
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -427,7 +423,6 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             
-            // ✅ FIXED: Handle non-200 responses properly
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: 'Server error' }));
                 throw new Error(errorData.message || `HTTP ${response.status}`);
@@ -438,7 +433,6 @@
             if (data.success) {
                 showToast(data.message || 'Login successful!');
                 setTimeout(() => {
-                    // ✅ Uses backend redirect_url directly (handles driver/admin/user)
                     window.location.href = data.redirect_url || '/dashboard/';
                 }, 1000);
             } else {
@@ -446,7 +440,6 @@
             }
         } catch (error) {
             console.error('Login error:', error);
-            // ✅ Shows actual error instead of generic "check internet"
             showToast(error.message || 'Login failed. Please try again.', true);
         } finally {
             btn.classList.remove('loading');
