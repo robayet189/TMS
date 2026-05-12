@@ -78,7 +78,6 @@ def register_user(request):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
     
-    # Extract and sanitize form data from POST request
     full_name = request.POST.get('full_name', '').strip()
     email = request.POST.get('email', '').strip().lower()
     password = request.POST.get('password', '')
@@ -87,44 +86,36 @@ def register_user(request):
     user_type = request.POST.get('user_type', 'student').strip().lower()
     institution_id = request.POST.get('institution_id', '').strip()
     
-    # Validate that all required fields are provided
     if not all([full_name, email, password, phone, institution_type, user_type, institution_id]):
         return JsonResponse({'success': False, 'message': 'All fields are required'}, status=400)
     
-    # Check if email is already registered in the system
     if User.objects.filter(email=email).exists():
         return JsonResponse({'success': False, 'message': 'Email already registered'}, status=400)
     
-    # Validate password length for security requirements
     if len(password) < 6:
         return JsonResponse({'success': False, 'message': 'Password must be at least 6 characters'}, status=400)
     
-    # Validate email format using regex pattern matching
     if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
         return JsonResponse({'success': False, 'message': 'Invalid email format'}, status=400)
     
     try:
-        # Generate unique username from email with counter for duplicates
         username = email.split('@')[0]
         counter = 1
         while User.objects.filter(username=username).exists():
             username = f"{email.split('@')[0]}_{counter}"
             counter += 1
         
-        # Create new user account with provided credentials and profile data
         user = User.objects.create_user(
             username=username, email=email, password=password,
             first_name=full_name.split()[0] if ' ' in full_name else full_name,
             last_name=full_name.split()[-1] if ' ' in full_name and len(full_name.split()) > 1 else ''
         )
         
-        # Create associated user profile with additional institution data
         UserProfile.objects.create(
             user=user, phone=phone, institution_type=institution_type,
             user_type=user_type, institution_id=institution_id
         )
         
-        # Create driver profile if user type is driver with auto-generated license
         if user_type == 'driver':
             unique_license = f"DL-{timezone.now().strftime('%Y%m%d')}-{random.randint(10000, 99999)}-{user.id}"
             if not Driver.objects.filter(user=user).exists():
@@ -139,7 +130,6 @@ def register_user(request):
                     is_active=True
                 )
         
-        # Return success response with redirect URL for frontend navigation
         return JsonResponse({
             'success': True, 
             'message': 'Account created successfully! Please login to continue.',
@@ -159,13 +149,11 @@ def login_user(request):
     username_or_email = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
     
-    # Validate that both username/email and password are provided
     if not username_or_email or not password:
         return JsonResponse({'success': False, 'message': 'Please enter username/email and password'}, status=400)
     
     user = None
     
-    # Attempt authentication with email if @ symbol is present in input
     if '@' in username_or_email:
         try:
             user_obj = User.objects.get(email__iexact=username_or_email)
@@ -173,11 +161,9 @@ def login_user(request):
         except User.DoesNotExist:
             user = None
     else:
-        # Attempt authentication with username directly
         user = authenticate(request, username=username_or_email, password=password)
     
     if user is not None:
-        # Log in user and determine appropriate redirect URL based on role
         login(request, user)
         redirect_url = '/dashboard/'
         
@@ -195,12 +181,10 @@ def login_user(request):
         except Exception:
             redirect_url = '/dashboard/'
         
-        # Generate personalized welcome message based on user role
         full_name = user.get_full_name() or user.username
         msg = f'Welcome back Admin, {full_name}!' if 'admin' in redirect_url else f'Welcome back, {full_name}!'
         return JsonResponse({'success': True, 'message': msg, 'redirect_url': redirect_url})
     
-    # Return error response for invalid credentials
     return JsonResponse({'success': False, 'message': 'Invalid username/email or password'}, status=401)
 
 def logout_user(request):
@@ -212,10 +196,7 @@ def logout_user(request):
 # ==================== PASSWORD RESET & EMAIL VERIFICATION ====================
 
 def forgot_password(request):
-    """
-    Handle password reset request - CHANGE REASON: Only accessible via /forgot-password/ URL
-    Processes email submission and sends reset instructions if account exists
-    """
+    """Handle password reset request"""
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
         if not email:
@@ -237,7 +218,6 @@ def forgot_password(request):
                 print(f"Email error: {e}")
                 messages.error(request, 'Unable to send email. Please try again later.')
         except User.DoesNotExist:
-            # CHANGE: Security best practice - don't reveal if email exists
             messages.success(request, 'If an account exists with that email, reset instructions were sent.')
         return redirect('forgot_password_success')
     return render(request, 'app1/forgot_password.html')
@@ -247,11 +227,7 @@ def forgot_password_success(request):
     return render(request, 'app1/forgot_password_success.html')
 
 def password_reset_confirm_view(request, uidb64, token):
-    """
-    Handle password reset confirmation with new password
-    CHANGE REASON: Secure token-based password reset flow
-    Validates token and updates user password if valid
-    """
+    """Handle password reset confirmation with new password"""
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
@@ -875,20 +851,15 @@ def driver_login(request):
 @login_required
 @require_http_methods(["POST"])
 def driver_send_alert(request):
-    """
-    API: Driver sends emergency alert - saves to database + creates notification
-    CHANGE REASON: Stores alert in Alert model and notifies admin via Notification model
-    """
+    """API: Driver sends emergency alert - saves to database + creates notification"""
     if not hasattr(request.user, 'driver_profile'):
         return JsonResponse({'success': False, 'message': 'Not authorized'}, status=403)
     
     try:
         data = json.loads(request.body)
         message = data.get('message', 'Emergency alert from driver')
-        
         driver = request.user.driver_profile
         
-        # Create Alert record in database for tracking
         alert = Alert.objects.create(
             driver=driver,
             alert_type='emergency',
@@ -896,7 +867,6 @@ def driver_send_alert(request):
             location='Current trip location'
         )
         
-        # Create notification so admin sees it immediately
         Notification.objects.create(
             type='emergency',
             title=f'Emergency Alert - {driver.user.get_full_name()}',
@@ -913,20 +883,15 @@ def driver_send_alert(request):
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
 
-
 @login_required
 def driver_get_passengers(request):
-    """
-    API: Get REAL passenger list for driver's today trips from Booking model
-    CHANGE REASON: Pulls confirmed bookings from database instead of hardcoded data
-    """
+    """API: Get REAL passenger list for driver's today trips from Booking model"""
     if not hasattr(request.user, 'driver_profile'):
         return JsonResponse({'success': False, 'passengers': []})
     
     driver = request.user.driver_profile
     today = timezone.now().date()
     
-    # Get today's trips for this driver
     trips = Trip.objects.filter(driver=driver, travel_date=today)
     
     passengers = []
@@ -950,14 +915,9 @@ def driver_get_passengers(request):
     
     return JsonResponse({'success': True, 'passengers': passengers})
 
-
 @login_required
 def driver_dashboard(request):
-    """
-    Driver dashboard - shows REAL assigned trips, passengers, earnings from database
-    CRITICAL FIX: No fake/hardcoded data - everything from Trip, Schedule, Booking models
-    CHANGE REASON: Driver needs to see actual assignments made by admin
-    """
+    """Driver dashboard - shows REAL assigned trips, passengers, earnings from database"""
     if not hasattr(request.user, 'driver_profile'):
         messages.error(request, 'You are not registered as a driver.')
         return redirect('homepage')
@@ -965,7 +925,6 @@ def driver_dashboard(request):
     driver = request.user.driver_profile
     today = timezone.now().date()
     
-    # Get REAL trips from Trip model (created by admin_add_schedule)
     today_trips = Trip.objects.filter(
         driver=driver, travel_date=today
     ).select_related('route', 'bus').order_by('departure_time')
@@ -978,7 +937,6 @@ def driver_dashboard(request):
         driver=driver, status='ongoing'
     ).select_related('route', 'bus').first()
     
-    # Calculate REAL passenger count from Booking model
     passenger_count = 0
     today_earnings = 0
     
@@ -1008,13 +966,9 @@ def driver_dashboard(request):
     }
     return render(request, 'app1/driver/driver_dashboard.html', context)
 
-
 @login_required
 def driver_profile(request):
-    """
-    Driver profile page - Edit ALL fields including name, email, phone, address
-    CHANGE REASON: Allow drivers to update personal info and see changes reflected everywhere
-    """
+    """Driver profile page - Edit ALL fields including name, email, phone, address"""
     if not hasattr(request.user, 'driver_profile'):
         messages.error(request, 'You are not registered as a driver.')
         return redirect('homepage')
@@ -1060,7 +1014,6 @@ def driver_profile(request):
         'user': user,
     })
 
-
 @login_required
 def trip_detail(request, trip_id):
     """Display detailed trip information with stop sequence"""
@@ -1071,7 +1024,6 @@ def trip_detail(request, trip_id):
     stops = trip.stops.all().order_by('stop_order')
     context = {'trip': trip, 'stops': stops}
     return render(request, 'app1/driver/trip_detail.html', context)
-
 
 @login_required
 @require_http_methods(["POST"])
@@ -1087,7 +1039,6 @@ def start_trip(request, trip_id):
     else:
         return JsonResponse({'success': False, 'message': 'Trip cannot be started in current status'}, status=400)
 
-
 @login_required
 @require_http_methods(["POST"])
 def complete_trip(request, trip_id):
@@ -1102,7 +1053,6 @@ def complete_trip(request, trip_id):
         return JsonResponse({'success': True, 'message': 'Trip completed successfully'})
     else:
         return JsonResponse({'success': False, 'message': 'Trip cannot be completed in current status'}, status=400)
-
 
 @login_required
 @require_http_methods(["POST"])
@@ -1125,7 +1075,6 @@ def update_stop_status(request, stop_id):
         return JsonResponse({'success': True, 'message': 'Departure recorded'})
     else:
         return JsonResponse({'success': False, 'message': 'Invalid action'}, status=400)
-
 
 @login_required
 def driver_logout(request):
