@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
@@ -27,18 +27,12 @@ from datetime import datetime, timedelta
 # ==================== HELPER FUNCTIONS ====================
 
 def is_ajax(request):
-    """
-    Check if request is AJAX - CHANGE REASON: Support both jQuery & Fetch API
-    Returns True if request contains AJAX headers
-    """
+    """Check if request is AJAX - Support both jQuery & Fetch API"""
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
         request.headers.get('Accept') == 'text/html, */*; q=0.01'
 
 def get_profile_context(user):
-    """
-    Helper to get profile context data - CHANGE REASON: Centralize profile data retrieval
-    Returns dictionary with user profile information for template context
-    """
+    """Helper to get profile context data"""
     profile, created = UserProfile.objects.get_or_create(user=user)
     is_active = getattr(profile, 'is_pass_active', False)
     pass_date = getattr(profile, 'pass_valid_until', None)
@@ -71,10 +65,7 @@ def account_created_page(request):
 
 @require_http_methods(["POST"])
 def register_user(request):
-    """
-    Handle user registration via POST request - CHANGE REASON: API endpoint for user signup
-    Validates input, creates user account, and returns JSON response
-    """
+    """Handle user registration via POST request"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
     
@@ -142,10 +133,7 @@ def register_user(request):
 
 @require_http_methods(["POST"])
 def login_user(request):
-    """
-    Handle user authentication via POST request - CHANGE REASON: API endpoint for user login
-    Validates credentials and returns appropriate redirect URL based on user role
-    """
+    """Handle user authentication via POST request"""
     username_or_email = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
     
@@ -667,7 +655,7 @@ from .models import Bus, BusLocation
 
 @api_view(['POST'])
 def update_bus_location(request, bus_id):
-    """API endpoint to update bus GPS location - CHANGE REASON: Real-time tracking support"""
+    """API endpoint to update bus GPS location"""
     try:
         bus = Bus.objects.get(id=bus_id)
         lat = request.data.get('lat') or request.data.get('latitude')
@@ -681,7 +669,7 @@ def update_bus_location(request, bus_id):
 
 @api_view(['GET'])
 def get_bus_location(request, bus_id):
-    """API endpoint to retrieve latest bus location - CHANGE REASON: Frontend tracking display"""
+    """API endpoint to retrieve latest bus location"""
     try:
         bus = Bus.objects.get(id=bus_id)
         latest_location = BusLocation.objects.filter(bus=bus).first()
@@ -966,6 +954,61 @@ def driver_dashboard(request):
     }
     return render(request, 'app1/driver/driver_dashboard.html', context)
 
+# ✅ NEW: Real-time Driver Dashboard API Endpoint
+@login_required
+def driver_dashboard_api(request):
+    """
+    API endpoint that returns real-time driver dashboard data.
+    Called by frontend every 5 seconds to update UI without page refresh.
+    """
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'error': 'Driver profile not found'}, status=404)
+    
+    driver = request.user.driver_profile
+    today = timezone.now().date()
+    
+    # Fetch today's assigned trips with related bus & route data
+    trips = Trip.objects.filter(
+        driver=driver,
+        travel_date=today
+    ).select_related('bus', 'route').order_by('departure_time')
+    
+    # Build trips data array
+    trips_data = []
+    for trip in trips:
+        # Count confirmed passengers for this trip
+        passenger_count = 0
+        if hasattr(trip, 'schedule'):
+            passenger_count = Booking.objects.filter(
+                schedule__trip=trip, 
+                status='confirmed'
+            ).count()
+        
+        trips_data.append({
+            'id': trip.id,
+            'route_code': trip.route.code,
+            'route_name': f"{trip.route.start} → {trip.route.end}",
+            'bus_number': trip.bus.bus_number if trip.bus else 'Unassigned',
+            'departure_time': trip.departure_time.strftime('%I:%M %p'),
+            'status': trip.status,
+            'passenger_count': passenger_count,
+        })
+    
+    response_data = {
+        'driver_name': f"{request.user.first_name} {request.user.last_name}",
+        'assigned_bus': {
+            'number': driver.bus.bus_number if driver.bus else 'Unassigned',
+            'plate': getattr(driver.bus, 'number_plate', 'N/A') if driver.bus else 'N/A',
+        },
+        'trips': trips_data,
+        'server_time': timezone.now().strftime('%H:%M:%S'),
+        'passenger_count': passenger_count,
+        'trips_completed': driver.trips.filter(status='completed').count(),
+        'today_earnings': today_earnings,
+    }
+    
+    return JsonResponse(response_data)
+
 @login_required
 def driver_profile(request):
     """Driver profile page - Edit ALL fields including name, email, phone, address"""
@@ -1082,4 +1125,4 @@ def driver_logout(request):
     logout(request)
     request.session.flush()
     messages.success(request, 'Logged out successfully.')
-    return redirect('homepage')
+    return redirect('login_page')
