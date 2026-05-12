@@ -29,7 +29,13 @@
         <td><strong>#{{ schedule.id }}</strong></td>
         <td>{{ schedule.route.code }}: {{ schedule.route.start }} → {{ schedule.route.end }}</td>
         <td>{{ schedule.bus.bus_number }}</td>
-        <td>{% with trip=schedule.trip_set.first %}{% if trip and trip.driver %}{{ trip.driver.user.get_full_name|default:trip.driver.user.username }}{% else %}<span style="color:var(--text-muted);">Unassigned</span>{% endif %}{% endwith %}</td>
+        <td>
+            {% if schedule.driver %}
+                <span style="color:var(--accent-green);">{{ schedule.driver.user.get_full_name|default:schedule.driver.user.username }}</span>
+            {% else %}
+                <span style="color:var(--text-muted);">Unassigned</span>
+            {% endif %}
+        </td>
         <td>{{ schedule.travel_date|date:"M d, Y" }}</td>
         <td>{{ schedule.departure_time|time:"g:i A" }}</td>
         <td>৳{{ schedule.fare }}</td>
@@ -47,7 +53,7 @@
     {% csrf_token %}<input type="hidden" id="scheduleId">
     <div class="form-group"><label>Route *</label><select id="route" required><option value="">Select a Route</option>{% for route in routes %}<option value="{{ route.id }}">{{ route.code }}: {{ route.start }} → {{ route.end }}</option>{% endfor %}</select></div>
     <div class="form-group"><label>Bus *</label><select id="bus" required><option value="">Select a Bus</option></select><small style="color:var(--text-muted);">All buses shown</small></div>
-    <div class="form-group"><label>Assign Driver (REQUIRED for Driver Dashboard)</label><select id="driver"><option value="">Select a Driver</option>{% for driver in drivers %}<option value="{{ driver.id }}">{{ driver.user.get_full_name|default:driver.user.username }} - {{ driver.license_number }}</option>{% endfor %}</select><small style="color:var(--text-muted);">⚠️ Must assign driver to show trips on driver dashboard</small></div>
+    <div class="form-group"><label>Assign Driver (REQUIRED for Driver Dashboard)</label><select id="driver"><option value="">-- Select a Driver (Optional) --</option>{% for driver in drivers %}<option value="{{ driver.id }}">{{ driver.user.get_full_name|default:driver.user.username }} - {{ driver.license_number }}</option>{% endfor %}</select><small style="color:var(--text-muted);">⚠️ Must assign driver to show trips on driver dashboard</small></div>
     <div class="form-row"><div class="form-group"><label>Travel Date *</label><input type="date" id="travelDate" required></div><div class="form-group"><label>Departure Time *</label><input type="time" id="departureTime" required></div></div>
     <div class="form-row"><div class="form-group"><label>Arrival Time</label><input type="time" id="arrivalTime"></div><div class="form-group"><label>Fare (৳) *</label><input type="number" id="fare" required placeholder="40" min="0" step="0.01"></div></div>
     <div class="form-row"><div class="form-group"><label>Available Seats</label><input type="number" id="availableSeats" placeholder="Auto-filled" min="0"></div><div class="form-group"><label>Status</label><select id="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div></div>
@@ -59,7 +65,7 @@
 </style>
 
 <script>
-// Load buses into dropdown with Promise support
+// Load buses into dropdown
 function loadBusesDropdown(){
     const busSelect=document.getElementById('bus');
     busSelect.innerHTML='<option value="">Loading buses...</option>';
@@ -128,6 +134,8 @@ function editSchedule(scheduleId){
             document.getElementById('modalTitle').textContent='Edit Schedule';
             document.getElementById('scheduleId').value=s.id;
             document.getElementById('route').value=s.route;
+            document.getElementById('bus').value=s.bus;
+            document.getElementById('driver').value=s.driver||'';  // ✅ Set driver value
             document.getElementById('travelDate').value=s.travel_date;
             document.getElementById('departureTime').value=s.departure_time;
             document.getElementById('arrivalTime').value=s.arrival_time||'';
@@ -141,21 +149,21 @@ function editSchedule(scheduleId){
     .catch(error=>{showToast('Error loading schedule',true);});
 }
 
-// CRITICAL FIX: saveSchedule with driver field properly handled
+// ✅ CRITICAL FIX: saveSchedule with proper driver handling
 function saveSchedule(e){
     e.preventDefault();
     const scheduleId=document.getElementById('scheduleId').value;
     const url=scheduleId?`/admin_page/api/update-schedule/${scheduleId}/`:'/admin_page/api/add-schedule/';
     const method=scheduleId?'PUT':'POST';
     
-    // Get driver value - handle empty string
+    // ✅ Handle driver field - send null if not selected
     const driverSelect=document.getElementById('driver');
     const driverValue=driverSelect&&driverSelect.value?parseInt(driverSelect.value):null;
     
     const formData={
         route:parseInt(document.getElementById('route').value),
         bus:parseInt(document.getElementById('bus').value),
-        driver: document.getElementById('driver')?.value ? parseInt(document.getElementById('driver').value) : null,
+        driver: driverValue,  // ✅ Send null if not selected, or integer if selected
         travel_date:document.getElementById('travelDate').value,
         departure_time:document.getElementById('departureTime').value,
         arrival_time:document.getElementById('arrivalTime').value||null,
@@ -175,8 +183,13 @@ function saveSchedule(e){
     .then(res=>res.json())
     .then(data=>{
         console.log('SAVE RESPONSE:',data);
-        if(data.success){showToast(data.message);closeModal();setTimeout(()=>location.reload(),1000);}
-        else{showToast(data.message||'Failed to save',true);}
+        if(data.success){
+            showToast(data.message);
+            closeModal();
+            setTimeout(()=>location.reload(),1000);
+        }else{
+            showToast(data.message||'Failed to save',true);
+        }
     })
     .catch(error=>{console.error('Error:',error);showToast('Error saving schedule',true);});
 }
