@@ -6,7 +6,6 @@
 {% block page_subtitle %}Manage your bus fleet and maintenance{% endblock %}
 
 {% block content %}
-<!-- Stats Cards -->
 <div class="stats-grid">
     <div class="stat-card"><div class="stat-label">Total Fleet</div><div class="stat-value">{{ total_buses|default:0 }}</div></div>
     <div class="stat-card"><div class="stat-label" style="color:#00c896">Active</div><div class="stat-value" style="color:#00c896">{{ active_buses|default:0 }}</div></div>
@@ -14,31 +13,26 @@
     <div class="stat-card"><div class="stat-label" style="color:#ff4757">Inactive</div><div class="stat-value" style="color:#ff4757">{{ inactive_buses|default:0 }}</div></div>
 </div>
 
-<!-- Search & Filter -->
 <div class="search-filter-section">
     <div class="search-wrapper"><span class="search-icon">🔍</span><input type="text" id="searchInput" class="search-input" placeholder="Search by bus ID or driver name..." onkeyup="filterTable()"></div>
     <select id="statusFilter" class="filter-select" onchange="filterTable()"><option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
     <button class="btn-add" onclick="openAddBusModal()">➕ Add New Bus</button>
 </div>
 
-<!-- Buses Table -->
 <div class="card"><div class="table-container"><table class="data-table"><thead><tr><th>BUS ID</th><th>CAPACITY</th><th>STATUS</th><th>DRIVER</th><th>PHONE</th><th>AMENITIES</th><th>ACTIONS</th></tr></thead><tbody id="busesTableBody">
     {% for bus in buses %}
     <tr data-bus-id="{{ bus.id }}" data-status="{% if bus.is_active %}active{% else %}inactive{% endif %}">
-        <td><strong>{{ bus.bus_number }}</strong></td>
-        <td>{{ bus.capacity }} seats</td>
+        <td><strong>{{ bus.bus_number }}</strong></td><td>{{ bus.capacity }} seats</td>
         <td><span class="status-badge {% if bus.is_active %}status-active{% else %}status-inactive{% endif %}">{% if bus.is_active %}Active{% else %}Inactive{% endif %}</span></td>
-        <td>{{ bus.driver_name|default:"—" }}</td>
-        <td>{{ bus.driver_phone|default:"—" }}</td>
+        <td>{{ bus.driver_name|default:"—" }}</td><td>{{ bus.driver_phone|default:"—" }}</td>
         <td>{% if bus.has_ac %}<span class="amenity-badge">❄️ AC</span>{% endif %}{% if bus.has_wifi %}<span class="amenity-badge">📶 WiFi</span>{% endif %}</td>
-        <td><div class="action-buttons"><button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')" title="Edit">✏️</button><button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')" title="Toggle">🔄</button><button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')" title="Delete">🗑️</button></div></td>
+        <td><div class="action-buttons"><button class="btn-icon btn-edit" onclick="editBus('{{ bus.id }}')">✏️</button><button class="btn-icon btn-toggle" onclick="toggleBusStatus('{{ bus.id }}')">🔄</button><button class="btn-icon btn-delete" onclick="deleteBus('{{ bus.id }}')">🗑️</button></div></td>
     </tr>
     {% empty %}
     <tr><td colspan="7" class="empty-row">No buses found. Click "Add New Bus" to create one.</td></tr>
     {% endfor %}
 </tbody></table></div></div>
 
-<!-- Add/Edit Bus Modal -->
 <div id="busModal" class="modal-overlay" style="display:none;"><div class="modal"><div class="modal-header"><h2 id="modalTitle">Add New Bus</h2><button class="modal-close" onclick="closeModal()">×</button></div>
 <form id="busForm" onsubmit="return false;">
     {% csrf_token %}<input type="hidden" id="busId">
@@ -56,10 +50,10 @@
 </style>
 
 <script>
-// Get CSRF token
+// Get CSRF token from cookie or hidden input
 function getCSRFToken() {
     var cookieValue = null;
-    if (document.cookie) {
+    if (document.cookie && document.cookie !== '') {
         var cookies = document.cookie.split(';');
         for (var i = 0; i < cookies.length; i++) {
             var cookie = cookies[i].trim();
@@ -73,6 +67,7 @@ function getCSRFToken() {
         var tokenInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
         if (tokenInput) cookieValue = tokenInput.value;
     }
+    console.log('CSRF Token:', cookieValue ? 'Found' : 'NOT FOUND');
     return cookieValue;
 }
 
@@ -119,6 +114,7 @@ function editBus(busId) {
         }
     })
     .catch(function(error) {
+        console.error('Edit bus error:', error);
         showToast('Failed to load bus data', true);
     });
 }
@@ -144,17 +140,41 @@ function saveBus() {
         is_active: document.getElementById('isActive').value === 'true'
     };
     
+    var csrfToken = getCSRFToken();
+    console.log('Saving bus...', formData);
+    console.log('CSRF Token found:', csrfToken ? 'YES' : 'NO');
+    
+    if (!csrfToken) {
+        showToast('CSRF token not found. Please refresh the page.', true);
+        return;
+    }
+    
     fetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRFToken': csrfToken 
+        },
         body: JSON.stringify(formData)
     })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-        if (data.success) { showToast(data.message || 'Bus saved!'); closeModal(); setTimeout(function() { location.reload(); }, 1000); }
-        else { showToast(data.message || 'Failed to save bus', true); }
+    .then(function(res) { 
+        console.log('Response status:', res.status);
+        return res.json(); 
     })
-    .catch(function(error) { showToast('An error occurred while saving', true); });
+    .then(function(data) {
+        console.log('Response data:', data);
+        if (data.success) { 
+            showToast(data.message || 'Bus saved!'); 
+            closeModal(); 
+            setTimeout(function() { location.reload(); }, 1000); 
+        } else { 
+            showToast(data.message || 'Failed to save bus', true); 
+        }
+    })
+    .catch(function(error) { 
+        console.error('Save bus error:', error);
+        showToast('An error occurred while saving', true); 
+    });
 }
 
 function toggleBusStatus(busId) {
