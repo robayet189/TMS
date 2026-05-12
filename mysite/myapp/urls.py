@@ -6,7 +6,7 @@ from . import views, views_admin
 urlpatterns = [
     # ================= AUTH & HOME =================
     path('', views.homepage, name='homepage'),
-    path('login/', views.login_page, name='login_page'),
+    path('login/', views.login_page, name='login_page'),  # ✅ Unified login for all
     path('api/login/', views.login_user, name='login_user'),
     path('register/', views.register_page, name='register_page'),
     path('api/register/', views.register_user, name='register_user'),
@@ -112,7 +112,8 @@ urlpatterns = [
 
 
     # ==================== DRIVER MODULE URLs ====================
-    path('driver/login/', views.driver_login_page, name='driver_login'),
+    # ✅ FIXED: Changed to use unified login
+    path('driver/login/', views.login_page, name='driver_login'),  # ✅ Now uses same login page
     path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
     path('driver/logout/', views.driver_logout, name='driver_logout'),
     path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
@@ -121,4 +122,8 @@ urlpatterns = [
     path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
     path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
     path('driver/stop/<int:stop_id>/update/', views.update_stop_status, name='update_stop_status'),
+
+    # ✅ Driver Emergency Alert & Passenger API
+    path('driver/api/send-alert/', views.driver_send_alert, name='driver_send_alert'),
+    path('driver/api/passengers/', views.driver_get_passengers, name='driver_get_passengers'),
 ]
