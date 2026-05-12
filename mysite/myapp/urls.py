@@ -112,6 +112,14 @@ urlpatterns = [
     path('chat/send/<int:room_id>/', views.send_chat_message, name='send_chat_message'),
     path('chat/messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
     path('chat/close/<int:room_id>/', views.close_chat, name='close_chat'),
+    
+    # Driver Chat URLs
+    path('driver/api/chat-rooms/', views.driver_get_chat_rooms, name='driver_get_chat_rooms'),
+    path('driver/api/chat/send/<int:room_id>/', views.driver_send_chat_message, name='driver_send_chat_message'),
+    path('driver/api/chat/messages/<int:room_id>/', views.driver_get_chat_messages, name='driver_get_chat_messages'),
+    path('driver/api/chat/mark-read/<int:room_id>/', views.driver_mark_chat_read, name='driver_mark_chat_read'),
+    path('driver/chat/start/<str:booking_id>/', views.driver_start_chat, name='driver_start_chat'),
+    path('driver/chat/<int:room_id>/', views.chat_room, name='driver_chat_room'),  # Reuse existing chat_room view but add permission check
 
     # ==================== DRIVER MODULE URLs ====================
 

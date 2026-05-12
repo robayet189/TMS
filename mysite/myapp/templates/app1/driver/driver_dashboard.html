@@ -7,6 +7,7 @@
     <title>Driver Dashboard — Easy Transport</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* ---------- RESET & THEME VARIABLES ---------- */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         :root, [data-theme="dark"] {
             --bg: #0b0b14; --card: #13131f; --card2: #16162a;
@@ -38,6 +39,8 @@
             pointer-events: none; z-index: 0; animation: float 20s ease-in-out infinite;
         }
         @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, 20px); } }
+
+        /* ---------- NAVIGATION & SIDEBAR ---------- */
         nav {
             position: fixed; top: 0; left: 0; right: 0; z-index: 100;
             display: flex; align-items: center; justify-content: space-between;
@@ -77,6 +80,8 @@
         .section { display: none; animation: fadeUp 0.4s ease forwards; }
         .section.active { display: block; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ---------- COMMON COMPONENTS ---------- */
         .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
         .page-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px; color: var(--text); }
         .page-subtitle { font-size: 14px; color: var(--muted); margin-top: 4px; }
@@ -113,51 +118,239 @@
         .badge-blue { background: rgba(30,144,255,0.12); color: var(--blue); }
         .badge-red { background: rgba(255,71,87,0.12); color: var(--red); }
 
-        /* Schedule Grid Styles */
-        .schedule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-        .schedule-card { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: all 0.3s; }
-        .schedule-card:hover { transform: translateY(-2px); border-color: var(--orange); }
-        .schedule-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,107,53,0.1); border-bottom: 1px solid var(--border); }
-        .schedule-route-code { font-weight: 700; font-size: 14px; color: var(--orange); }
-        .schedule-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
-        .schedule-status.today { background: rgba(46,213,115,0.15); color: var(--green); }
-        .schedule-status.upcoming { background: rgba(245,166,35,0.15); color: var(--gold); }
-        .schedule-body { padding: 16px; }
-        .schedule-route-name { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
-        .schedule-details { display: flex; flex-direction: column; gap: 8px; }
-        .detail-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-        .detail-item span:first-child { width: 24px; }
-
-        .filter-select { padding: 10px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; color: var(--text); cursor: pointer; }
-        .empty-row { text-align: center; padding: 40px !important; color: var(--muted); }
-
-        .toast { position: fixed; bottom: 24px; right: 24px; z-index: 999; background: var(--toast-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: translateY(80px); opacity: 0; transition: all 0.3s; backdrop-filter: blur(16px); }
+        /* ---------- CHAT SYSTEM STYLES ---------- */
+        .chat-layout {
+            display: flex;
+            height: 550px;
+            background: var(--card);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .chat-rooms-sidebar {
+            width: 320px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+        }
+        .chat-rooms-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-rooms-header h4 {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .unread-total {
+            background: #ff4757;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .chat-rooms-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .chat-room-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .chat-room-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .chat-room-item.active {
+            background: rgba(255,71,87,0.1);
+            border-left: 3px solid #ff4757;
+        }
+        .chat-room-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff4757, #ff6b35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+        .chat-room-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .chat-room-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .chat-room-last-msg {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-room-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .chat-room-unread {
+            background: #ff4757;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+        .chat-messages-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--card);
+        }
+        .chat-placeholder {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .loading-chats {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+        .active-chat-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .active-chat-header .chat-room-avatar {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+        }
+        .active-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .active-chat-input {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+        }
+        .active-chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 13px;
+        }
+        .active-chat-input input:focus {
+            outline: none;
+            border-color: #ff4757;
+        }
+        .active-chat-input button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #ff4757, #ff6b35);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .chat-message {
+            display: flex;
+            gap: 10px;
+            max-width: 70%;
+        }
+        .chat-message.sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .chat-message.received {
+            align-self: flex-start;
+        }
+        .chat-message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff4757, #ff6b35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            flex-shrink: 0;
+        }
+        .chat-message.sent .chat-message-avatar {
+            background: linear-gradient(135deg, #00c896, #00a87a);
+        }
+        .chat-message-bubble {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .chat-message.sent .chat-message-bubble {
+            background: rgba(255,71,87,0.1);
+        }
+        .chat-message-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 999;
+            background: var(--toast-bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 14px 20px;
+            display: flex; align-items: center; gap: 12px;
+            font-size: 14px; color: var(--text);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            transform: translateY(80px); opacity: 0;
+            transition: all 0.3s; backdrop-filter: blur(16px);
+        }
         .toast.show { transform: translateY(0); opacity: 1; }
         .toast.error { border-color: rgba(255,71,87,0.3); color: var(--red); }
 
-        .chat-box { height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; padding: 10px; }
-        .chat-msg { display: flex; gap: 10px; }
-        .chat-msg.sent { flex-direction: row-reverse; }
-        .chat-avatar-small { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; background: rgba(30,144,255,0.15); color: var(--blue); }
-        .chat-bubble { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 13px; background: rgba(255,255,255,0.06); }
-        .chat-msg.sent .chat-bubble { background: rgba(255,107,53,0.15); }
-        .chat-time { font-size: 10px; color: var(--muted); margin-top: 4px; }
-        .chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; }
-
-        .profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
-        .profile-avatar-lg { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--orange), var(--gold)); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; color: #fff; }
-        .profile-tag { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: rgba(255,107,53,0.1); color: var(--orange); border: 1px solid rgba(255,107,53,0.2); }
-        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-        .field-group label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-        .field-value { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--text); }
-
+        /* ---------- RESPONSIVE ---------- */
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
             .sidebar.open { transform: translateX(0); }
             .main { margin-left: 0; }
             .two-col { grid-template-columns: 1fr; }
-            .schedule-grid { grid-template-columns: 1fr; }
-            .field-row { grid-template-columns: 1fr; }
+            .chat-rooms-sidebar { width: 100%; }
         }
     </style>
 </head>
@@ -213,26 +406,20 @@
         </div>
         <div class="sidebar-label">Communication</div>
         <div class="sidebar-section">
-            <button class="nav-item" onclick="navigate('chat')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Chat</button>
+            <button class="nav-item" onclick="navigate('chat')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Chat <span class="nav-badge" id="chatBadge">0</span></button>
             <button class="nav-item" onclick="navigate('alerts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Alerts</button>
         </div>
         <div class="sidebar-divider"></div>
         <div class="sidebar-section">
             <button class="nav-item" onclick="navigate('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Profile</button>
-            <button class="nav-item" onclick="window.location.href=`{% url 'driver_logout' %}`"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Logout</button>
+            <button class="nav-item" onclick="window.location.href='{% url 'driver_logout' %}'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Logout</button>
         </div>
     </aside>
 
     <main class="main">
         <!-- HOME SECTION -->
         <section id="sec-home" class="section active">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">Good Morning, {{ request.user.first_name|default:"Driver" }} 👋</div>
-                    <div class="page-subtitle" id="currentDate"></div>
-                </div>
-                <button class="btn btn-primary" onclick="navigate('trip')">▶ Start Trip</button>
-            </div>
+            <div class="page-header"><div><div class="page-title">Good Morning, {{ request.user.first_name|default:"Driver" }} 👋</div><div class="page-subtitle" id="currentDate"></div></div><button class="btn btn-primary" onclick="navigate('trip')">▶ Start Trip</button></div>
             <div class="stats-grid">
                 <div class="stat-card green"><div class="stat-icon green">👥</div><div class="stat-label">Passengers Today</div><div class="stat-value" id="passengerStat">{{ passenger_count|default:0 }}</div></div>
                 <div class="stat-card orange"><div class="stat-icon orange">📅</div><div class="stat-label">Trips Completed</div><div class="stat-value" id="tripsCompleted">{{ trips_completed|default:0 }}</div></div>
@@ -240,305 +427,71 @@
                 <div class="stat-card blue"><div class="stat-icon blue">⭐</div><div class="stat-label">Rating</div><div class="stat-value">4.8</div></div>
             </div>
             <div class="two-col">
-                <div>
-                    <div class="trip-status-card">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
-                            <div style="font-weight:700;">Current Trip Status</div>
-                            {% if ongoing_trip %}<span class="badge badge-green">🚌 In Progress</span>{% else %}<span class="badge badge-gold">⏸️ Idle</span>{% endif %}
-                        </div>
-                        {% with driver.assigned_route as route %}
-                            <div style="font-weight:600;margin-bottom:8px;">
-                                {% if route %}{{ route.start|default:"Start" }} → {{ route.end|default:"End" }}{% else %}No route assigned{% endif %}
-                            </div>
-                        {% endwith %}
-                        <div class="trip-actions" style="margin-top:16px;display:flex;gap:10px;">
-                            <button class="btn btn-green" style="flex:1;" onclick="navigate('trip')">▶ Manage Trip</button>
-                            <button class="btn btn-outline" onclick="navigate('route')">🗺️ View Route</button>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title"><span class="dot"></span>Today's Trips</div>
-                        {% if today_trips %}
-                            {% for trip in today_trips %}
-                            <div class="schedule-item">
-                                <div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div>
-                                <div>
-                                    <div class="schedule-route-name">{{ trip.route.start }} → {{ trip.route.end }}</div>
-                                    <div><span class="badge badge-{% if trip.status == 'completed' %}green{% elif trip.status == 'ongoing' %}blue{% else %}gold{% endif %}">{{ trip.get_status_display }}</span> · 🚌 {{ trip.bus.bus_number }}</div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div style="text-align:center;color:var(--muted);padding:20px;">📅 No trips scheduled for today</div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div>
-                    <div class="card">
-                        <div class="card-title"><span class="dot"></span>Upcoming Trips</div>
-                        {% if upcoming_trips %}
-                            {% for trip in upcoming_trips %}
-                            <div class="schedule-item">
-                                <div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div>
-                                <div>
-                                    <div class="schedule-route-name">{{ trip.route.start }} → {{ trip.route.end }}</div>
-                                    <div><span class="badge badge-gold">📋 Scheduled</span> · {{ trip.travel_date|date:"M d" }}</div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div style="text-align:center;color:var(--muted);padding:20px;">📅 No upcoming trips</div>
-                        {% endif %}
-                    </div>
-                </div>
+                <div><div class="trip-status-card"><div style="display:flex;justify-content:space-between;margin-bottom:16px;"><div style="font-weight:700;">Current Trip Status</div>{% if ongoing_trip %}<span class="badge badge-green">🚌 In Progress</span>{% else %}<span class="badge badge-gold">⏸️ Idle</span>{% endif %}</div>{% with driver.assigned_route as route %}<div style="font-weight:600;margin-bottom:8px;">{% if route %}{{ route.start|default:"Start" }} → {{ route.end|default:"End" }}{% else %}No route assigned{% endif %}</div>{% endwith %}<div class="trip-actions" style="margin-top:16px;display:flex;gap:10px;"><button class="btn btn-green" style="flex:1;" onclick="navigate('trip')">▶ Manage Trip</button><button class="btn btn-outline" onclick="navigate('route')">🗺️ View Route</button></div></div>
+                <div class="card"><div class="card-title"><span class="dot"></span>Today's Trips</div>{% if today_trips %}{% for trip in today_trips %}<div class="schedule-item"><div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div><div><div class="schedule-route-name">{{ trip.route.start }} → {{ trip.route.end }}</div><div><span class="badge badge-{% if trip.status == 'completed' %}green{% elif trip.status == 'ongoing' %}blue{% else %}gold{% endif %}">{{ trip.get_status_display }}</span> · 🚌 {{ trip.bus.bus_number }}</div></div></div>{% endfor %}{% else %}<div style="text-align:center;color:var(--muted);padding:20px;">📅 No trips scheduled for today</div>{% endif %}</div></div>
+                <div><div class="card"><div class="card-title"><span class="dot"></span>Upcoming Trips</div>{% if upcoming_trips %}{% for trip in upcoming_trips %}<div class="schedule-item"><div class="schedule-time">{{ trip.departure_time|time:"g:i A" }}</div><div><div class="schedule-route-name">{{ trip.route.start }} → {{ trip.route.end }}</div><div><span class="badge badge-gold">📋 Scheduled</span> · {{ trip.travel_date|date:"M d" }}</div></div></div>{% endfor %}{% else %}<div style="text-align:center;color:var(--muted);padding:20px;">📅 No upcoming trips</div>{% endif %}</div></div>
             </div>
         </section>
 
-        <!-- MY ROUTE TAB - Only shows driver's assigned route -->
+        <!-- MY ROUTE TAB -->
         <section id="sec-route" class="section">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">🛣️ My Route</div>
-                    <div class="page-subtitle">Your assigned route</div>
-                </div>
-                <button class="btn btn-outline" onclick="refreshPage()">🔄 Refresh</button>
-            </div>
-
-            <div class="card" style="border-left: 3px solid var(--orange);">
-                <div class="card-title"><span class="dot" style="background: var(--orange);"></span>📍 Your Assigned Route</div>
-                {% if assigned_route %}
-                    <div>
-                        <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">
-                            {{ assigned_route.code }}: {{ assigned_route.start }} → {{ assigned_route.end }}
-                        </div>
-                        <div style="color: var(--muted); margin-bottom: 8px;">
-                            📏 Distance: {{ assigned_route.distance_km|default:"N/A" }} km
-                        </div>
-                        <div style="color: var(--muted);">
-                            🚌 Assigned Bus:
-                            {% with driver.assigned_bus as bus %}
-                                {% if bus %}
-                                    {{ bus.bus_number }} ({{ bus.capacity }} seats)
-                                {% else %}
-                                    No bus assigned
-                                {% endif %}
-                            {% endwith %}
-                        </div>
-                    </div>
-                {% else %}
-                    <div style="text-align: center; padding: 30px; color: var(--muted);">
-                        <p>⚠️ No route has been assigned to you yet.</p>
-                        <p style="font-size: 13px; margin-top: 10px;">Please contact the administrator to get assigned to a route.</p>
-                    </div>
-                {% endif %}
-            </div>
+            <div class="page-header"><div><div class="page-title">🛣️ My Route</div><div class="page-subtitle">Your assigned route</div></div><button class="btn btn-outline" onclick="refreshPage()">🔄 Refresh</button></div>
+            <div class="card" style="border-left: 3px solid var(--orange);"><div class="card-title"><span class="dot" style="background: var(--orange);"></span>📍 Your Assigned Route</div>{% if assigned_route %}<div><div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">{{ assigned_route.code }}: {{ assigned_route.start }} → {{ assigned_route.end }}</div><div style="color: var(--muted); margin-bottom: 8px;">📏 Distance: {{ assigned_route.distance_km|default:"N/A" }} km</div><div style="color: var(--muted);">🚌 Assigned Bus: {% with driver.assigned_bus as bus %}{% if bus %}{{ bus.bus_number }} ({{ bus.capacity }} seats){% else %}No bus assigned{% endif %}{% endwith %}</div></div>{% else %}<div style="text-align: center; padding: 30px; color: var(--muted);"><p>⚠️ No route has been assigned to you yet.</p><p style="font-size: 13px; margin-top: 10px;">Please contact the administrator to get assigned to a route.</p></div>{% endif %}</div>
         </section>
 
-        <!-- MY SCHEDULES TAB - Only shows schedules for driver's assigned route -->
+        <!-- MY SCHEDULES TAB -->
         <section id="sec-schedule" class="section">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">📅 My Schedules</div>
-                    <div class="page-subtitle">Schedules for your assigned route</div>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <select id="scheduleFilter" class="filter-select" onchange="filterSchedules()">
-                        <option value="all">All Schedules</option>
-                        <option value="upcoming">Upcoming (7 days)</option>
-                    </select>
-                    <button class="btn btn-outline" onclick="refreshPage()">🔄 Refresh</button>
-                </div>
-            </div>
-
-            {% if assigned_route %}
-                <div class="card">
-                    <div class="card-title"><span class="dot" style="background: var(--green);"></span>🗓️ Schedules for Route: {{ assigned_route.code }}</div>
-                    {% if schedules_for_driver %}
-                        <div class="schedule-grid" id="schedulesGrid">
-                            {% for schedule in schedules_for_driver %}
-                            <div class="schedule-card" data-schedule-date="{{ schedule.travel_date|date:'Y-m-d' }}">
-                                <div class="schedule-header">
-                                    <span class="schedule-route-code">{{ schedule.route.code }}</span>
-                                    <span class="schedule-status {% if schedule.travel_date == today %}today{% else %}upcoming{% endif %}">
-                                        {% if schedule.travel_date == today %}Today{% else %}{{ schedule.travel_date|date:"M d" }}{% endif %}
-                                    </span>
-                                </div>
-                                <div class="schedule-body">
-                                    <div class="schedule-route-name">{{ schedule.route.start }} → {{ schedule.route.end }}</div>
-                                    <div class="schedule-details">
-                                        <div class="detail-item"><span>📅</span> {{ schedule.travel_date|date:"l, M d, Y" }}</div>
-                                        <div class="detail-item"><span>🕐</span> {{ schedule.departure_time|time:"g:i A" }}</div>
-                                        <div class="detail-item"><span>🚌</span> Bus: {{ schedule.bus.bus_number }}</div>
-                                        <div class="detail-item"><span>💰</span> ৳{{ schedule.fare }}</div>
-                                        <div class="detail-item"><span>🪑</span> {{ schedule.available_seats }}/{{ schedule.bus.capacity }} seats</div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div style="text-align: center; padding: 30px; color: var(--muted);">
-                            <p>📅 No schedules found for your assigned route.</p>
-                            <p style="font-size: 13px; margin-top: 10px;">Schedules will appear here when admin creates them for Route {{ assigned_route.code }}.</p>
-                        </div>
-                    {% endif %}
-                </div>
-            {% else %}
-                <div class="card">
-                    <div style="text-align: center; padding: 30px; color: var(--muted);">
-                        <p>⚠️ You don't have an assigned route yet.</p>
-                        <p style="font-size: 13px; margin-top: 10px;">Please contact the administrator to get assigned to a route first.</p>
-                    </div>
-                </div>
-            {% endif %}
+            <div class="page-header"><div><div class="page-title">📅 My Schedules</div><div class="page-subtitle">Schedules for your assigned route</div></div><div style="display: flex; gap: 10px;"><select id="scheduleFilter" class="filter-select" onchange="filterSchedules()"><option value="all">All Schedules</option><option value="upcoming">Upcoming (7 days)</option></select><button class="btn btn-outline" onclick="refreshPage()">🔄 Refresh</button></div></div>
+            {% if assigned_route %}<div class="card"><div class="card-title"><span class="dot" style="background: var(--green);"></span>🗓️ Schedules for Route: {{ assigned_route.code }}</div>{% if schedules_for_driver %}<div class="schedule-grid" id="schedulesGrid">{% for schedule in schedules_for_driver %}<div class="schedule-card" data-schedule-date="{{ schedule.travel_date|date:'Y-m-d' }}"><div class="schedule-header"><span class="schedule-route-code">{{ schedule.route.code }}</span><span class="schedule-status {% if schedule.travel_date == today %}today{% else %}upcoming{% endif %}">{% if schedule.travel_date == today %}Today{% else %}{{ schedule.travel_date|date:"M d" }}{% endif %}</span></div><div class="schedule-body"><div class="schedule-route-name">{{ schedule.route.start }} → {{ schedule.route.end }}</div><div class="schedule-details"><div class="detail-item"><span>📅</span> {{ schedule.travel_date|date:"l, M d, Y" }}</div><div class="detail-item"><span>🕐</span> {{ schedule.departure_time|time:"g:i A" }}</div><div class="detail-item"><span>🚌</span> Bus: {{ schedule.bus.bus_number }}</div><div class="detail-item"><span>💰</span> ৳{{ schedule.fare }}</div><div class="detail-item"><span>🪑</span> {{ schedule.available_seats }}/{{ schedule.bus.capacity }} seats</div></div></div></div>{% endfor %}</div>{% else %}<div style="text-align: center; padding: 30px; color: var(--muted);"><p>📅 No schedules found for your assigned route.</p><p style="font-size: 13px; margin-top: 10px;">Schedules will appear here when admin creates them for Route {{ assigned_route.code }}.</p></div>{% endif %}</div>{% else %}<div class="card"><div style="text-align: center; padding: 30px; color: var(--muted);"><p>⚠️ You don't have an assigned route yet.</p><p style="font-size: 13px; margin-top: 10px;">Please contact the administrator to get assigned to a route first.</p></div></div>{% endif %}
         </section>
 
         <!-- PASSENGERS SECTION -->
         <section id="sec-passengers" class="section">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">👥 Passengers</div>
-                    <div class="page-subtitle">Today's passenger list (Total: <span id="totalPassengers">0</span>)</div>
-                </div>
-                <button class="btn btn-outline" onclick="loadPassengers()">🔄 Refresh</button>
-            </div>
-            <div class="card">
-                <div class="table-container">
-                    <table class="data-table" style="width:100%;">
-                        <thead>
-                            <tr><th>SEAT</th><th>NAME</th><th>TYPE</th><th>ID</th><th>STOP</th><th>STATUS</th></tr>
-                        </thead>
-                        <tbody id="passengerTable">
-                            <tr><td colspan="6" class="empty-row">Loading passengers...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <div class="page-header"><div><div class="page-title">👥 Passengers</div><div class="page-subtitle">Today's passenger list (Total: <span id="totalPassengers">0</span>)</div></div><button class="btn btn-outline" onclick="loadPassengers()">🔄 Refresh</button></div>
+            <div class="card"><div class="table-container"><table class="data-table" style="width:100%;"><thead><tr><th>SEAT</th><th>NAME</th><th>TYPE</th><th>ID</th><th>STOP</th><th>STATUS</th></tr></thead><tbody id="passengerTable"><tr><td colspan="6" class="empty-row">Loading passengers...</td></tr></tbody></table></div></div>
         </section>
 
         <!-- TRIP STATUS SECTION -->
         <section id="sec-trip" class="section">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">🚌 Trip Status</div>
-                    <div class="page-subtitle">Manage your current and upcoming trips</div>
-                </div>
-            </div>
-            {% if ongoing_trip %}
-                <div class="trip-status-card">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                        <div style="font-weight:700;">{{ ongoing_trip.route.start }} → {{ ongoing_trip.route.end }}</div>
-                        <span class="badge badge-green">🚌 In Progress</span>
-                    </div>
-                    <div class="trip-actions" style="margin-top:16px;">
-                        <button class="btn btn-green" data-trip-id="{{ ongoing_trip.id }}" onclick="completeTripAPI(parseInt(this.dataset.tripId))">✅ Complete Trip</button>
-                    </div>
-                </div>
-            {% elif today_trips %}
-                {% for trip in today_trips %}
-                <div class="card" style="margin-bottom:12px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <div style="font-weight:600;">{{ trip.route.start }} → {{ trip.route.end }}</div>
-                            <div style="color:var(--muted);">🕐 {{ trip.departure_time|time:"g:i A" }} | 🚌 {{ trip.bus.bus_number }}</div>
-                        </div>
-                        <button class="btn btn-green" data-trip-id="{{ trip.id }}" onclick="startTripAPI(parseInt(this.dataset.tripId))">▶ Start Trip</button>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="card"><p style="text-align:center;color:var(--muted);padding:20px;">📅 No trips scheduled. Contact admin to assign a trip.</p></div>
-            {% endif %}
+            <div class="page-header"><div><div class="page-title">🚌 Trip Status</div><div class="page-subtitle">Manage your current and upcoming trips</div></div></div>
+            {% if ongoing_trip %}<div class="trip-status-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><div style="font-weight:700;">{{ ongoing_trip.route.start }} → {{ ongoing_trip.route.end }}</div><span class="badge badge-green">🚌 In Progress</span></div><div class="trip-actions" style="margin-top:16px;"><button class="btn btn-green" data-trip-id="{{ ongoing_trip.id }}" onclick="completeTripAPI(parseInt(this.dataset.tripId))">✅ Complete Trip</button></div></div>{% elif today_trips %}{% for trip in today_trips %}<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:600;">{{ trip.route.start }} → {{ trip.route.end }}</div><div style="color:var(--muted);">🕐 {{ trip.departure_time|time:"g:i A" }} | 🚌 {{ trip.bus.bus_number }}</div></div><button class="btn btn-green" data-trip-id="{{ trip.id }}" onclick="startTripAPI(parseInt(this.dataset.tripId))">▶ Start Trip</button></div></div>{% endfor %}{% else %}<div class="card"><p style="text-align:center;color:var(--muted);padding:20px;">📅 No trips scheduled. Contact admin to assign a trip.</p></div>{% endif %}
         </section>
 
         <!-- EARNINGS SECTION -->
         <section id="sec-earnings" class="section">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">💰 Earnings</div>
-                    <div class="page-subtitle">Today's earnings summary</div>
-                </div>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card gold"><div class="stat-icon gold">💰</div><div class="stat-label">Today's Earnings</div><div class="stat-value">৳{{ today_earnings|floatformat:0|default:0 }}</div></div>
-                <div class="stat-card green"><div class="stat-icon green">✅</div><div class="stat-label">Trips Completed</div><div class="stat-value">{{ trips_completed|default:0 }}</div></div>
-                <div class="stat-card orange"><div class="stat-icon orange">👥</div><div class="stat-label">Passengers Today</div><div class="stat-value">{{ passenger_count|default:0 }}</div></div>
-            </div>
+            <div class="page-header"><div><div class="page-title">💰 Earnings</div><div class="page-subtitle">Today's earnings summary</div></div></div>
+            <div class="stats-grid"><div class="stat-card gold"><div class="stat-icon gold">💰</div><div class="stat-label">Today's Earnings</div><div class="stat-value">৳{{ today_earnings|floatformat:0|default:0 }}</div></div><div class="stat-card green"><div class="stat-icon green">✅</div><div class="stat-label">Trips Completed</div><div class="stat-value">{{ trips_completed|default:0 }}</div></div><div class="stat-card orange"><div class="stat-icon orange">👥</div><div class="stat-label">Passengers Today</div><div class="stat-value">{{ passenger_count|default:0 }}</div></div></div>
         </section>
 
-        <!-- CHAT SECTION -->
+        <!-- CHAT SECTION - FULLY FUNCTIONAL -->
         <section id="sec-chat" class="section">
             <div class="page-header">
-                <div>
-                    <div class="page-title">💬 Chat</div>
-                    <div class="page-subtitle">Communicate with admin</div>
-                </div>
+                <div><div class="page-title">💬 Messages</div><div class="page-subtitle">Chat with admin and passengers</div></div>
+                <button class="btn btn-outline" onclick="loadChatRooms()">🔄 Refresh</button>
             </div>
-            <div class="card">
-                <div class="chat-box" id="chatBox">
-                    <div class="chat-msg recv">
-                        <div class="chat-avatar-small">AD</div>
-                        <div>
-                            <div class="chat-bubble">Hello {{ request.user.first_name|default:"Driver" }}, drive safe today! 🚌</div>
-                            <div class="chat-time">8:00 AM</div>
-                        </div>
-                    </div>
+            <div class="chat-layout">
+                <div class="chat-rooms-sidebar" id="chatRoomsSidebar">
+                    <div class="chat-rooms-header"><h4>Conversations</h4><span id="totalUnread" class="unread-total">0</span></div>
+                    <div class="chat-rooms-list" id="chatRoomsList"><div class="loading-chats">Loading conversations...</div></div>
                 </div>
-                <div class="chat-input-row" style="display:flex;gap:10px;">
-                    <input type="text" id="chatInput" class="chat-input" placeholder="Type your message...">
-                    <button class="btn btn-primary" onclick="sendChat()">📨 Send</button>
+                <div class="chat-messages-area" id="chatMessagesArea">
+                    <div class="chat-placeholder"><div class="placeholder-icon">💬</div><h4>Select a conversation</h4><p>Choose a chat from the left to start messaging</p></div>
                 </div>
             </div>
         </section>
 
         <!-- ALERTS SECTION -->
         <section id="sec-alerts" class="section">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">🚨 Emergency Alerts</div>
-                    <div class="page-subtitle">Send emergency notification to admin</div>
-                </div>
-            </div>
-            <button class="btn btn-red" style="width:100%;padding:20px;font-size:18px;margin-bottom:20px;" onclick="sendEmergencyAlert()">
-                🚨 SEND EMERGENCY ALERT
-            </button>
-            <div class="card">
-                <div class="card-title"><span class="dot"></span>Recent Alerts</div>
-                <p style="color:var(--muted);text-align:center;padding:20px;">🟢 All clear! No recent emergency alerts.</p>
-            </div>
+            <div class="page-header"><div><div class="page-title">🚨 Emergency Alerts</div><div class="page-subtitle">Send emergency notification to admin</div></div></div>
+            <button class="btn btn-red" style="width:100%;padding:20px;font-size:18px;margin-bottom:20px;" onclick="sendEmergencyAlert()">🚨 SEND EMERGENCY ALERT</button>
+            <div class="card"><div class="card-title"><span class="dot"></span>Recent Alerts</div><p style="color:var(--muted);text-align:center;padding:20px;">🟢 All clear! No recent emergency alerts.</p></div>
         </section>
 
         <!-- PROFILE SECTION -->
         <section id="sec-profile" class="section">
-            <div class="page-header">
-                <div>
-                    <div class="page-title">👤 My Profile</div>
-                    <div class="page-subtitle">Driver account information</div>
-                </div>
-                <button class="btn btn-outline" onclick="window.location.href='{% url 'driver_profile' %}'">✏️ Edit Profile</button>
-            </div>
-            <div class="card">
-                <div class="profile-header">
-                    <div class="profile-avatar-lg">{{ request.user.first_name|default:"D"|first|upper }}</div>
-                    <div>
-                        <div class="name" style="font-size:20px;font-weight:700;">{{ request.user.get_full_name|default:request.user.username }}</div>
-                        <div class="role" style="color:var(--muted);">🚌 Bus Driver · Easy Transport</div>
-                        <div class="tags" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-                            <span class="profile-tag">{% with driver.assigned_route as route %}{% if route %}🛣️ Route {{ route.code }}{% else %}🛣️ No route assigned{% endif %}{% endwith %}</span>
-                            <span class="profile-tag">{% with driver.assigned_bus as bus %}{% if bus %}🚌 Bus {{ bus.bus_number }}{% else %}🚌 No bus assigned{% endif %}{% endwith %}</span>
-                            <span class="profile-tag">🟢 On Duty</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="field-row">
-                    <div class="field-group"><label>Driver ID</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div>
-                    <div class="field-group"><label>Phone</label><div class="field-value">{{ driver.phone|default:"N/A" }}</div></div>
-                    <div class="field-group"><label>License No.</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div>
-                    <div class="field-group"><label>Emergency Contact</label><div class="field-value">{{ driver.emergency_contact|default:"N/A" }}</div></div>
-                    <div class="field-group"><label>Assigned Bus</label><div class="field-value">{% with driver.assigned_bus as bus %}{% if bus %}🚌 {{ bus.bus_number }} ({{ bus.capacity }} seats){% else %}No bus assigned{% endif %}{% endwith %}</div></div>
-                    <div class="field-group"><label>Assigned Route</label><div class="field-value">{% with driver.assigned_route as route %}{% if route %}🛣️ {{ route.code }} — {{ route.start }} ↔ {{ route.end }}{% else %}No route assigned{% endif %}{% endwith %}</div></div>
-                </div>
-            </div>
+            <div class="page-header"><div><div class="page-title">👤 My Profile</div><div class="page-subtitle">Driver account information</div></div><button class="btn btn-outline" onclick="window.location.href='{% url 'driver_profile' %}'">✏️ Edit Profile</button></div>
+            <div class="card"><div class="profile-header" style="display:flex;gap:20px;margin-bottom:24px;"><div class="profile-avatar-lg" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--gold));display:flex;align-items:center;justify-content:center;font-size:28px;">{{ request.user.first_name|default:"D"|first|upper }}</div><div><div class="name" style="font-size:20px;font-weight:700;">{{ request.user.get_full_name|default:request.user.username }}</div><div class="role" style="color:var(--muted);">🚌 Bus Driver · Easy Transport</div><div class="tags" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;"><span class="profile-tag">{% with driver.assigned_route as route %}{% if route %}🛣️ Route {{ route.code }}{% else %}🛣️ No route assigned{% endif %}{% endwith %}</span><span class="profile-tag">{% with driver.assigned_bus as bus %}{% if bus %}🚌 Bus {{ bus.bus_number }}{% else %}🚌 No bus assigned{% endif %}{% endwith %}</span><span class="profile-tag">🟢 On Duty</span></div></div></div>
+            <div class="field-row" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"><div class="field-group"><label>Driver ID</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div><div class="field-group"><label>Phone</label><div class="field-value">{{ driver.phone|default:"N/A" }}</div></div><div class="field-group"><label>License No.</label><div class="field-value">{{ driver.license_number|default:"N/A" }}</div></div><div class="field-group"><label>Emergency Contact</label><div class="field-value">{{ driver.emergency_contact|default:"N/A" }}</div></div><div class="field-group"><label>Assigned Bus</label><div class="field-value">{% with driver.assigned_bus as bus %}{% if bus %}🚌 {{ bus.bus_number }} ({{ bus.capacity }} seats){% else %}No bus assigned{% endif %}{% endwith %}</div></div><div class="field-group"><label>Assigned Route</label><div class="field-value">{% with driver.assigned_route as route %}{% if route %}🛣️ {{ route.code }} — {{ route.start }} ↔ {{ route.end }}{% else %}No route assigned{% endif %}{% endwith %}</div></div></div></div>
         </section>
     </main>
 </div>
@@ -568,193 +521,157 @@
         var btn = document.querySelector('[onclick="navigate(\'' + sectionId + '\')"]');
         if (btn) btn.classList.add('active');
         if (sectionId === 'passengers') loadPassengers();
+        if (sectionId === 'chat') loadChatRooms();
     }
-
     function refreshPage() { location.reload(); }
 
     // Schedule filtering
     function filterSchedules() {
         var filter = document.getElementById('scheduleFilter').value;
         var cards = document.querySelectorAll('.schedule-card');
-
         if (filter === 'upcoming') {
             var today = new Date().toISOString().split('T')[0];
-            var sevenDaysLater = new Date();
-            sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+            var sevenDaysLater = new Date(); sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
             var sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0];
-
-            cards.forEach(card => {
-                var scheduleDate = card.getAttribute('data-schedule-date');
-                card.style.display = (scheduleDate >= today && scheduleDate <= sevenDaysLaterStr) ? '' : 'none';
-            });
+            cards.forEach(card => { var scheduleDate = card.getAttribute('data-schedule-date'); card.style.display = (scheduleDate >= today && scheduleDate <= sevenDaysLaterStr) ? '' : 'none'; });
             showToast('Showing schedules for next 7 days', false);
-        } else {
-            cards.forEach(card => card.style.display = '');
-            showToast('Showing all schedules', false);
-        }
+        } else { cards.forEach(card => card.style.display = ''); showToast('Showing all schedules', false); }
     }
 
     // Passenger loading
     function loadPassengers() {
         var tbody = document.getElementById('passengerTable');
         tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Loading passengers...</td></tr>';
-
-        fetch('/driver/api/passengers/', {
-            headers: { 'X-CSRFToken': getCookie('csrftoken') }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success && data.passengers && data.passengers.length > 0) {
-                renderPassengerTable(data.passengers);
-                var count = data.passengers.length;
-                document.getElementById('passengerCount').textContent = count;
-                document.getElementById('passengerStat').textContent = count;
-                document.getElementById('totalPassengers').textContent = count;
-            } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No passengers booked for today</td></tr>';
-            }
-        })
-        .catch(() => {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Failed to load passengers</td></tr>';
-        });
+        fetch('/driver/api/passengers/', { headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.passengers && data.passengers.length > 0) {
+                    renderPassengerTable(data.passengers);
+                    var count = data.passengers.length;
+                    document.getElementById('passengerCount').textContent = count;
+                    document.getElementById('passengerStat').textContent = count;
+                    document.getElementById('totalPassengers').textContent = count;
+                } else { tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No passengers booked for today</td></tr>'; }
+            })
+            .catch(() => { tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Failed to load passengers</td></tr>'; });
     }
-
-    function renderPassengerTable(passengers) {
-        var html = '';
-        passengers.forEach(p => {
-            var badgeClass = p.type === 'Student' ? 'badge-blue' : 'badge-gold';
-            html += `<tr>
-                <td><span class="badge badge-gold">${p.seat}</span></td>
-                <td>${p.name}</td>
-                <td><span class="${badgeClass}">${p.type}</span></td>
-                <td>${p.id}</td>
-                <td>${p.stop}</td>
-                <td><span style="color:var(--green);">✓ Confirmed</span></td>
-            </tr>`;
-        });
-        document.getElementById('passengerTable').innerHTML = html;
-    }
+    function renderPassengerTable(passengers) { var html=''; passengers.forEach(p=>{ html+=`<tr><td><span class="badge badge-gold">${p.seat}</span></td><td>${p.name}</td><td><span class="badge badge-blue">${p.type}</span></td><td>${p.id}</td><td>${p.stop}</td><td><span style="color:var(--green);">✓ Confirmed</span></td></tr>`; }); document.getElementById('passengerTable').innerHTML=html; }
 
     // Trip APIs
-    function startTripAPI(tripId) {
-        if (!tripId) return;
-        showToast('Starting trip...', false);
-        fetch(`/driver/trip/${tripId}/start/`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': getCookie('csrftoken') }
-        })
-        .then(res => res.json())
-        .then(data => {
-            showToast(data.message);
-            if (data.success) setTimeout(() => location.reload(), 1500);
-        })
-        .catch(() => showToast('Failed to start trip', true));
-    }
-
-    function completeTripAPI(tripId) {
-        if (!tripId) return;
-        showToast('Completing trip...', false);
-        fetch(`/driver/trip/${tripId}/complete/`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': getCookie('csrftoken') }
-        })
-        .then(res => res.json())
-        .then(data => {
-            showToast(data.message);
-            if (data.success) setTimeout(() => location.reload(), 1500);
-        })
-        .catch(() => showToast('Failed to complete trip', true));
-    }
-
-    // Chat
-    function sendChat() {
-        var input = document.getElementById('chatInput');
-        var msg = input.value.trim();
-        if (!msg) return;
-        var box = document.getElementById('chatBox');
-        var now = new Date();
-        var time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
-        box.innerHTML += '<div class="chat-msg sent"><div><div class="chat-bubble">' + escapeHtml(msg) + '</div><div class="chat-time">' + time + '</div></div></div>';
-        input.value = '';
-        box.scrollTop = box.scrollHeight;
-    }
+    function startTripAPI(tripId) { if (!tripId) return; showToast('Starting trip...', false); fetch(`/driver/trip/${tripId}/start/`, { method:'POST', headers:{ 'X-CSRFToken': getCookie('csrftoken') } }).then(res=>res.json()).then(data=>{ showToast(data.message); if(data.success) setTimeout(()=>location.reload(),1500); }).catch(()=>showToast('Failed to start trip', true)); }
+    function completeTripAPI(tripId) { if (!tripId) return; showToast('Completing trip...', false); fetch(`/driver/trip/${tripId}/complete/`, { method:'POST', headers:{ 'X-CSRFToken': getCookie('csrftoken') } }).then(res=>res.json()).then(data=>{ showToast(data.message); if(data.success) setTimeout(()=>location.reload(),1500); }).catch(()=>showToast('Failed to complete trip', true)); }
 
     // Emergency Alert
-    function sendEmergencyAlert() {
-        if (!confirm('🚨 Send emergency alert to admin? This will immediately notify all admins.')) return;
-        var btn = document.querySelector('#sec-alerts .btn-red');
-        var originalText = btn.innerHTML;
-        btn.innerHTML = '⏳ Sending Alert...';
-        btn.disabled = true;
+    function sendEmergencyAlert() { if(!confirm('🚨 Send emergency alert to admin? This will immediately notify all admins.')) return; var btn=document.querySelector('#sec-alerts .btn-red'); var originalText=btn.innerHTML; btn.innerHTML='⏳ Sending Alert...'; btn.disabled=true; fetch('/driver/api/send-alert/', { method:'POST', headers:{ 'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken') }, body:JSON.stringify({ message:'Emergency alert triggered by driver. Immediate attention required!' }) }).then(res=>res.json()).then(data=>{ showToast(data.message||'Emergency alert sent to admin!'); btn.innerHTML=originalText; btn.disabled=false; }).catch(()=>{ showToast('Failed to send alert', true); btn.innerHTML=originalText; btn.disabled=false; }); }
 
-        fetch('/driver/api/send-alert/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-            body: JSON.stringify({ message: 'Emergency alert triggered by driver. Immediate attention required!' })
-        })
-        .then(res => res.json())
-        .then(data => {
-            showToast(data.message || 'Emergency alert sent to admin!');
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        })
-        .catch(() => {
-            showToast('Failed to send alert', true);
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+    // =============================================
+    // CHAT SYSTEM - FULLY FUNCTIONAL
+    // =============================================
+    let currentRoomId = null;
+    let chatPollingInterval = null;
+    let chatRooms = [];
+    let lastMessageId = 0;
+
+    function loadChatRooms() {
+        const roomsList = document.getElementById('chatRoomsList');
+        roomsList.innerHTML = '<div class="loading-chats">Loading conversations...</div>';
+        fetch('/driver/api/chat-rooms/', { headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.rooms) {
+                    chatRooms = data.rooms;
+                    renderChatRooms(chatRooms);
+                    const totalUnread = chatRooms.reduce((sum, room) => sum + room.unread_count, 0);
+                    document.getElementById('totalUnread').textContent = totalUnread;
+                    document.getElementById('chatBadge').textContent = totalUnread;
+                } else { roomsList.innerHTML = '<div class="loading-chats">No conversations yet</div>'; }
+            })
+            .catch(error => { console.error('Error loading chat rooms:', error); roomsList.innerHTML = '<div class="loading-chats">Failed to load conversations</div>'; });
+    }
+
+    function renderChatRooms(rooms) {
+        const roomsList = document.getElementById('chatRoomsList');
+        if (!rooms || rooms.length === 0) { roomsList.innerHTML = '<div class="loading-chats">No conversations yet. Chats will appear when passengers message you.</div>'; return; }
+        let html = '';
+        rooms.forEach(room => {
+            html += `<div class="chat-room-item" data-room-id="${room.id}" onclick="openChatRoom(${room.id})">
+                        <div class="chat-room-avatar">${room.user_avatar}</div>
+                        <div class="chat-room-info">
+                            <div class="chat-room-name">${escapeHtml(room.user_name)}</div>
+                            <div class="chat-room-last-msg">${escapeHtml(room.last_message)}</div>
+                            <div class="chat-room-time">${room.last_message_time}</div>
+                        </div>
+                        ${room.unread_count > 0 ? `<div class="chat-room-unread">${room.unread_count}</div>` : ''}
+                    </div>`;
         });
+        roomsList.innerHTML = html;
     }
 
-    function escapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    function openChatRoom(roomId) {
+        if (chatPollingInterval) clearInterval(chatPollingInterval);
+        currentRoomId = roomId;
+        document.querySelectorAll('.chat-room-item').forEach(item => { item.classList.remove('active'); if (parseInt(item.dataset.roomId) === roomId) item.classList.add('active'); });
+        const room = chatRooms.find(r => r.id === roomId);
+        loadChatMessages(roomId, room);
+        chatPollingInterval = setInterval(() => { if (currentRoomId === roomId) fetchNewMessages(roomId); }, 2000);
     }
 
-    function showToast(msg, isError) {
-        var toast = document.getElementById('toast');
-        if (!toast) return;
-        document.getElementById('toastMsg').textContent = msg;
-        document.getElementById('toastIcon').textContent = isError ? '❌' : '✅';
-        toast.classList.add('show');
-        if (isError) toast.classList.add('error');
-        setTimeout(function() {
-            toast.classList.remove('show');
-            if (isError) toast.classList.remove('error');
-        }, 3500);
+    function loadChatMessages(roomId, room) {
+        const messagesArea = document.getElementById('chatMessagesArea');
+        messagesArea.innerHTML = `<div class="active-chat-header">
+                                    <div class="chat-room-avatar">${room ? room.user_avatar : 'U'}</div>
+                                    <div><div><strong>${room ? escapeHtml(room.user_name) : 'Loading...'}</strong></div><div style="font-size: 11px; color: var(--text-muted);">Booking #${room ? room.booking_id : 'N/A'}</div></div>
+                                  </div>
+                                  <div class="active-chat-messages" id="activeChatMessages"><div style="text-align:center; padding:20px;">Loading messages...</div></div>
+                                  <div class="active-chat-input"><input type="text" id="chatMessageInput" placeholder="Type your message..." onkeypress="handleChatKeyPress(event)"><button onclick="sendChatMessage()">📨 Send</button></div>`;
+        fetch(`/driver/api/chat/mark-read/${roomId}/`, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+        fetch(`/driver/api/chat/messages/${roomId}/`).then(res => res.json()).then(data => {
+            if (data.success && data.messages) { renderMessages(data.messages); if (data.messages.length > 0) lastMessageId = data.messages[data.messages.length - 1].id; }
+            else { document.getElementById('activeChatMessages').innerHTML = '<div style="text-align:center; padding:20px;">No messages yet. Start the conversation!</div>'; }
+        }).catch(error => { console.error('Error loading messages:', error); document.getElementById('activeChatMessages').innerHTML = '<div style="text-align:center; padding:20px;">Failed to load messages</div>'; });
     }
 
-    function getCookie(name) {
-        var value = null;
-        if (document.cookie) {
-            var cookies = document.cookie.split(';');
-            for (var i = 0; i < cookies.length; i++) {
-                var cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    value = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+    function renderMessages(messages) {
+        const container = document.getElementById('activeChatMessages');
+        if (!container) return;
+        if (!messages || messages.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--text-muted);">No messages yet. Start the conversation!</div>'; return; }
+        let html = '';
+        messages.forEach(msg => { html += `<div class="chat-message ${msg.is_owner ? 'sent' : 'received'}"><div class="chat-message-avatar">${msg.sender_avatar}</div><div><div class="chat-message-bubble">${escapeHtml(msg.message)}</div><div class="chat-message-time">${msg.time}</div></div></div>`; });
+        container.innerHTML = html;
+        scrollChatToBottom();
+    }
+
+    function fetchNewMessages(roomId) {
+        fetch(`/driver/api/chat/messages/${roomId}/?last_id=${lastMessageId}`).then(res => res.json()).then(data => {
+            if (data.success && data.messages && data.messages.length > 0) {
+                const container = document.getElementById('activeChatMessages');
+                if (!container) return;
+                data.messages.forEach(msg => { const msgHtml = `<div class="chat-message ${msg.is_owner ? 'sent' : 'received'}"><div class="chat-message-avatar">${msg.sender_avatar}</div><div><div class="chat-message-bubble">${escapeHtml(msg.message)}</div><div class="chat-message-time">${msg.time}</div></div></div>`; container.insertAdjacentHTML('beforeend', msgHtml); lastMessageId = msg.id; });
+                scrollChatToBottom();
+                loadChatRooms();
             }
-        }
-        return value;
+        }).catch(error => console.error('Error fetching messages:', error));
     }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chatMessageInput');
+        const message = input.value.trim();
+        if (!message || !currentRoomId) return;
+        fetch(`/driver/api/chat/send/${currentRoomId}/`, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/x-www-form-urlencoded' }, body: `message=${encodeURIComponent(message)}` }).then(res => res.json()).then(data => { if (data.success) { input.value = ''; const container = document.getElementById('activeChatMessages'); const msgHtml = `<div class="chat-message sent"><div class="chat-message-avatar">${data.message.sender_avatar}</div><div><div class="chat-message-bubble">${escapeHtml(data.message.message)}</div><div class="chat-message-time">${data.message.time}</div></div></div>`; container.insertAdjacentHTML('beforeend', msgHtml); scrollChatToBottom(); lastMessageId = data.message.id; } else { showToast(data.error || 'Failed to send message', true); } }).catch(error => { console.error('Error sending message:', error); showToast('Failed to send message', true); });
+    }
+
+    function handleChatKeyPress(event) { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); } }
+    function scrollChatToBottom() { const container = document.querySelector('.active-chat-messages'); if (container) container.scrollTop = container.scrollHeight; }
+    function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+    // Helper functions
+    function showToast(msg, isError) { var toast=document.getElementById('toast'); if(!toast) return; document.getElementById('toastMsg').textContent=msg; document.getElementById('toastIcon').textContent=isError?'❌':'✅'; toast.classList.add('show'); if(isError) toast.classList.add('error'); setTimeout(function(){ toast.classList.remove('show'); if(isError) toast.classList.remove('error'); },3500); }
+    function getCookie(name) { var value=null; if(document.cookie){ var cookies=document.cookie.split(';'); for(var i=0;i<cookies.length;i++){ var cookie=cookies[i].trim(); if(cookie.substring(0,name.length+1)===(name+'=')){ value=decodeURIComponent(cookie.substring(name.length+1)); break; } } } return value; }
 
     document.addEventListener('DOMContentLoaded', function() {
         loadPassengers();
-        var now = new Date();
-        var dateEl = document.getElementById('currentDate');
-        if (dateEl) {
-            dateEl.innerHTML = now.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-        }
-        var chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    sendChat();
-                }
-            });
-        }
+        var now=new Date(); var dateEl=document.getElementById('currentDate'); if(dateEl) dateEl.innerHTML=now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+        if (document.getElementById('sec-chat').classList.contains('active')) loadChatRooms();
     });
 </script>
 </body>

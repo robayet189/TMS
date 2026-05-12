@@ -212,7 +212,12 @@ class ChatRoom(models.Model):
 
 class ChatMessage(models.Model):
     """Individual chat messages"""
-    MESSAGE_TYPES = [('text', 'Text'), ('image', 'Image'), ('file', 'File')]
+    MESSAGE_TYPES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('file', 'File'),
+        ('system', 'System Message'),
+    ]
 
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
