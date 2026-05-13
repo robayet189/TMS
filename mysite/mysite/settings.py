@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'channels',
     'myapp',
+    'django.contrib.humanize', 
 ]
 
 MIDDLEWARE = [

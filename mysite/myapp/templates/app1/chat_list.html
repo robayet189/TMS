@@ -1,0 +1,197 @@
+{% extends 'app1/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .chat-list-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .chat-header h1 {
+        font-size: 28px;
+        background: linear-gradient(135deg, #ff4757, #ff6b6b);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin: 0;
+    }
+    .new-chat-btn {
+        background: linear-gradient(135deg, #ff4757, #ff6b6b);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 40px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(255,71,87,0.3);
+    }
+    .new-chat-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(255,71,87,0.4);
+    }
+    .chat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+    .chat-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: 0.3s;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border: 1px solid #f0f0f0;
+    }
+    .chat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        border-color: #ff4757;
+    }
+    .chat-card-header {
+        background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
+        color: white;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .chat-id {
+        font-weight: bold;
+        background: rgba(255,255,255,0.2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+    }
+    .chat-date {
+        font-size: 12px;
+        opacity: 0.8;
+    }
+    .chat-card-body {
+        padding: 16px 20px;
+    }
+    .chat-with {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .chat-last-msg {
+        font-size: 13px;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+</style>
+
+<div class="chat-list-container">
+    <div class="chat-header">
+        <h1>💬 Support Chat</h1>
+        <button class="new-chat-btn" onclick="startNewChat()">➕ New Conversation</button>
+    </div>
+
+    {% if chat_rooms %}
+        <div class="chat-grid">
+        {% for room in chat_rooms %}
+            <a href="{% url 'chat_room' room.id %}" class="chat-card">
+                <div class="chat-card-header">
+                    <span class="chat-id">Chat #{{ room.id }}</span>
+                    <span class="chat-date">{{ room.created_at|date:"M d, Y" }}</span>
+                </div>
+                <div class="chat-card-body">
+                    <div class="chat-with">
+                        {% if is_admin %}
+                            👤 {{ room.user.get_full_name|default:room.user.username }}
+                        {% else %}
+                            🛡️ Support Team
+                        {% endif %}
+                    </div>
+                    <div class="chat-last-msg">
+                        {% with last_msg=room.messages.last %}
+                            💬 {{ last_msg.message|truncatechars:50|default:"No messages yet" }}
+                        {% endwith %}
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <p>No active conversations yet.</p>
+            <!-- এখানেও বাটন দিচ্ছি না, উপরের header বাটনই যথেষ্ট -->
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    function startNewChat() {
+        fetch('/start-chat/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: 'subject='
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else {
+                alert('Could not start chat: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Network error. Please try again.');
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}
