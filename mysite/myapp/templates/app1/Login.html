@@ -7,8 +7,8 @@
     <title>Login — Easy Transport</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* [Keep all your existing CSS styles unchanged] */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        
         :root, [data-theme="dark"] {
             --bg: #0b0b14; --card: #13131f; --card2: #16162a;
             --red: #ff4757; --orange: #ff6b35; --text: #ffffff;
@@ -18,7 +18,6 @@
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             --glow: rgba(255,71,87,0.3);
         }
-        
         [data-theme="light"] {
             --bg: #f5f7fb; --card: #ffffff; --card2: #ffffff;
             --red: #e63946; --orange: #f4a261; --text: #1e293b;
@@ -27,9 +26,7 @@
             --nav-bg: rgba(255,255,255,0.92); --toast-bg: #ffffff;
             --glow: rgba(230,57,70,0.2);
         }
-        
         html { scroll-behavior: smooth; }
-        
         body {
             background: var(--bg); color: var(--text);
             font-family: 'DM Sans', sans-serif;
@@ -38,7 +35,6 @@
             transition: background 0.3s ease, color 0.2s ease;
             position: relative;
         }
-        
         body::before {
             content: ''; position: fixed; inset: 0;
             background: radial-gradient(ellipse 800px 600px at 20% 20%, rgba(255,71,87,0.08) 0%, transparent 60%),
@@ -46,24 +42,20 @@
             pointer-events: none; z-index: 0; transition: opacity 0.3s;
             animation: float 20s ease-in-out infinite;
         }
-        
         @keyframes float {
             0%, 100% { transform: translate(0, 0); }
             50% { transform: translate(20px, 20px); }
         }
-        
         body::after {
             content: ''; position: fixed; inset: 0;
             background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
                               linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
             background-size: 60px 60px; pointer-events: none; z-index: 0;
         }
-        
         body.light::after {
             background-image: linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
                               linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
         }
-        
         nav {
             position: fixed; top: 0; left: 0; right: 0; z-index: 100;
             display: flex; align-items: center; justify-content: space-between;
@@ -71,7 +63,6 @@
             backdrop-filter: blur(20px); border-bottom: 1px solid var(--border);
             transition: var(--transition);
         }
-        
         .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
         .logo-icon-custom {
             width: 75px; height: 65px; background: transparent; border-radius: 14px;
@@ -86,7 +77,6 @@
             background: linear-gradient(135deg, var(--red), var(--orange));
             -webkit-background-clip: text; background-clip: text;
         }
-        
         .nav-right { display: flex; align-items: center; gap: 20px; }
         .nav-register {
             color: var(--muted); text-decoration: none; font-size: 14px;
@@ -95,7 +85,6 @@
         }
         .nav-register strong { color: var(--red); }
         .nav-register:hover { color: white; background: rgba(255,71,87,0.15); }
-        
         .theme-toggle {
             width: 48px; height: 48px; border-radius: 999px; background: var(--card2);
             border: 1px solid var(--border); cursor: pointer; display: flex;
@@ -105,34 +94,26 @@
         .theme-toggle:hover { transform: scale(1.05); border-color: var(--red); box-shadow: 0 0 12px var(--glow); }
         .theme-toggle .toggle-icon { transition: transform 0.4s cubic-bezier(0.34, 1.2, 0.64, 1); display: inline-block; }
         .theme-toggle:hover .toggle-icon { transform: rotate(15deg); }
-        
         .wrapper {
             position: relative; z-index: 1; width: 100%; max-width: 480px;
             margin: 72px auto 30px; animation: fadeUp 0.7s ease both;
         }
-        
         @keyframes fadeUp { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: translateY(0); } }
-        
         .card {
             background: var(--card); border: 1px solid var(--border); border-radius: 32px;
             padding: 44px 44px 48px; backdrop-filter: blur(30px);
             box-shadow: 0 40px 100px rgba(0,0,0,0.3); transition: var(--transition);
             position: relative; overflow: hidden;
         }
-        
         body.light .card { box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
-        
         .card::before {
             content: ''; position: absolute; top: -50%; left: -50%;
             width: 200%; height: 200%;
             background: radial-gradient(circle, rgba(255,71,87,0.05) 0%, transparent 70%);
             animation: pulse 8s ease-in-out infinite; pointer-events: none;
         }
-        
         @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.8; } }
-        
         .card-header { text-align: center; margin-bottom: 32px; position: relative; z-index: 1; }
-        
         .brand-pill {
             display: inline-flex; align-items: center; gap: 8px;
             background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.2);
@@ -140,7 +121,6 @@
             margin-bottom: 20px;
         }
         .brand-pill .dot { width: 6px; height: 6px; background: var(--red); border-radius: 50%; animation: pulse 2s infinite; }
-        
         .card-header h1 {
             font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800;
             background: linear-gradient(135deg, #fff, var(--orange));
@@ -152,41 +132,33 @@
             -webkit-background-clip: text; background-clip: text;
         }
         .card-header p { color: var(--muted); font-size: 14px; }
-        
         .form-group { margin-bottom: 24px; position: relative; }
-        
         label {
             display: block; font-size: 13px; font-weight: 600;
             color: var(--muted); margin-bottom: 8px;
         }
         label span.req { color: var(--red); margin-left: 3px; }
-        
         .input-wrap { position: relative; }
-        
         .input-wrap .icon {
             position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
             font-size: 16px; opacity: 0.5; pointer-events: none;
         }
-        
         input {
             width: 100%; background: var(--input-bg); border: 1.5px solid var(--input-border);
             border-radius: 14px; color: var(--text); font-family: 'DM Sans', sans-serif;
             font-size: 14px; padding: 13px 16px 13px 42px; outline: none;
             transition: all 0.3s;
         }
-        
         input:focus {
             border-color: var(--red); background: rgba(255,71,87,0.05);
             box-shadow: 0 0 0 3px rgba(255,71,87,0.12);
         }
-        
         .input-wrap .eye-btn {
             position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
             background: none; border: none; cursor: pointer; font-size: 16px;
             color: var(--dim); transition: color 0.2s;
         }
         .eye-btn:hover { color: var(--red); }
-        
         .btn-login {
             width: 100%; padding: 15px;
             background: linear-gradient(135deg, var(--red), var(--orange));
@@ -195,18 +167,14 @@
             margin-top: 18px; box-shadow: 0 8px 30px var(--glow);
             transition: all 0.3s; position: relative; overflow: hidden;
         }
-        
         .btn-login:hover {
             transform: translateY(-2px);
             box-shadow: 0 16px 40px rgba(255,71,87,0.5);
         }
-        
         .btn-login:active { transform: translateY(0); }
-        
         .btn-login.loading { pointer-events: none; opacity: 0.8; }
         .btn-login .btn-text { transition: opacity 0.2s; }
         .btn-login.loading .btn-text { opacity: 0; }
-        
         .btn-login .spinner {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -215,9 +183,7 @@
             animation: spin 0.7s linear infinite; display: none;
         }
         .btn-login.loading .spinner { display: block; }
-        
         @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-        
         .divider {
             display: flex; align-items: center; gap: 12px;
             margin: 28px 0; color: var(--dim); font-size: 13px;
@@ -225,7 +191,6 @@
         .divider::before, .divider::after {
             content: ''; flex: 1; height: 1px; background: var(--border);
         }
-        
         .social-login {
             display: flex; gap: 12px;
         }
@@ -237,7 +202,6 @@
             transition: all 0.2s;
         }
         .social-btn:hover { border-color: var(--red); background: rgba(255,71,87,0.05); }
-        
         .register-link {
             text-align: center; margin-top: 26px; font-size: 14px; color: var(--muted);
         }
@@ -246,7 +210,6 @@
             transition: color 0.2s;
         }
         .register-link a:hover { text-decoration: underline; }
-        
         .toast {
             position: fixed; bottom: 30px; right: 30px;
             background: var(--toast-bg); border: 1px solid rgba(74,222,128,0.3);
@@ -258,7 +221,6 @@
         }
         .toast.show { transform: translateY(0); opacity: 1; }
         .toast.error { border-color: rgba(255,71,87,0.3); color: var(--red); }
-        
         @media (max-width: 560px) {
             .card { padding: 32px 24px 36px; }
             nav { padding: 0 20px; }
@@ -278,9 +240,8 @@
         <span class="logo-text">Easy Transport</span>
     </a>
     <div class="nav-right">
-        <!-- ✅ FIXED: Changed hardcoded /register/ to {% url 'register_page' %} -->
         <a href="{% url 'register_page' %}" class="nav-register">Don't have an account? <strong>Register →</strong></a>
-        <div class="theme-toggle" id="themeToggle">
+        <div class="theme-toggle" id="themeToggle" data-testid="theme-toggle">
             <span class="toggle-icon" id="toggleIcon">🌙</span>
         </div>
     </div>
@@ -294,27 +255,30 @@
             <p>Sign in to continue your journey</p>
         </div>
 
-        <form id="loginForm">
+        <form id="loginForm" data-testid="login-form">
             {% csrf_token %}
             
             <div class="form-group">
-                <label>Email or Username <span class="req">*</span></label>
+                <label for="username">Email or Username <span class="req">*</span></label>
                 <div class="input-wrap">
                     <span class="icon">👤</span>
-                    <input type="text" name="username" id="username" placeholder="Enter your email or username" required autocomplete="username">
+                    <input type="text" name="username" id="username" data-testid="username-input" 
+                           placeholder="Enter your email or username" required autocomplete="username">
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Password <span class="req">*</span></label>
+                <label for="password">Password <span class="req">*</span></label>
                 <div class="input-wrap">
                     <span class="icon">🔒</span>
-                    <input type="password" name="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
-                    <button class="eye-btn" type="button" onclick="togglePwd('password', this)" aria-label="Toggle password visibility">👁️</button>
+                    <input type="password" name="password" id="password" data-testid="password-input" 
+                           placeholder="Enter your password" required autocomplete="current-password">
+                    <button class="eye-btn" type="button" onclick="togglePwd('password', this)" 
+                            aria-label="Toggle password visibility" data-testid="password-toggle">👁️</button>
                 </div>
             </div>
 
-            <button type="submit" class="btn-login" id="loginBtn">
+            <button type="submit" class="btn-login" id="loginBtn" data-testid="login-button">
                 <span class="btn-text">🚀 Sign In</span>
                 <div class="spinner"></div>
             </button>
@@ -323,22 +287,23 @@
         <div class="divider">or continue with</div>
 
         <div class="social-login">
-            <button class="social-btn">🔵 Google</button>
-            <button class="social-btn">🔷 Facebook</button>
+            <button class="social-btn" data-testid="google-login">🔵 Google</button>
+            <button class="social-btn" data-testid="facebook-login">🔷 Facebook</button>
         </div>
 
         <div class="register-link">
-            New to Easy Transport? <a href="{% url 'register_page' %}">Create an account</a>
+            New to Easy Transport? <a href="{% url 'register_page' %}" data-testid="register-link">Create an account</a>
         </div>
     </div>
 </div>
 
-<div class="toast" id="toast">
-    <span id="toastIcon">✅</span>
-    <span id="toastMsg"></span>
+<div class="toast" id="toast" data-testid="toast-notification">
+    <span id="toastIcon" data-testid="toast-icon">✅</span>
+    <span id="toastMsg" data-testid="toast-message"></span>
 </div>
 
 <script>
+    // ===== THEME TOGGLE =====
     const themeToggle = document.getElementById('themeToggle');
     const toggleIcon = document.getElementById('toggleIcon');
     const html = document.documentElement;
@@ -357,6 +322,7 @@
         setTimeout(() => { themeToggle.style.transform = ''; }, 150);
     });
 
+    // ===== PASSWORD VISIBILITY =====
     function togglePwd(id, btn) {
         const inp = document.getElementById(id);
         if (inp.type === 'password') {
@@ -368,6 +334,7 @@
         }
     }
 
+    // ===== TOAST NOTIFICATION =====
     function showToast(msg, isError = false) {
         const toast = document.getElementById('toast');
         const msgEl = document.getElementById('toastMsg');
@@ -382,6 +349,7 @@
         setTimeout(() => { toast.classList.remove('show'); }, 3500);
     }
 
+    // ===== CSRF TOKEN =====
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -397,6 +365,7 @@
         return cookieValue;
     }
 
+    // ===== LOGIN FORM SUBMISSION - ✅ FIXED =====
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -417,10 +386,15 @@
             formData.append('password', password);
             formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
             
+            // ✅ FIXED: Add credentials: 'same-origin' to include session cookies
             const response = await fetch('/api/login/', {
                 method: 'POST',
                 body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'  // ✅ CRITICAL: Include cookies for session
             });
             
             if (!response.ok) {
@@ -432,9 +406,14 @@
             
             if (data.success) {
                 showToast(data.message || 'Login successful!');
+                
+                // ✅ FIXED: FULL PAGE REDIRECT after login to ensure session sync
+                // This ensures browser loads fresh page with correct session/cookies
                 setTimeout(() => {
+                    // Use window.location for full page load (not SPA navigation)
                     window.location.href = data.redirect_url || '/dashboard/';
-                }, 1000);
+                }, 800);
+                
             } else {
                 showToast(data.message || 'Invalid credentials', true);
             }
@@ -446,6 +425,7 @@
         }
     });
 
+    // ===== AUTO-FOCUS =====
     document.addEventListener('DOMContentLoaded', function() {
         const usernameInput = document.getElementById('username');
         if (usernameInput && !usernameInput.value) {
