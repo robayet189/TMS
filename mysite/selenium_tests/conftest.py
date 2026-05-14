@@ -4,19 +4,29 @@ Provides WebDriver setup, base URL, test credentials, and test data seeding.
 """
 
 import os
-import sys
 import pytest
 
-# ✅ CRITICAL: Configure Django BEFORE importing Django models
-# This must be at the TOP of the file, before any Django imports
+# ========================================================================
+# DJANGO SETUP - Let pytest-django handle this automatically
+# ========================================================================
+# ✅ CRITICAL: Set Django settings module environment variable
+# This MUST be done before any Django imports
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 
-# Now import Django and setup
-import django
-django.setup()  # ✅ Initialize Django
+# ✅ DO NOT call django.setup() manually - pytest-django plugin handles it
+# Calling it manually causes model reloading warnings and conflicts
 
-# Now it's safe to import Django models
+# ========================================================================
+# IMPORT DJANGO MODELS - Safe after pytest-django initialization
+# ========================================================================
 from django.contrib.auth.models import User
+from myapp.models import UserProfile, Route, Bus, Schedule, Booking
+from django.utils import timezone
+from datetime import datetime, timedelta
+
+# ========================================================================
+# IMPORT SELENIUM AND WEBDRIVER TOOLS
+# ========================================================================
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -24,36 +34,46 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-from myapp.models import UserProfile, Route, Bus, Schedule, Booking
-from django.utils import timezone
-from datetime import datetime, timedelta
 
 
 @pytest.fixture(scope="function")
 def driver():
     """
     Chrome WebDriver setup with optimized options for testing.
-    Yields driver instance and ensures cleanup after each test.
+    
+    Yields:
+        webdriver.Chrome: Configured Chrome driver instance
+        
+    Cleanup:
+        Automatically quits driver after each test completes
     """
     chrome_options = Options()
+    
+    # Essential Chrome options for stable testing
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--disable-gpu")
+    
+    # Avoid automation detection by websites
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
     
-    # Enable browser console logging for debugging
-    chrome_options.set_capability('goog:loggingPrefs', {'browser': 'ALL', 'performance': 'ALL'})
+    # Enable browser console and performance logging for debugging
+    chrome_options.set_capability('goog:loggingPrefs', {
+        'browser': 'ALL', 
+        'performance': 'ALL'
+    })
     
+    # Initialize ChromeDriver using webdriver-manager
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
     
-    # Set implicit wait for element finding
+    # Set implicit wait for element finding (fallback for explicit waits)
     driver.implicitly_wait(10)
     
-    # Execute CDP command to bypass automation detection
+    # Execute CDP command to bypass webdriver detection
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": """
             Object.defineProperty(navigator, 'webdriver', {
@@ -62,9 +82,10 @@ def driver():
         """
     })
     
+    # Yield driver to test function
     yield driver
     
-    # Cleanup: quit driver after test
+    # Cleanup: Always quit driver after test completes
     driver.quit()
 
 
@@ -72,7 +93,9 @@ def driver():
 def base_url():
     """
     Returns the base URL for the application.
-    Used by page objects to construct full URLs.
+    
+    Returns:
+        str: Base URL from environment variable or default localhost
     """
     return os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
@@ -81,7 +104,9 @@ def base_url():
 def test_admin_credentials():
     """
     Returns admin test credentials.
-    Use in tests requiring admin authentication.
+    
+    Returns:
+        dict: Admin username, password, and user type
     """
     return {
         "username": "admin@test.com",
@@ -94,7 +119,9 @@ def test_admin_credentials():
 def test_driver_credentials():
     """
     Returns driver test credentials.
-    Use in tests requiring driver authentication.
+    
+    Returns:
+        dict: Driver username, password, and user type
     """
     return {
         "username": "driver@test.com",
@@ -107,7 +134,9 @@ def test_driver_credentials():
 def test_user_credentials():
     """
     Returns student/user test credentials.
-    Use in tests requiring regular user authentication.
+    
+    Returns:
+        dict: Student username, password, and user type
     """
     return {
         "username": "student@test.com",
@@ -116,22 +145,40 @@ def test_user_credentials():
     }
 
 
-@pytest.fixture(autouse=True, scope="session")
+# ========================================================================
+# ✅ FIXED: seed_test_data - REMOVED scope="session" to match db fixture
+# ========================================================================
+@pytest.fixture(autouse=True)  # ✅ Removed scope="session" - now defaults to function
 def seed_test_data(db):
     """
-    Auto-run fixture to seed database with test data before tests.
+    Auto-run fixture to seed database with test data before each test.
+    
     Creates users, routes, buses, and schedules for booking tests.
+    
+    Args:
+        db: pytest-django database fixture (function-scoped)
+        
+    Returns:
+        dict: Created test objects for optional use in tests
     """
     # Create test admin user
     admin_user, _ = User.objects.get_or_create(
         username="admin",
-        defaults={"email": "admin@test.com", "is_active": True, "is_staff": True}
+        defaults={
+            "email": "admin@test.com", 
+            "is_active": True, 
+            "is_staff": True
+        }
     )
     admin_user.set_password("AdminPass123!")
     admin_user.save()
     UserProfile.objects.get_or_create(
         user=admin_user,
-        defaults={"user_type": "admin", "phone": "01700000001", "institution_type": "university"}
+        defaults={
+            "user_type": "admin", 
+            "phone": "01700000001", 
+            "institution_type": "university"
+        }
     )
     
     # Create test driver user
@@ -143,7 +190,11 @@ def seed_test_data(db):
     driver_user.save()
     UserProfile.objects.get_or_create(
         user=driver_user,
-        defaults={"user_type": "driver", "phone": "01700000002", "institution_type": "university"}
+        defaults={
+            "user_type": "driver", 
+            "phone": "01700000002", 
+            "institution_type": "university"
+        }
     )
     
     # Create test student user
@@ -155,7 +206,12 @@ def seed_test_data(db):
     student_user.save()
     UserProfile.objects.get_or_create(
         user=student_user,
-        defaults={"user_type": "student", "phone": "01700000003", "institution_type": "university", "institution_id": "STU001"}
+        defaults={
+            "user_type": "student", 
+            "phone": "01700000003", 
+            "institution_type": "university", 
+            "institution_id": "STU001"
+        }
     )
     
     # Create test route
@@ -193,6 +249,7 @@ def seed_test_data(db):
         }
     )
     
+    # Return created objects for optional use in tests
     return {
         "admin_user": admin_user,
         "driver_user": driver_user,
@@ -207,7 +264,12 @@ def seed_test_data(db):
 def wait(driver):
     """
     Returns a WebDriverWait instance with default timeout.
-    Use for explicit waits in tests.
+    
+    Args:
+        driver: Selenium WebDriver instance
+        
+    Returns:
+        WebDriverWait: Configured wait object for explicit waits
     """
     return WebDriverWait(driver, 10)
 
@@ -215,7 +277,13 @@ def wait(driver):
 def save_screenshot(driver, name):
     """
     Helper function to save screenshot for debugging.
-    Saves to screenshots/ directory.
+    
+    Args:
+        driver: Selenium WebDriver instance
+        name: Filename for the screenshot (without extension)
+        
+    Returns:
+        str: Full filepath of saved screenshot
     """
     os.makedirs("screenshots", exist_ok=True)
     filepath = f"screenshots/{name}.png"
