@@ -61,3 +61,8 @@ class TestAuthentication:
         page.open("/login/")
         page.login("wrong_user", "wrong_pass")
         assert page.get_error() is not None, "Error message should appear"
+
+
+
+
+# Additional authentication tests for logout, password reset, etc. can be added here as needed.        
