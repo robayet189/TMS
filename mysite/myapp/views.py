@@ -1282,35 +1282,50 @@ def driver_send_alert(request):
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
 
+
 @login_required
 def driver_get_passengers(request):
-    """API: Get REAL passenger list for driver's today trips from Booking model"""
+    """API: Get passenger list for driver's today trips from Booking model"""
     if not hasattr(request.user, 'driver_profile'):
         return JsonResponse({'success': False, 'passengers': []})
 
     driver = request.user.driver_profile
     today = timezone.now().date()
 
-    trips = Trip.objects.filter(driver=driver, travel_date=today)
-
     passengers = []
-    for trip in trips:
-        schedule = Schedule.objects.filter(
-            route=trip.route, travel_date=trip.travel_date,
-            departure_time=trip.departure_time
-        ).first()
-        if schedule:
+
+    # Get schedules for driver's assigned route today
+    if driver.assigned_route:
+        today_schedules = Schedule.objects.filter(
+            route=driver.assigned_route,
+            travel_date=today,
+            is_active=True
+        )
+
+        for schedule in today_schedules:
+            # Get confirmed bookings for this schedule
             bookings = Booking.objects.filter(
-                schedule=schedule, status='confirmed'
+                schedule=schedule,
+                status='confirmed'
             ).select_related('user')
-            for b in bookings:
+
+            for booking in bookings:
+                # Get user profile info
+                user_type = 'Student'
+                institution_id = booking.user.username
+                if hasattr(booking.user, 'profile'):
+                    user_type = booking.user.profile.user_type
+                    institution_id = booking.user.profile.institution_id or booking.user.username
+
                 passengers.append({
-                    'seat': b.seat_number,
-                    'name': b.passenger_name,
-                    'type': b.user.profile.user_type if hasattr(b.user, 'profile') else 'Student',
-                    'id': b.user.profile.institution_id if hasattr(b.user, 'profile') else b.user.username,
+                    'seat': booking.seat_number,
+                    'name': booking.passenger_name,
+                    'type': user_type.capitalize(),
+                    'id': institution_id,
                     'stop': schedule.route.end,
                 })
+
+    print(f"Passengers found: {len(passengers)}")  # Debug print
 
     return JsonResponse({'success': True, 'passengers': passengers})
 
@@ -1356,26 +1371,79 @@ def driver_dashboard(request):
             travel_date__lte=today + timedelta(days=7)
         )[:10]
 
-    # ========== PASSENGER & EARNINGS CALCULATION ==========
+    # ========== PASSENGER & EARNINGS CALCULATION (FIXED) ==========
     passenger_count = 0
     today_earnings = 0
+    passenger_list = []
 
-    if today_trips.exists():
-        for trip in today_trips:
+    # Get all schedules for today that have this driver's route
+    today_schedules = Schedule.objects.filter(
+        route=assigned_route if assigned_route else None,
+        travel_date=today,
+        is_active=True
+    )
+
+    for schedule in today_schedules:
+        # Get confirmed bookings for this schedule
+        bookings = Booking.objects.filter(
+            schedule=schedule,
+            status='confirmed'
+        ).select_related('user')
+
+        for booking in bookings:
+            passenger_count += 1
+            # Add to passenger list for the API
+            passenger_list.append({
+                'seat': booking.seat_number,
+                'name': booking.passenger_name,
+                'type': booking.user.profile.user_type if hasattr(booking.user, 'profile') else 'Student',
+                'id': booking.user.profile.institution_id if hasattr(booking.user,
+                                                                     'profile') else booking.user.username,
+                'stop': schedule.route.end,
+            })
+
+            # Calculate earnings (only if the trip is completed)
+            # Check if there's a completed trip for this schedule
+            trip_exists = Trip.objects.filter(
+                driver=driver,
+                route=schedule.route,
+                travel_date=schedule.travel_date,
+                departure_time=schedule.departure_time,
+                status='completed'
+            ).exists()
+
+            if trip_exists:
+                today_earnings += float(booking.amount)
+
+    # Also check today_trips for earnings (for ongoing/completed trips)
+    for trip in today_trips:
+        if trip.status == 'completed':
             schedule = Schedule.objects.filter(
                 route=trip.route,
                 travel_date=trip.travel_date,
                 departure_time=trip.departure_time
             ).first()
             if schedule:
-                bookings = Booking.objects.filter(
-                    schedule=schedule,
-                    status='approved'
-                )
-                passenger_count += bookings.count()
-                today_earnings += sum(b.amount for b in bookings)
+                bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+                for booking in bookings:
+                    today_earnings += float(booking.amount)
 
     trips_completed = driver.trips.filter(status='completed').count()
+
+    # Calculate total earnings (lifetime)
+    total_earnings = 0
+    for trip in driver.trips.filter(status='completed'):
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
+        if schedule:
+            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+            total_earnings += sum(float(b.amount) for b in bookings)
+
+    # Store passenger list in session for the API to access
+    request.session['driver_passengers'] = passenger_list
 
     context = {
         'driver': driver,
@@ -1385,10 +1453,22 @@ def driver_dashboard(request):
         'passenger_count': passenger_count,
         'trips_completed': trips_completed,
         'today_earnings': today_earnings,
+        'total_earnings': total_earnings,
         'assigned_route': assigned_route,
         'schedules_for_driver': schedules_for_driver,
         'upcoming_schedules': upcoming_schedules,
     }
+
+    # Debug prints
+    print(f"=== DRIVER DASHBOARD DEBUG ===")
+    print(f"Driver: {driver.user.username}")
+    print(f"Assigned route: {assigned_route.code if assigned_route else 'None'}")
+    print(f"Today's schedules: {today_schedules.count()}")
+    print(f"Passenger count: {passenger_count}")
+    print(f"Today's earnings: {today_earnings}")
+    print(f"Trips completed: {trips_completed}")
+    print(f"Total earnings: {total_earnings}")
+
     return render(request, 'app1/driver/driver_dashboard.html', context)
 
 
