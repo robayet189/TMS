@@ -104,12 +104,11 @@ urlpatterns = [
 
     # ==================== CHAT SYSTEM URLs ====================
     path('chat/', views.chat_list, name='chat_list'),
-    path('chat/<int:room_id>/', views.chat_room, name='chat_room'),
-    path('chat/start/', views.start_chat, name='start_chat'),
-    path('chat/send/<int:room_id>/', views.send_chat_message, name='send_chat_message'),
-    path('chat/messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
-    path('chat/close/<int:room_id>/', views.close_chat, name='close_chat'),
-
+path('chat/<int:room_id>/', views.chat_room, name='chat_room'),
+path('start-chat/', views.start_chat, name='start_chat'),
+path('send-chat-message/<int:room_id>/', views.send_chat_message, name='send_chat_message'),
+path('get-chat-messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
+path('close-chat/<int:room_id>/', views.close_chat, name='close_chat'),
 
     # ==================== DRIVER MODULE URLs ====================
     # ✅ FIXED: Changed to use unified login
