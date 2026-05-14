@@ -169,3 +169,12 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
 }
 # Additional settings for logging, caching, etc. can be added here as needed for testing documented information updates.
+
+"""
+# ✅ Session cookies will be sent with AJAX requests
+SESSION_COOKIE_SAMESITE = 'Lax'
+# ✅ Session saved on every request for real-time updates
+SESSION_SAVE_EVERY_REQUEST = True
+# ✅ JavaScript can read CSRF token for AJAX
+CSRF_COOKIE_HTTPONLY = False
+"""
