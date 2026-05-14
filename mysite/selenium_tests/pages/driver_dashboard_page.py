@@ -48,3 +48,7 @@ class DriverDashboardPage(BasePage):
             return self.wait.until(EC.visibility_of_element_located(self.TRIP_STATUS)).text
         except:
             return "Unknown"
+        
+
+
+#Drtiver dashbaord part but not recognized as driver dashboard or trip list not found should not be treated as test failure - just skip those cases.        
