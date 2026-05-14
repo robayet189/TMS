@@ -48,3 +48,7 @@ class TestAdminModule:
         # Check if fleet table exists
         assert "bus" in driver.page_source.lower() or "vehicle" in driver.page_source.lower() or "fleet" in driver.current_url.lower(), \
             "Fleet management page not accessible"
+        
+
+
+# Additional admin tests for adding/editing users, managing fleet, etc. can be added here as needed.        
