@@ -1,15 +1,10 @@
 """
 Pytest configuration for Easy Transport Selenium tests.
-MINIMAL VERSION - No Django imports at module level.
+MINIMAL - No Django imports at module level.
 """
 
 import os
 import pytest
-
-# Set Django settings BEFORE any imports
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
-
-# Import ONLY Selenium (NO Django models here!)
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -51,7 +46,7 @@ def test_user_credentials():
 @pytest.fixture
 def seed_test_data(db):
     """Seed database - Django imports happen HERE, not at module level"""
-    # Import Django models INSIDE the function
+    # Import Django models INSIDE the function - this is CRITICAL
     from django.contrib.auth.models import User
     from myapp.models import UserProfile, Route, Bus, Schedule
     from django.utils import timezone
