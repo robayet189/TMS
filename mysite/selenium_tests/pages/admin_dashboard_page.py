@@ -1,4 +1,4 @@
-# selenium_tests/pages/admin_dashboard_page.py
+# selenium_tests/pages/admin_dashboard_page.py and it's methods are designed to interact with the admin dashboard of the application. It includes locators for key elements like the dashboard title, users menu, fleet menu, and tables for users and buses. The methods allow you to check if the dashboard is loaded, navigate to user and fleet management pages, and verify the visibility of user and fleet tables. This page object model helps in writing clean and maintainable tests for the admin functionalities.
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
