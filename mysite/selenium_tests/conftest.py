@@ -3,8 +3,20 @@ Pytest configuration and fixtures for Easy Transport Selenium tests.
 Provides WebDriver setup, base URL, test credentials, and test data seeding.
 """
 
-import pytest
 import os
+import sys
+import pytest
+
+# ✅ CRITICAL: Configure Django BEFORE importing Django models
+# This must be at the TOP of the file, before any Django imports
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
+
+# Now import Django and setup
+import django
+django.setup()  # ✅ Initialize Django
+
+# Now it's safe to import Django models
+from django.contrib.auth.models import User
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -12,7 +24,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-from django.contrib.auth.models import User
 from myapp.models import UserProfile, Route, Bus, Schedule, Booking
 from django.utils import timezone
 from datetime import datetime, timedelta
