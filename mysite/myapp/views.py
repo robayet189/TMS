@@ -88,30 +88,67 @@ def create_chat_notification(room, message, sender):
 
 
 def ensure_chat_room_for_booking(booking):
-    """Helper function to ensure a chat room exists for a booking"""
-    from .models import Trip, ChatRoom, ChatMessage
+    """Create chat room with proper driver assignment"""
+    from .models import Trip, ChatRoom, ChatMessage, Driver, Schedule
+
+    print(f"=== CREATING CHAT ROOM FOR BOOKING {booking.booking_id} ===")
 
     # Check if chat room already exists
     existing_room = ChatRoom.objects.filter(booking=booking).first()
     if existing_room:
+        print(f"Chat room already exists: {existing_room.id}")
         return existing_room
 
-    # Find the driver for this booking's schedule
     schedule = booking.schedule
+    driver = None
 
-    # Try to find trip (if admin assigned driver)
+    # METHOD 1: Try to find driver via Trip model
     trip = Trip.objects.filter(
         route=schedule.route,
         travel_date=schedule.travel_date,
         departure_time=schedule.departure_time
     ).first()
 
-    driver = trip.driver if trip else None
+    if trip and trip.driver:
+        driver = trip.driver
+        print(f"Found driver via Trip: {driver.user.username}")
 
-    # Get admin user (first superuser or staff)
+    # METHOD 2: If no trip found, try to find driver via Route assignment
+    if not driver:
+        # Find driver assigned to this route
+        driver = Driver.objects.filter(
+            assigned_route=schedule.route,
+            is_active=True,
+            is_approved=True
+        ).first()
+
+        if driver:
+            print(f"Found driver via Route assignment: {driver.user.username}")
+
+            # Also create a Trip for future reference
+            Trip.objects.get_or_create(
+                driver=driver,
+                route=schedule.route,
+                bus=schedule.bus,
+                travel_date=schedule.travel_date,
+                departure_time=schedule.departure_time,
+                defaults={'status': 'pending'}
+            )
+            print(f"Created Trip for driver {driver.user.username}")
+
+    # METHOD 3: If still no driver, try to find any available driver
+    if not driver:
+        driver = Driver.objects.filter(is_active=True, is_approved=True).first()
+        if driver:
+            print(f"Found any available driver: {driver.user.username}")
+
+    # Get admin user
     admin_user = User.objects.filter(is_superuser=True).first()
     if not admin_user:
         admin_user = User.objects.filter(is_staff=True).first()
+
+    print(f"Admin user: {admin_user.username if admin_user else 'None'}")
+    print(f"Final driver: {driver.user.username if driver else 'None'}")
 
     # Create chat room
     chat_room = ChatRoom.objects.create(
@@ -128,7 +165,7 @@ def ensure_chat_room_for_booking(booking):
     if driver:
         welcome_msg += f"Driver {driver.user.get_full_name() or driver.user.username} has been notified."
     else:
-        welcome_msg += "Admin will assist you with your trip."
+        welcome_msg += "No driver assigned yet. Admin will assist you."
 
     ChatMessage.objects.create(
         room=chat_room,
@@ -137,8 +174,7 @@ def ensure_chat_room_for_booking(booking):
         message_type='system'
     )
 
-    print(
-        f"✅ Chat room created for booking {booking.booking_id} with driver {driver.user.username if driver else 'None'}")
+    print(f"✅ Chat room {chat_room.id} created with driver={driver.user.username if driver else 'None'}")
     return chat_room
 
 

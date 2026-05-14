@@ -356,21 +356,21 @@ def admin_add_schedule(request):
             travel_date = datetime.strptime(data.get('travel_date'), '%Y-%m-%d').date()
             departure_time = datetime.strptime(data.get('departure_time'), '%H:%M').time()
 
+            # Check for duplicate schedule
             if Schedule.objects.filter(route=route, travel_date=travel_date, departure_time=departure_time).exists():
                 return JsonResponse({'success': False, 'message': 'Schedule already exists'})
 
+            # Create schedule
             schedule = Schedule.objects.create(
                 route=route, bus=bus, travel_date=travel_date, departure_time=departure_time,
                 arrival_time=datetime.strptime(data.get('arrival_time'), '%H:%M').time() if data.get(
                     'arrival_time') else None,
-                fare=float(data.get('fare', 40)), available_seats=data.get('available_seats') or bus.capacity,
+                fare=float(data.get('fare', 40)),
+                available_seats=data.get('available_seats') or bus.capacity,
                 is_active=data.get('is_active', True)
             )
 
-            Notification.objects.create(type='schedule', title='New Schedule',
-                                        message=f'Route {route.code} on {travel_date} at {departure_time}',
-                                        is_read=False)
-
+            # Handle driver assignment
             driver_id = data.get('driver')
             trip_created = False
             chat_room_created = False
@@ -378,59 +378,75 @@ def admin_add_schedule(request):
             if driver_id and str(driver_id).strip() and str(driver_id) not in ['null', 'undefined', 'None', '']:
                 try:
                     driver = Driver.objects.get(id=int(driver_id))
+
+                    # Update driver's assigned route and bus
                     driver.assigned_route = route
                     driver.assigned_bus = bus
                     driver.save()
 
-                    # Create Trip
-                    Trip.objects.create(
-                        driver=driver, route=route, bus=bus,
-                        travel_date=travel_date, departure_time=departure_time,
-                        arrival_time=schedule.arrival_time, status='pending'
+                    # ✅ CREATE TRIP (CRITICAL for chat system)
+                    trip, created = Trip.objects.get_or_create(
+                        driver=driver,
+                        route=route,
+                        bus=bus,
+                        travel_date=travel_date,
+                        departure_time=departure_time,
+                        defaults={
+                            'arrival_time': schedule.arrival_time,
+                            'status': 'pending'
+                        }
                     )
-                    trip_created = True
+                    trip_created = created
 
-                    # ✅ ========== CREATE CHAT ROOM FOR DRIVER ==========
+                    if created:
+                        print(f"✅ TRIP CREATED: Driver={driver.user.username}, Route={route.code}, Date={travel_date}")
+                    else:
+                        print(f"⚠️ Trip already existed for Driver={driver.user.username}")
+
+                    # ✅ CREATE CHAT ROOM FOR DRIVER WITH ADMIN
                     admin_user = User.objects.filter(is_superuser=True).first()
                     if admin_user:
-                        # Check if chat room already exists for this driver
-                        existing_chat = ChatRoom.objects.filter(driver=driver, room_type='driver_admin').first()
-                        if not existing_chat:
-                            chat_room = ChatRoom.objects.create(
-                                driver=driver,
-                                admin=admin_user,
-                                room_type='driver_admin',
-                                is_active=True
-                            )
+                        # Create or get driver-admin chat room
+                        driver_chat, chat_created = ChatRoom.objects.get_or_create(
+                            driver=driver,
+                            room_type='driver_admin',
+                            defaults={
+                                'admin': admin_user,
+                                'is_active': True
+                            }
+                        )
+
+                        if chat_created:
                             ChatMessage.objects.create(
-                                room=chat_room,
+                                room=driver_chat,
                                 sender=admin_user,
                                 message=f"🚌 Welcome! You have been assigned to Route {route.code} on {travel_date} at {departure_time}",
                                 message_type='system'
                             )
                             chat_room_created = True
                             print(f"✅ CHAT ROOM CREATED for driver {driver.user.username}")
-                    # ====================================================
-
-                    Notification.objects.create(
-                        type='driver', title='Driver Assigned',
-                        message=f'{driver.user.get_full_name()} assigned to Route {route.code}',
-                        related_driver=driver, is_read=False
-                    )
-                    print(f"✅ TRIP CREATED: Driver={driver.user.get_full_name()}, Route={route.code}")
 
                 except Exception as e:
                     print(f"Error in driver assignment: {e}")
 
+            Notification.objects.create(
+                type='schedule',
+                title='New Schedule',
+                message=f'Route {route.code} on {travel_date} at {departure_time}',
+                is_read=False
+            )
+
             return JsonResponse({
                 'success': True,
-                'message': 'Schedule added. ' + ('Trip created! ' if trip_created else 'No driver assigned. ') + (
-                    'Chat room created!' if chat_room_created else ''),
+                'message': f'Schedule added. Trip created: {trip_created}, Driver chat: {chat_room_created}',
                 'schedule_id': schedule.id
             })
+
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
+
     return JsonResponse({'success': False, 'message': 'Invalid method'})
+
 
 # ==================== FLEET API (Fixed: driver_name, driver_phone save) ====================
 @login_required
