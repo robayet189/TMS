@@ -114,3 +114,7 @@ class LoginPage(BasePage):
             return self.find_visible(self.TOAST_MESSAGE, timeout=5).text.strip()
         except:
             return None
+
+
+
+# Additional methods for handling forgot password, social logins, etc. can be added here as needed.
