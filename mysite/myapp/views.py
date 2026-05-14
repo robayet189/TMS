@@ -1202,38 +1202,49 @@ def driver_login(request):
 @login_required
 @require_http_methods(["POST"])
 def driver_send_alert(request):
-    """API: Driver sends emergency alert - saves to database + creates notification"""
+    """API: Driver sends emergency alert with priority"""
     if not hasattr(request.user, 'driver_profile'):
         return JsonResponse({'success': False, 'message': 'Not authorized'}, status=403)
 
     try:
         data = json.loads(request.body)
         message = data.get('message', 'Emergency alert from driver')
+        priority = int(data.get('priority', 1))  # Get priority from request
         driver = request.user.driver_profile
+
+        # Map priority to alert type
+        priority_map = {
+            1: 'critical',
+            2: 'high',
+            3: 'medium',
+            4: 'low'
+        }
 
         alert = Alert.objects.create(
             driver=driver,
-            alert_type='emergency',
-            message=f"🚨 {driver.user.get_full_name()}: {message}",
-            location='Current trip location'
+            alert_type=priority_map.get(priority, 'emergency'),
+            message=f"🚨 [{priority_map.get(priority, 'emergency').upper()}] {driver.user.get_full_name()}: {message}",
+            location=f"Bus {driver.assigned_bus.bus_number if driver.assigned_bus else 'Unknown'} - Current trip",
+            is_resolved=False
         )
 
+        # Create notification for admin
         Notification.objects.create(
             type='emergency',
-            title=f'Emergency Alert - {driver.user.get_full_name()}',
+            title=f'🚨 {priority_map.get(priority, "EMERGENCY").upper()} ALERT - {driver.user.get_full_name()}',
             message=message,
             related_driver=driver,
-            is_read=False
+            is_read=False,
+            is_resolved=False
         )
 
         return JsonResponse({
             'success': True,
-            'message': 'Emergency alert sent to admin!',
+            'message': f'{priority_map.get(priority, "Emergency").upper()} priority alert sent to admin!',
             'alert_id': alert.id
         })
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
-
 
 @login_required
 def driver_get_passengers(request):

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from .models import UserProfile, Route, Bus, Schedule, Booking, Driver, Trip, Alert, Notification, ChatMessage
 from django.contrib.auth.models import User
 from .models import ChatRoom
+from decimal import Decimal
 import json
 
 def is_admin(user):
@@ -139,16 +140,199 @@ def admin_schedule(request):
     today = timezone.now().date()
     return render(request, 'app1/admin/admin_schedule.html', {'active': 'schedule', 'schedules': schedules, 'routes': routes, 'drivers': drivers, 'total_schedules': schedules.count(), 'active_today': schedules.filter(travel_date=today, is_active=True).count(), 'pending_schedules': schedules.filter(is_active=True, travel_date__gte=today).count(), 'completed_schedules': schedules.filter(travel_date__lt=today).count()})
 
+
+# In views_admin.py - REPLACE your existing admin_revenue function
 @login_required
 @user_passes_test(is_admin)
 def admin_revenue(request):
+    """Revenue dashboard with REAL data from database"""
+    from django.db.models import Sum, Count
+    from decimal import Decimal
+    from datetime import datetime, timedelta
+
     today = timezone.now().date()
-    return render(request, 'app1/admin/admin_revenue.html', {'active': 'revenue', 'today_revenue': Booking.objects.filter(schedule__travel_date=today, status='approved').aggregate(total=Sum('amount'))['total'] or 0, 'total_revenue': Booking.objects.filter(status='approved').aggregate(total=Sum('amount'))['total'] or 0})
+
+    # ========== BASIC STATS ==========
+    # Total revenue from all completed/approved bookings
+    total_revenue = Booking.objects.filter(
+        status__in=['approved', 'confirmed', 'completed']
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    # Today's revenue
+    today_revenue = Booking.objects.filter(
+        status__in=['approved', 'confirmed', 'completed'],
+        schedule__travel_date=today
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    # This month's revenue
+    first_day_of_month = today.replace(day=1)
+    month_revenue = Booking.objects.filter(
+        status__in=['approved', 'confirmed', 'completed'],
+        booking_date__date__gte=first_day_of_month
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    # Calculate profit (using Decimal for precise calculation)
+    expense_percentage = Decimal('0.35')  # 35% expenses
+    profit_percentage = Decimal('0.65')  # 65% profit
+
+    estimated_expenses = total_revenue * expense_percentage
+    total_profit = total_revenue * profit_percentage
+
+    # ========== REVENUE BY ROUTE ==========
+    revenue_by_route = Booking.objects.filter(
+        status__in=['approved', 'confirmed', 'completed']
+    ).values('schedule__route__code').annotate(
+        total=Sum('amount'),
+        booking_count=Count('id')
+    ).order_by('-total')[:5]
+
+    # Convert Decimal to float for JSON serialization
+    revenue_by_route_list = []
+    for item in revenue_by_route:
+        revenue_by_route_list.append({
+            'code': item['schedule__route__code'],
+            'total': float(item['total']) if item['total'] else 0,
+            'count': item['booking_count']
+        })
+
+    # ========== PAYMENT METHOD DISTRIBUTION ==========
+    payment_methods = Booking.objects.filter(
+        status__in=['approved', 'confirmed', 'completed']
+    ).values('payment_method').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')
+
+    # Prepare payment data for chart
+    payment_labels = []
+    payment_data = []
+    for pm in payment_methods:
+        payment_labels.append(pm['payment_method'].title())
+        payment_data.append(float(pm['total']) if pm['total'] else 0)
+
+    # ========== MONTHLY DATA FOR CHARTS (Last 6 months) ==========
+    monthly_revenue = []
+    monthly_expenses = []
+    monthly_profit = []
+    month_labels = []
+
+    for i in range(5, -1, -1):  # Last 6 months
+        month_date = today - timedelta(days=30 * i)
+        month_start = month_date.replace(day=1)
+
+        # Calculate next month start
+        if month_date.month == 12:
+            month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            month_end = month_date.replace(month=month_date.month + 1, day=1) - timedelta(days=1)
+
+        # Get revenue for this month
+        rev = Booking.objects.filter(
+            status__in=['approved', 'confirmed', 'completed'],
+            booking_date__date__gte=month_start,
+            booking_date__date__lte=month_end
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        monthly_revenue.append(float(rev))
+        monthly_expenses.append(float(rev * expense_percentage))
+        monthly_profit.append(float(rev * profit_percentage))
+        month_labels.append(month_start.strftime('%b'))
+
+    # ========== RECENT TRANSACTIONS ==========
+    recent_bookings = Booking.objects.filter(
+        status__in=['approved', 'confirmed', 'completed']
+    ).select_related('user', 'schedule__route').order_by('-booking_date')[:10]
+
+    context = {
+        'active': 'revenue',
+        # Stats (as strings with commas for display)
+        'total_revenue': f"{total_revenue:,.0f}",
+        'total_profit': f"{total_profit:,.0f}",
+        'month_revenue': f"{month_revenue:,.0f}",
+        'today_revenue': f"{today_revenue:,.0f}",
+        # Data for tables
+        'revenue_by_route': revenue_by_route_list,
+        'recent_bookings': recent_bookings,
+        # Data for charts (as JSON-safe lists)
+        'month_labels': month_labels,
+        'revenue_data': monthly_revenue,
+        'expenses_data': monthly_expenses,
+        'profit_data': monthly_profit,
+        'payment_labels': payment_labels,
+        'payment_data': payment_data,
+    }
+
+    return render(request, 'app1/admin/admin_revenue.html', context)
+
 
 @login_required
 @user_passes_test(is_admin)
 def admin_alerts(request):
-    return render(request, 'app1/admin/admin_alerts.html', {'active': 'alerts', 'recent_alerts': Alert.objects.filter(is_resolved=False).order_by('-created_at')[:20]})
+    """Display all emergency alerts from drivers and users"""
+    from .models import Alert, EmergencyAlert
+
+    all_alerts = []
+
+    # Process Alert model alerts
+    for alert in Alert.objects.all().order_by('-created_at'):
+        all_alerts.append({
+            'id': alert.id,
+            'alert_id': f"ALT-{alert.id}",
+            'title': alert.alert_type.title(),
+            'priority': 'CRITICAL',
+            'status': 'resolved' if alert.is_resolved else 'open',
+            'reporter': alert.driver.user.get_full_name() if alert.driver else (
+                alert.user.username if alert.user else 'Unknown'),
+            'location': alert.location or 'Current trip location',
+            'bus': alert.driver.assigned_bus.bus_number if alert.driver and alert.driver.assigned_bus else 'N/A',
+            'created_at': alert.created_at,
+            'alert_type': alert.alert_type,
+            'contact': alert.driver.phone if alert.driver else 'N/A',
+            'driver_contact': alert.driver.phone if alert.driver else 'N/A',
+            'model_type': 'Alert'
+        })
+
+    # Process EmergencyAlert model alerts
+    for alert in EmergencyAlert.objects.all().order_by('-created_at'):
+        status_map = {
+            'pending': 'open',
+            'acknowledged': 'in-progress',
+            'resolved': 'resolved',
+            'false_alarm': 'resolved'
+        }
+
+        all_alerts.append({
+            'id': alert.id,
+            'alert_id': f"EMG-{alert.id}",
+            'title': alert.get_alert_type_display(),
+            'priority': 'CRITICAL' if alert.priority == 1 else 'HIGH',
+            'status': status_map.get(alert.status, alert.status),
+            'reporter': alert.user.username if alert.user else 'Unknown',
+            'location': alert.location_name or 'Unknown',
+            'bus': 'N/A',
+            'created_at': alert.created_at,
+            'alert_type': alert.alert_type,
+            'contact': alert.user.profile.phone if alert.user and hasattr(alert.user, 'profile') else 'N/A',
+            'driver_contact': 'N/A',
+            'model_type': 'EmergencyAlert'
+        })
+
+    # Calculate stats
+    total_alerts = len(all_alerts)
+    critical_alerts = len([a for a in all_alerts if a['priority'] == 'CRITICAL' and a['status'] != 'resolved'])
+    in_progress_alerts = len([a for a in all_alerts if a['status'] == 'in-progress'])
+    resolved_alerts = len([a for a in all_alerts if a['status'] == 'resolved'])
+
+    context = {
+        'active': 'alerts',
+        'alerts': all_alerts,
+        'total_alerts': total_alerts,
+        'critical_alerts': critical_alerts,
+        'in_progress_alerts': in_progress_alerts,
+        'resolved_alerts': resolved_alerts,
+    }
+
+    return render(request, 'app1/admin/admin_alerts.html', context)
 
 @login_required
 @user_passes_test(is_admin)
@@ -582,13 +766,49 @@ def send_notification_api(request):
         return JsonResponse({'success': True, 'message': 'Notification sent'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
+
 @login_required
 @user_passes_test(is_admin)
 def resolve_alert_api(request, alert_id):
+    """API: Resolve an emergency alert (handles both Alert and EmergencyAlert models)"""
     if request.method == 'POST':
-        alert = get_object_or_404(Alert, id=alert_id); alert.is_resolved = True; alert.save()
-        return JsonResponse({'success': True, 'message': 'Alert resolved'})
-    return JsonResponse({'success': False, 'message': 'Invalid method'})
+        try:
+            # Try to find in Alert model first
+            try:
+                alert = Alert.objects.get(id=alert_id)
+                alert.is_resolved = True
+                alert.resolved_at = timezone.now()
+                alert.save()
+
+                # Update notification
+                Notification.objects.filter(
+                    related_driver=alert.driver,
+                    type='emergency',
+                    is_resolved=False
+                ).update(
+                    is_resolved=True,
+                    message=f"[RESOLVED] {alert.message}"
+                )
+
+                return JsonResponse({'success': True, 'message': 'Alert resolved successfully'})
+
+            except Alert.DoesNotExist:
+                # Try EmergencyAlert model
+                try:
+                    emergency_alert = EmergencyAlert.objects.get(id=alert_id)
+                    emergency_alert.status = 'resolved'
+                    emergency_alert.resolved_at = timezone.now()
+                    emergency_alert.save()
+
+                    return JsonResponse({'success': True, 'message': 'Emergency alert resolved successfully'})
+
+                except EmergencyAlert.DoesNotExist:
+                    return JsonResponse({'success': False, 'message': 'Alert not found'}, status=404)
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+    return JsonResponse({'success': False, 'message': 'Invalid method'}, status=400)
 
 
 # ==================== ADMIN CHAT FUNCTIONS ====================
