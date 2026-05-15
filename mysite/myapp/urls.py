@@ -169,4 +169,7 @@ urlpatterns = [
     path('emergency/', views.emergency_page, name='emergency'),
     path('send-emergency/', views.send_emergency_alert, name='send_emergency'),
     path('emergency-history/', views.emergency_history, name='emergency_history'),
+
+    path('driver/api/emergency-reports/', views.driver_get_emergency_reports, name='driver_emergency_reports'),
+    path('driver/api/send-emergency-alert/', views.driver_send_emergency_alert, name='driver_send_emergency_alert'),
 ]

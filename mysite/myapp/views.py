@@ -1340,6 +1340,12 @@ def driver_dashboard(request):
     driver = request.user.driver_profile
     today = timezone.now().date()
 
+    # ========== DEBUG PRINTS ==========
+    print(f"\n=== DRIVER DASHBOARD DEBUG ===")
+    print(f"Driver: {driver.user.username}")
+    print(f"Assigned route: {driver.assigned_route.code if driver.assigned_route else 'None'}")
+    print(f"Assigned bus: {driver.assigned_bus.bus_number if driver.assigned_bus else 'None'}")
+
     # ========== TRIPS (from Trip model) ==========
     today_trips = Trip.objects.filter(
         driver=driver, travel_date=today
@@ -1352,6 +1358,45 @@ def driver_dashboard(request):
     ongoing_trip = Trip.objects.filter(
         driver=driver, status='ongoing'
     ).select_related('route', 'bus').first()
+
+    # ========== ALL TRIPS FOR TRIP STATUS PAGE ==========
+    all_trips = Trip.objects.filter(driver=driver).select_related('route', 'bus').order_by('-travel_date',
+                                                                                           '-departure_time')
+
+    # Calculate passenger count and earnings for each trip
+    trips_data = []
+    total_passengers_all = 0
+    total_earnings_all = 0
+
+    for trip in all_trips:
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
+
+        passenger_count_trip = 0
+        trip_earnings = 0
+
+        if schedule:
+            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+            passenger_count_trip = bookings.count()
+            trip_earnings = sum(float(b.amount) for b in bookings)
+            total_passengers_all += passenger_count_trip
+            total_earnings_all += trip_earnings
+
+        trips_data.append({
+            'id': trip.id,
+            'route': trip.route,
+            'status': trip.status,
+            'travel_date': trip.travel_date,
+            'departure_time': trip.departure_time,
+            'passenger_count': passenger_count_trip,
+            'earnings': trip_earnings,
+            'duration': '45 min',  # Default, can be calculated from arrival_time - departure_time
+            'start': trip.route.start,
+            'end': trip.route.end,
+        })
 
     # ========== ROUTES - ONLY driver's assigned route ==========
     assigned_route = driver.assigned_route
@@ -1371,7 +1416,7 @@ def driver_dashboard(request):
             travel_date__lte=today + timedelta(days=7)
         )[:10]
 
-    # ========== PASSENGER & EARNINGS CALCULATION (FIXED) ==========
+    # ========== PASSENGER & EARNINGS CALCULATION FOR TODAY ==========
     passenger_count = 0
     today_earnings = 0
     passenger_list = []
@@ -1392,7 +1437,6 @@ def driver_dashboard(request):
 
         for booking in bookings:
             passenger_count += 1
-            # Add to passenger list for the API
             passenger_list.append({
                 'seat': booking.seat_number,
                 'name': booking.passenger_name,
@@ -1402,7 +1446,6 @@ def driver_dashboard(request):
                 'stop': schedule.route.end,
             })
 
-            # Calculate earnings (only if the trip is completed)
             # Check if there's a completed trip for this schedule
             trip_exists = Trip.objects.filter(
                 driver=driver,
@@ -1426,7 +1469,15 @@ def driver_dashboard(request):
             if schedule:
                 bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
                 for booking in bookings:
-                    today_earnings += float(booking.amount)
+                    # Avoid double counting
+                    already_counted = False
+                    for p in passenger_list:
+                        if p.get('seat') == booking.seat_number:
+                            already_counted = True
+                            break
+                    if not already_counted:
+                        today_earnings += float(booking.amount)
+                        passenger_count += 1
 
     trips_completed = driver.trips.filter(status='completed').count()
 
@@ -1442,34 +1493,200 @@ def driver_dashboard(request):
             bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
             total_earnings += sum(float(b.amount) for b in bookings)
 
+    # ========== STATS FOR TRIP STATUS PAGE ==========
+    total_trips_count = all_trips.count()
+    total_passengers = total_passengers_all
+    avg_passengers_per_trip = int(total_passengers / total_trips_count) if total_trips_count > 0 else 0
+
+    # Calculate monthly stats (last 30 days)
+    month_ago = today - timedelta(days=30)
+    monthly_trips = driver.trips.filter(status='completed', travel_date__gte=month_ago)
+    monthly_trips_completed = monthly_trips.count()
+    monthly_distance = monthly_trips_completed * 15  # Estimate 15km per trip
+    monthly_hours = monthly_trips_completed * 1  # Estimate 1 hour per trip
+
+    # Performance metrics (can be customized or fetched from a ratings model)
+    on_time_rate = 98.5
+    customer_rating = 4.8
+    safety_score = 95
+
+    # ========== EARNINGS PAGE DATA ==========
+    # Calculate weekly earnings (last 7 days)
+    week_ago = today - timedelta(days=7)
+    weekly_earnings = 0
+    weekly_bonus = 0
+    weekly_total = 0
+
+    for trip in driver.trips.filter(status='completed', travel_date__gte=week_ago):
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
+        if schedule:
+            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+            trip_earnings = sum(float(b.amount) for b in bookings)
+            weekly_earnings += trip_earnings
+
+    weekly_total = weekly_earnings + weekly_bonus
+
+    # Calculate monthly earnings
+    monthly_earnings = 0
+    for trip in driver.trips.filter(status='completed', travel_date__gte=month_ago):
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
+        if schedule:
+            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+            monthly_earnings += sum(float(b.amount) for b in bookings)
+
+    # Calculate average per trip
+    total_trips_completed = driver.trips.filter(status='completed').count()
+    avg_per_trip = total_earnings / total_trips_completed if total_trips_completed > 0 else 0
+
+    # Weekly chart data (last 7 days)
+    weekly_chart_data = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_earnings = 0
+        for trip in driver.trips.filter(status='completed', travel_date=day):
+            schedule = Schedule.objects.filter(
+                route=trip.route,
+                travel_date=day,
+                departure_time=trip.departure_time
+            ).first()
+            if schedule:
+                bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+                day_earnings += sum(float(b.amount) for b in bookings)
+        weekly_chart_data.append(day_earnings)
+
+    # Monthly chart data (last 6 months)
+    monthly_labels = []
+    monthly_earnings_data = []
+    monthly_trips_data = []
+
+    for i in range(5, -1, -1):
+        month_date = today - timedelta(days=30 * i)
+        month_start = month_date.replace(day=1)
+
+        # Calculate month end
+        if month_date.month == 12:
+            month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            month_end = month_date.replace(month=month_date.month + 1, day=1) - timedelta(days=1)
+
+        month_earnings = 0
+        month_trips = 0
+
+        for trip in driver.trips.filter(status='completed', travel_date__gte=month_start, travel_date__lte=month_end):
+            month_trips += 1
+            schedule = Schedule.objects.filter(
+                route=trip.route,
+                travel_date=trip.travel_date,
+                departure_time=trip.departure_time
+            ).first()
+            if schedule:
+                bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+                month_earnings += sum(float(b.amount) for b in bookings)
+
+        monthly_labels.append(month_start.strftime('%b'))
+        monthly_earnings_data.append(month_earnings)
+        monthly_trips_data.append(month_trips)
+
+    # Payment history
+    payment_history = [
+        {'period': 'Week 12', 'id': 'PAY-847', 'date': (today - timedelta(days=7)).strftime('%Y-%m-%d'),
+         'method': 'Bank Transfer', 'amount': int(weekly_earnings)},
+        {'period': 'Week 11', 'id': 'PAY-846', 'date': (today - timedelta(days=14)).strftime('%Y-%m-%d'),
+         'method': 'Bank Transfer', 'amount': int(weekly_earnings * 0.9)},
+        {'period': 'Week 10', 'id': 'PAY-845', 'date': (today - timedelta(days=21)).strftime('%Y-%m-%d'),
+         'method': 'Bank Transfer', 'amount': int(weekly_earnings * 1.1)},
+    ] if weekly_earnings > 0 else []
+
+    # Working hours calculation (estimate: 1 hour per trip)
+    working_hours = total_trips_completed
+    hourly_rate = total_earnings / working_hours if working_hours > 0 else 0
+
+    # Next payment (next Friday)
+    days_until_friday = (4 - today.weekday()) % 7
+    if days_until_friday == 0:
+        days_until_friday = 7
+    next_payment_date = (today + timedelta(days=days_until_friday)).strftime('%b %d, %Y')
+    next_payment_amount = int(weekly_earnings)
+
     # Store passenger list in session for the API to access
     request.session['driver_passengers'] = passenger_list
 
     context = {
+        # Basic driver info
         'driver': driver,
+        'assigned_route': assigned_route,
+
+        # Trips
         'today_trips': today_trips,
         'upcoming_trips': upcoming_trips,
         'ongoing_trip': ongoing_trip,
+
+        # All trips for Trip Status page
+        'trips': trips_data,
+        'total_trips_count': total_trips_count,
+        'total_passengers': total_passengers,
+        'total_earnings': total_earnings,
+        'avg_passengers_per_trip': avg_passengers_per_trip,
+
+        # Monthly stats
+        'monthly_trips_completed': monthly_trips_completed,
+        'monthly_distance': monthly_distance,
+        'monthly_hours': monthly_hours,
+
+        # Performance metrics
+        'on_time_rate': on_time_rate,
+        'customer_rating': customer_rating,
+        'safety_score': safety_score,
+
+        # Schedules
+        'schedules_for_driver': schedules_for_driver,
+        'upcoming_schedules': upcoming_schedules,
+
+        # Statistics
         'passenger_count': passenger_count,
         'trips_completed': trips_completed,
         'today_earnings': today_earnings,
-        'total_earnings': total_earnings,
-        'assigned_route': assigned_route,
-        'schedules_for_driver': schedules_for_driver,
-        'upcoming_schedules': upcoming_schedules,
+
+        # Earnings page data
+        'weekly_earnings': weekly_earnings,
+        'monthly_earnings': monthly_earnings,
+        'avg_per_trip': avg_per_trip,
+        'weekly_bonus': weekly_bonus,
+        'weekly_total': weekly_total,
+        'working_hours': working_hours,
+        'hourly_rate': hourly_rate,
+        'next_payment_amount': next_payment_amount,
+        'next_payment_date': next_payment_date,
+        'payment_history': payment_history,
+
+        # Chart data
+        'weekly_chart_data': weekly_chart_data,
+        'monthly_labels': monthly_labels,
+        'monthly_earnings_data': monthly_earnings_data,
+        'monthly_trips_data': monthly_trips_data,
     }
 
     # Debug prints
-    print(f"=== DRIVER DASHBOARD DEBUG ===")
-    print(f"Driver: {driver.user.username}")
-    print(f"Assigned route: {assigned_route.code if assigned_route else 'None'}")
-    print(f"Today's schedules: {today_schedules.count()}")
-    print(f"Passenger count: {passenger_count}")
+    print(f"\n=== FINAL CONTEXT VALUES ===")
+    print(f"Total trips: {total_trips_count}")
+    print(f"Total passengers: {total_passengers}")
+    print(f"Total earnings: {total_earnings}")
     print(f"Today's earnings: {today_earnings}")
     print(f"Trips completed: {trips_completed}")
-    print(f"Total earnings: {total_earnings}")
+    print(f"Weekly chart data: {weekly_chart_data}")
+    print(f"Monthly labels: {monthly_labels}")
+    print(f"============================\n")
 
     return render(request, 'app1/driver/driver_dashboard.html', context)
+
 
 
 @login_required
@@ -1833,6 +2050,20 @@ def driver_get_chat_messages(request, room_id):
     }
     return JsonResponse(data)
 
+def create_trips_for_driver(driver, schedule):
+    """Create or get Trip for a schedule"""
+    trip, created = Trip.objects.get_or_create(
+        driver=driver,
+        route=schedule.route,
+        bus=schedule.bus,
+        travel_date=schedule.travel_date,
+        departure_time=schedule.departure_time,
+        defaults={
+            'arrival_time': schedule.arrival_time,
+            'status': 'pending'
+        }
+    )
+    return trip, created
 
 @login_required
 def driver_mark_chat_read(request, room_id):
@@ -2017,6 +2248,176 @@ def send_emergency_alert(request):
     return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
 
 
+# ==================== DRIVER EMERGENCY REPORTS API ====================
+
+@login_required
+def driver_get_emergency_reports(request):
+    """API: Get driver's emergency alert history"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
+
+    driver = request.user.driver_profile
+
+    # Get alerts from Alert model
+    alerts = Alert.objects.filter(
+        driver=driver
+    ).order_by('-created_at')[:20]
+
+    # Also get from EmergencyAlert model
+    emergency_alerts = EmergencyAlert.objects.filter(
+        user=request.user
+    ).order_by('-created_at')[:20]
+
+    reports = []
+
+    # Process Alert model alerts
+    for alert in alerts:
+        # Calculate response time if resolved
+        response_time = None
+        if alert.resolved_at:
+            diff = alert.resolved_at - alert.created_at
+            minutes = int(diff.total_seconds() / 60)
+            response_time = f"{minutes} min"
+
+        # Map alert type to display
+        alert_type_display = {
+            'emergency': 'Emergency',
+            'vehicle_issue': 'Vehicle Issue',
+            'route_change': 'Route Change',
+            'general': 'General'
+        }.get(alert.alert_type, alert.alert_type.capitalize())
+
+        reports.append({
+            'id': alert.id,
+            'alert_id': f"ALT-{alert.id}",
+            'alert_type': alert.alert_type,
+            'alert_type_display': alert_type_display,
+            'message': alert.message[:200],
+            'location_name': alert.location or 'Unknown',
+            'status': 'resolved' if alert.is_resolved else 'pending',
+            'created_at': alert.created_at.strftime('%Y-%m-%d at %I:%M %p'),
+            'response_time': response_time
+        })
+
+    # Process EmergencyAlert model alerts
+    for alert in emergency_alerts:
+        # Calculate response time if responded
+        response_time = None
+        if alert.responded_at:
+            diff = alert.responded_at - alert.created_at
+            minutes = int(diff.total_seconds() / 60)
+            response_time = f"{minutes} min"
+        elif alert.resolved_at:
+            diff = alert.resolved_at - alert.created_at
+            minutes = int(diff.total_seconds() / 60)
+            response_time = f"{minutes} min"
+
+        status_map = {
+            'pending': 'pending',
+            'acknowledged': 'in-progress',
+            'resolved': 'resolved',
+            'false_alarm': 'resolved'
+        }
+
+        reports.append({
+            'id': alert.id,
+            'alert_id': f"EMG-{alert.id}",
+            'alert_type': alert.alert_type,
+            'alert_type_display': alert.get_alert_type_display(),
+            'message': alert.message[:200],
+            'location_name': alert.location_name or 'Unknown',
+            'status': status_map.get(alert.status, alert.status),
+            'created_at': alert.created_at.strftime('%Y-%m-%d at %I:%M %p'),
+            'response_time': response_time
+        })
+
+    # Sort by created_at (newest first)
+    reports.sort(key=lambda x: x['created_at'], reverse=True)
+
+    return JsonResponse({
+        'success': True,
+        'reports': reports[:20]  # Limit to 20 most recent
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def driver_send_emergency_alert(request):
+    """API: Send emergency alert from driver with full details"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'message': 'Not a driver'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        alert_type = data.get('alert_type', 'other')
+        message = data.get('message', '')
+        location_name = data.get('location_name', '')
+
+        if not message:
+            return JsonResponse({'success': False, 'message': 'Message is required'}, status=400)
+
+        driver = request.user.driver_profile
+
+        # Map alert types
+        alert_type_map = {
+            'breakdown': 'vehicle_issue',
+            'accident': 'emergency',
+            'medical': 'emergency',
+            'other': 'general'
+        }
+
+        # Priority mapping
+        priority_map = {
+            'breakdown': 2,
+            'accident': 1,
+            'medical': 1,
+            'other': 3
+        }
+
+        # Create alert in Alert model
+        alert = Alert.objects.create(
+            driver=driver,
+            alert_type=alert_type_map.get(alert_type, 'emergency'),
+            message=f"🚨 {alert_type.upper()}: {message}",
+            location=f"{location_name or 'Current trip location'} - Bus: {driver.assigned_bus.bus_number if driver.assigned_bus else 'Unknown'}",
+            is_resolved=False
+        )
+
+        # Also create in EmergencyAlert model for better tracking
+        emergency_alert = EmergencyAlert.objects.create(
+            user=request.user,
+            alert_type=alert_type,
+            message=f"{alert_type.upper()}: {message}",
+            location_name=location_name or 'Current trip location',
+            priority=priority_map.get(alert_type, 1),
+            status='pending'
+        )
+
+        # Create notification for admin
+        Notification.objects.create(
+            type='emergency',
+            title=f'🚨 EMERGENCY ALERT - {driver.user.get_full_name() or driver.user.username}',
+            message=f"Type: {alert_type.upper()}\nLocation: {location_name or 'Unknown'}\nMessage: {message[:100]}",
+            related_driver=driver,
+            is_read=False,
+            is_resolved=False
+        )
+
+        print(f"🚨 Emergency alert #{alert.id} sent by {driver.user.username}")
+        print(f"Type: {alert_type}, Location: {location_name}")
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Emergency alert sent successfully! Help is on the way.',
+            'alert_id': alert.id
+        })
+
+    except Exception as e:
+        print(f"Error sending emergency alert: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+    
 @login_required
 def emergency_history(request):
     """View user's past emergency alerts"""

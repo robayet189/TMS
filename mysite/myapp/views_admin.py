@@ -131,14 +131,48 @@ def admin_routes(request):
     routes = Route.objects.all().annotate(schedule_count=Count('schedules'))
     return render(request, 'app1/admin/admin_routes.html', {'active': 'routes', 'routes': routes, 'active_routes': routes.filter(schedules__is_active=True).distinct().count()})
 
+
 @login_required
 @user_passes_test(is_admin)
 def admin_schedule(request):
+    """Admin schedule management with driver assignment"""
     schedules = Schedule.objects.select_related('route', 'bus').all().order_by('travel_date', 'departure_time')
+
+    # ✅ FIX: Annotate each schedule with its assigned driver
+    for schedule in schedules:
+        # Try to find the trip for this schedule
+        trip = Trip.objects.filter(
+            route=schedule.route,
+            travel_date=schedule.travel_date,
+            departure_time=schedule.departure_time
+        ).select_related('driver__user').first()
+
+        if trip and trip.driver:
+            schedule.assigned_driver = trip.driver
+        else:
+            schedule.assigned_driver = None
+
     routes = Route.objects.all()
     drivers = Driver.objects.select_related('user').filter(is_active=True, is_approved=True)
     today = timezone.now().date()
-    return render(request, 'app1/admin/admin_schedule.html', {'active': 'schedule', 'schedules': schedules, 'routes': routes, 'drivers': drivers, 'total_schedules': schedules.count(), 'active_today': schedules.filter(travel_date=today, is_active=True).count(), 'pending_schedules': schedules.filter(is_active=True, travel_date__gte=today).count(), 'completed_schedules': schedules.filter(travel_date__lt=today).count()})
+
+    # Calculate stats
+    total_schedules = schedules.count()
+    active_today = schedules.filter(travel_date=today, is_active=True).count()
+    pending_schedules = schedules.filter(is_active=True, travel_date__gte=today).count()
+    completed_schedules = schedules.filter(travel_date__lt=today).count()
+
+    context = {
+        'active': 'schedule',
+        'schedules': schedules,
+        'routes': routes,
+        'drivers': drivers,
+        'total_schedules': total_schedules,
+        'active_today': active_today,
+        'pending_schedules': pending_schedules,
+        'completed_schedules': completed_schedules,
+    }
+    return render(request, 'app1/admin/admin_schedule.html', context)
 
 
 # In views_admin.py - REPLACE your existing admin_revenue function
@@ -351,6 +385,9 @@ def admin_add_schedule(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            print(f"=== ADD SCHEDULE DEBUG ===")
+            print(f"Received data: {data}")
+
             route = get_object_or_404(Route, id=data.get('route'))
             bus = get_object_or_404(Bus, id=data.get('bus'))
             travel_date = datetime.strptime(data.get('travel_date'), '%Y-%m-%d').date()
@@ -362,29 +399,30 @@ def admin_add_schedule(request):
 
             # Create schedule
             schedule = Schedule.objects.create(
-                route=route, bus=bus, travel_date=travel_date, departure_time=departure_time,
+                route=route,
+                bus=bus,
+                travel_date=travel_date,
+                departure_time=departure_time,
                 arrival_time=datetime.strptime(data.get('arrival_time'), '%H:%M').time() if data.get(
                     'arrival_time') else None,
                 fare=float(data.get('fare', 40)),
                 available_seats=data.get('available_seats') or bus.capacity,
                 is_active=data.get('is_active', True)
             )
+            print(f"✅ Schedule created: ID={schedule.id}")
 
-            # Handle driver assignment
-            driver_id = data.get('driver')
+            # ✅ CRITICAL FIX: Get driver from the form data
+            driver_id = data.get('driver')  # This comes from the driver dropdown
             trip_created = False
-            chat_room_created = False
+
+            print(f"Driver ID from request: {driver_id}")
 
             if driver_id and str(driver_id).strip() and str(driver_id) not in ['null', 'undefined', 'None', '']:
                 try:
                     driver = Driver.objects.get(id=int(driver_id))
+                    print(f"✅ Found driver: {driver.user.username} (ID: {driver.id})")
 
-                    # Update driver's assigned route and bus
-                    driver.assigned_route = route
-                    driver.assigned_bus = bus
-                    driver.save()
-
-                    # ✅ CREATE TRIP (CRITICAL for chat system)
+                    # ✅ CREATE TRIP (CRITICAL for driver dashboard)
                     trip, created = Trip.objects.get_or_create(
                         driver=driver,
                         route=route,
@@ -399,35 +437,28 @@ def admin_add_schedule(request):
                     trip_created = created
 
                     if created:
-                        print(f"✅ TRIP CREATED: Driver={driver.user.username}, Route={route.code}, Date={travel_date}")
+                        print(
+                            f"✅ TRIP CREATED: Driver={driver.user.username}, Route={route.code}, Date={travel_date}, Time={departure_time}")
+                        print(f"   Trip ID: {trip.id}, Status: {trip.status}")
                     else:
                         print(f"⚠️ Trip already existed for Driver={driver.user.username}")
 
-                    # ✅ CREATE CHAT ROOM FOR DRIVER WITH ADMIN
-                    admin_user = User.objects.filter(is_superuser=True).first()
-                    if admin_user:
-                        # Create or get driver-admin chat room
-                        driver_chat, chat_created = ChatRoom.objects.get_or_create(
-                            driver=driver,
-                            room_type='driver_admin',
-                            defaults={
-                                'admin': admin_user,
-                                'is_active': True
-                            }
-                        )
+                    # ✅ Also update driver's assigned route and bus if not already set
+                    if not driver.assigned_route:
+                        driver.assigned_route = route
+                    if not driver.assigned_bus:
+                        driver.assigned_bus = bus
+                    driver.save()
+                    print(f"✅ Updated driver's assigned route/bus")
 
-                        if chat_created:
-                            ChatMessage.objects.create(
-                                room=driver_chat,
-                                sender=admin_user,
-                                message=f"🚌 Welcome! You have been assigned to Route {route.code} on {travel_date} at {departure_time}",
-                                message_type='system'
-                            )
-                            chat_room_created = True
-                            print(f"✅ CHAT ROOM CREATED for driver {driver.user.username}")
-
+                except Driver.DoesNotExist:
+                    print(f"❌ Driver with ID {driver_id} not found!")
                 except Exception as e:
-                    print(f"Error in driver assignment: {e}")
+                    print(f"❌ Error in driver assignment: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f"⚠️ No driver selected (driver_id: {driver_id})")
 
             Notification.objects.create(
                 type='schedule',
@@ -438,11 +469,14 @@ def admin_add_schedule(request):
 
             return JsonResponse({
                 'success': True,
-                'message': f'Schedule added. Trip created: {trip_created}, Driver chat: {chat_room_created}',
+                'message': f'Schedule added. Trip created: {trip_created}',
                 'schedule_id': schedule.id
             })
 
         except Exception as e:
+            print(f"❌ Error in admin_add_schedule: {e}")
+            import traceback
+            traceback.print_exc()
             return JsonResponse({'success': False, 'message': str(e)})
 
     return JsonResponse({'success': False, 'message': 'Invalid method'})
@@ -1046,4 +1080,56 @@ def admin_assign_driver(request):
             })
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
+    return JsonResponse({'success': False, 'message': 'Invalid method'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_create_trips_from_schedules(request):
+    """Create trips for all drivers based on their assigned routes and schedules"""
+    if request.method == 'POST':
+        try:
+            created_count = 0
+            skipped_count = 0
+            results = []
+
+            # Get all active drivers
+            drivers = Driver.objects.filter(is_active=True, is_approved=True)
+
+            for driver in drivers:
+                if not driver.assigned_route:
+                    results.append(f"⚠️ Driver {driver.user.username} has no assigned route - skipped")
+                    skipped_count += 1
+                    continue
+
+                # Get all upcoming schedules for this driver's route
+                today = timezone.now().date()
+                schedules = Schedule.objects.filter(
+                    route=driver.assigned_route,
+                    travel_date__gte=today,
+                    is_active=True
+                )
+
+                for schedule in schedules:
+                    trip, created = Trip.objects.get_or_create(
+                        driver=driver,
+                        route=schedule.route,
+                        bus=schedule.bus,
+                        travel_date=schedule.travel_date,
+                        departure_time=schedule.departure_time,
+                        defaults={'status': 'pending'}
+                    )
+                    if created:
+                        created_count += 1
+                        results.append(f"✅ Created trip for {driver.user.username} on {schedule.travel_date}")
+
+            return JsonResponse({
+                'success': True,
+                'message': f'Created {created_count} new trips! Skipped {skipped_count} drivers.',
+                'results': results
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+
     return JsonResponse({'success': False, 'message': 'Invalid method'})
