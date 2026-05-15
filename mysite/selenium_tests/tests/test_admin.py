@@ -1,36 +1,34 @@
 import pytest
-from pages.login_page import LoginPage
-import time
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 
-class TestAdmin:
-    """Test admin dashboard functionality"""
-    
-    @pytest.fixture(autouse=True)
-    def setup(self, setup):
-        """Setup test fixtures"""
-        self.driver = setup['driver']
-        self.base_url = setup['base_url']
-        self.login_page = LoginPage(self.driver, self.base_url)
+class TestAdminModule:
+    def test_admin_login_and_dashboard(self, driver, base_url, wait):
+        driver.get(f"{base_url}/login/")
+        wait.until(EC.presence_of_element_located((By.NAME, "username"))).send_keys("admin@test.com")
+        driver.find_element(By.NAME, "password").send_keys("AdminPass123!")
+        driver.find_element(By.ID, "loginBtn").click()
+        wait.until(EC.url_contains("/admin_page/dashboard/"))
+        assert "admin" in driver.current_url.lower()
+
+    def test_admin_view_users(self, driver, base_url, wait):
+        driver.get(f"{base_url}/login/")
+        wait.until(EC.presence_of_element_located((By.NAME, "username"))).send_keys("admin@test.com")
+        driver.find_element(By.NAME, "password").send_keys("AdminPass123!")
+        driver.find_element(By.ID, "loginBtn").click()
+        wait.until(EC.url_contains("/admin_page/dashboard/"))
         
-        # Login as admin
-        self.login_page.open_login_page()
-        self.login_page.login("admin@test.com", "AdminPass123!")
-        time.sleep(2)
-    
-    def test_admin_dashboard_access(self):
-        """Test admin can access dashboard"""
-        assert "/admin_page/dashboard/" in self.driver.current_url or "/dashboard/" in self.driver.current_url
-    
-    def test_view_users(self):
-        """Test admin can view users"""
-        self.driver.get(f"{self.base_url}/admin_page/users/")
-        time.sleep(2)
+        driver.get(f"{base_url}/admin_page/users/")
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
+        assert "users" in driver.current_url
+
+    def test_admin_view_fleet(self, driver, base_url, wait):
+        driver.get(f"{base_url}/login/")
+        wait.until(EC.presence_of_element_located((By.NAME, "username"))).send_keys("admin@test.com")
+        driver.find_element(By.NAME, "password").send_keys("AdminPass123!")
+        driver.find_element(By.ID, "loginBtn").click()
+        wait.until(EC.url_contains("/admin_page/dashboard/"))
         
-        assert "/admin_page/users/" in self.driver.current_url
-    
-    def test_view_fleet(self):
-        """Test admin can view fleet"""
-        self.driver.get(f"{self.base_url}/admin_page/fleet/")
-        time.sleep(2)
-        
-        assert "/admin_page/fleet/" in self.driver.current_url
+        driver.get(f"{base_url}/admin_page/fleet/")
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
+        assert "fleet" in driver.current_url
