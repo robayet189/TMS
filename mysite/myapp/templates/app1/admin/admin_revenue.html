@@ -161,40 +161,52 @@
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-// Bar Chart - Revenue vs Expenses
+// Bar Chart - Revenue vs Expenses (USING REAL DATA)
 const barCtx = document.getElementById('barChart').getContext('2d');
 new Chart(barCtx, {
     type: 'bar',
     data: {
-        labels: ['Oct','Nov','Dec','Jan','Feb','Mar'],
+        labels: {{ month_labels|safe }},
         datasets: [
-            { label: 'Revenue', data: [480000, 520000, 490000, 600000, 550000, 680000], backgroundColor: '#00c896', borderRadius: 6 },
-            { label: 'Expenses', data: [180000, 160000, 200000, 170000, 190000, 175000], backgroundColor: '#ff4757', borderRadius: 6 }
+            { label: 'Revenue', data: {{ revenue_data|safe }}, backgroundColor: '#00c896', borderRadius: 6 },
+            { label: 'Expenses', data: {{ expenses_data|safe }}, backgroundColor: '#ff4757', borderRadius: 6 }
         ]
     },
     options: {
         responsive: true,
+        maintainAspectRatio: true,
         plugins: { legend: { display: false } },
         scales: {
             x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5a5470' } },
-            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#5a5470', callback: v => v >= 1000 ? (v/1000)+'K' : v } }
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#5a5470', callback: function(v) { return v >= 1000 ? (v/1000)+'K' : v; } } }
         }
     }
 });
 
-// Donut Chart - Payment Methods
+// Donut Chart - Payment Methods (USING REAL DATA)
 const donutCtx = document.getElementById('donutChart').getContext('2d');
 new Chart(donutCtx, {
     type: 'doughnut',
     data: {
-        labels: ['bKash','SSLCommerz','Cash','Others'],
-        datasets: [{ data: [45, 35, 15, 5], backgroundColor: ['#e2136e','#0066cc','#00c896','#5a5470'], borderColor: '#1c1c2e', borderWidth: 3 }]
+        labels: {{ payment_labels|safe }},
+        datasets: [{
+            data: {{ payment_data|safe }},
+            backgroundColor: ['#e2136e', '#0066cc', '#00c896', '#8a63ff', '#ff4757'],
+            borderColor: '#1c1c2e',
+            borderWidth: 3
+        }]
     },
-    options: { cutout: '65%', responsive: false, plugins: { legend: { display: false } } }
+    options: {
+        cutout: '65%',
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false } }
+    }
 });
 
-// Line Chart - Profit Trend
+// Line Chart - Profit Trend (USING REAL DATA)
 const lineCtx = document.getElementById('lineChart').getContext('2d');
 const gradient = lineCtx.createLinearGradient(0, 0, 0, 200);
 gradient.addColorStop(0, 'rgba(138,99,255,0.25)');
@@ -203,21 +215,29 @@ gradient.addColorStop(1, 'rgba(138,99,255,0.0)');
 new Chart(lineCtx, {
     type: 'line',
     data: {
-        labels: ['Oct','Nov','Dec','Jan','Feb','Mar'],
+        labels: {{ month_labels|safe }},
         datasets: [{
             label: 'Profit',
-            data: [300000, 360000, 290000, 430000, 390000, 505000],
-            borderColor: '#8a63ff', backgroundColor: gradient, borderWidth: 2.5,
-            pointBackgroundColor: '#8a63ff', pointBorderColor: '#1c1c2e', pointBorderWidth: 2,
-            pointRadius: 5, pointHoverRadius: 7, fill: true, tension: 0.4
+            data: {{ profit_data|safe }},
+            borderColor: '#8a63ff',
+            backgroundColor: gradient,
+            borderWidth: 2.5,
+            pointBackgroundColor: '#8a63ff',
+            pointBorderColor: '#1c1c2e',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            fill: true,
+            tension: 0.4
         }]
     },
     options: {
         responsive: true,
+        maintainAspectRatio: true,
         plugins: { legend: { display: false } },
         scales: {
             x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5a5470' } },
-            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#5a5470', callback: v => v >= 1000 ? (v/1000)+'K' : v } }
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#5a5470', callback: function(v) { return v >= 1000 ? (v/1000)+'K' : v; } } }
         }
     }
 });

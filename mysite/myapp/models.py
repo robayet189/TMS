@@ -41,6 +41,7 @@ class Bus(models.Model):
     capacity = models.IntegerField(default=40)
     driver_name = models.CharField(max_length=100)
     driver_phone = models.CharField(max_length=15, blank=True)
+    driver = models.ForeignKey('Driver', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_buses')
     has_ac = models.BooleanField(default=False)
     has_wifi = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -55,6 +56,7 @@ class Route(models.Model):
     start = models.CharField(max_length=100)
     end = models.CharField(max_length=100)
     distance_km = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.code}: {self.start} → {self.end}"
@@ -192,25 +194,65 @@ class UserPass(models.Model):
 
 
 class ChatRoom(models.Model):
-    """Chat room for user-admin-driver communication"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_rooms', null=True, blank=True)
-    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='admin_chat_rooms')
-    driver = models.ForeignKey('Driver', on_delete=models.SET_NULL, null=True, blank=True, related_name='driver_chat_rooms')
-    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_rooms')
+    ROOM_TYPES = [
+        ('booking', 'Booking Support'),
+        ('driver_admin', 'Driver-Admin'),
+        ('user_admin', 'User-Admin'),
+    ]
+
+    room_type = models.CharField(max_length=20, choices=ROOM_TYPES, default='user_admin')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='chat_rooms')
+    driver = models.ForeignKey('Driver', on_delete=models.CASCADE, null=True, blank=True, related_name='chat_rooms')
+    admin = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='admin_chats')
+    booking = models.ForeignKey('Booking', on_delete=models.CASCADE, null=True, blank=True, related_name='chat_rooms')
+    trip = models.ForeignKey('Trip', on_delete=models.CASCADE, null=True, blank=True, related_name='chat_rooms')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
 
-    def __str__(self):
-        return f"Chat: {self.user.username} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    def can_user_access(self, user):
+        """Check if user has access to this chat room"""
+        from .models import UserProfile
+        try:
+            profile = UserProfile.objects.get(user=user)
 
+            # Admin can access all chats
+            if profile.user_type == 'admin':
+                return True
+
+            # Driver can access chats where they are the driver
+            if profile.user_type == 'driver' and self.driver and self.driver.user == user:
+                return True
+
+            # Regular user can access their own chats
+            if self.user == user:
+                return True
+
+            return False
+        except:
+            return self.user == user
+
+    def __str__(self):
+        """ADD THIS - Important for debugging"""
+        if self.user:
+            return f"Chat: {self.user.username} (User)"
+        elif self.driver:
+            return f"Chat: {self.driver.user.username} (Driver)"
+        else:
+            return f"Chat Room #{self.id}"
+        
     class Meta:
         ordering = ['-updated_at']
 
 
 class ChatMessage(models.Model):
     """Individual chat messages"""
-    MESSAGE_TYPES = [('text', 'Text'), ('image', 'Image'), ('file', 'File')]
+    MESSAGE_TYPES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('file', 'File'),
+        ('system', 'System Message'),
+    ]
 
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
@@ -244,38 +286,23 @@ class Driver(models.Model):
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.license_number}"
 
+    # ✅ REMOVE the dummy classes - just return None if not assigned
     @property
     def bus(self):
-        """Safe fallback for bus - prevents template errors"""
-        if self.assigned_bus:
-            return self.assigned_bus
-        class DummyBus:
-            bus_number = "B-XX"
-            capacity = 40
-            has_ac = False
-            has_wifi = False
-        return DummyBus()
+        """Returns assigned bus or None"""
+        return self.assigned_bus
 
     @property
     def route(self):
-        """Safe fallback for route - prevents template errors"""
-        if self.assigned_route:
-            return self.assigned_route
-        class DummyRoute:
-            code = "XX"
-            start = "UAP Campus"
-            end = "Uttara"
-            distance_km = "18.4"
-        return DummyRoute()
+        """Returns assigned route or None"""
+        return self.assigned_route
 
     @property
     def departure_time(self):
-        """Safe fallback for departure time"""
-        if hasattr(self, 'trips') and self.trips.exists():
-            trip = self.trips.filter(status='pending').first()
-            if trip and trip.departure_time:
-                return trip.departure_time
-        return "8:00 AM"
+        """Returns departure time from today's first pending trip"""
+        today = timezone.now().date()
+        trip = self.trips.filter(status='pending', travel_date=today).first()
+        return trip.departure_time if trip else None
 
 
 class Trip(models.Model):

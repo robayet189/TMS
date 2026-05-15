@@ -51,7 +51,7 @@
   </div>
 </div>
 
-<!-- Quick Actions Grid - WITH TRACK BUS CARD + PAYMENTS CARD -->
+<!-- Quick Actions Grid -->
 <div class="actions-grid">
   <a href="{% url 'schedule' %}" class="action-card">
     <div class="action-icon red">
@@ -62,19 +62,16 @@
     <span class="action-label">Book a Seat</span>
   </a>
 
-  <!-- ✅ Track Bus Action Card -->
   <a href="{% url 'track_bus' %}" class="action-card">
     <div class="action-icon cyan">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-6H8l-2 6-2.5.1C2.7 10.3 2 11.1 2 12v3c0 .6.4 1 1 1h2"/>
-        <circle cx="7" cy="17" r="2"/>
-        <circle cx="17" cy="17" r="2"/>
+        <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>
       </svg>
     </div>
     <span class="action-label">Track Bus</span>
   </a>
 
-  <!-- ✅ NEW: Payments / Manage Pass Action Card -->
   <a href="{% url 'payments' %}" class="action-card">
     <div class="action-icon amber">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -101,7 +98,75 @@
     </div>
     <span class="action-label">Profile</span>
   </a>
+
+  <a href="{% url 'emergency' %}" class="action-card" style="border-color: #ff4757;">
+    <div class="action-icon red">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <span class="action-label">Emergency</span>
+  </a>
 </div>
+
+
+<!-- Active Conversations / Chat Rooms Section -->
+{% if active_chat_rooms %}
+<div class="card" style="margin-top: 24px;">
+  <div class="card-title">
+    💬 Active Conversations
+    <span class="badge">{{ active_chat_rooms|length }}</span>
+  </div>
+  <div class="chat-rooms-list">
+    {% for room in active_chat_rooms %}
+    <div class="chat-room-item" onclick="window.location.href='{% url 'chat_room' room.id %}'">
+      <div class="chat-room-avatar">
+        {% if room.driver %}
+          🚌
+        {% else %}
+          🛎️
+        {% endif %}
+      </div>
+      <div class="chat-room-info">
+        <div class="chat-room-name">
+          {% if room.driver %}
+            Driver: {{ room.driver.user.get_full_name|default:room.driver.user.username }}
+          {% else %}
+            Support Team
+          {% endif %}
+        </div>
+        <div class="chat-room-last-msg">
+          {% with room.messages.first as last_msg %}
+            {{ last_msg.message|truncatechars:50|default:"No messages yet" }}
+          {% endwith %}
+        </div>
+        <div class="chat-room-time">
+          {% with room.messages.first as last_msg %}
+            {{ last_msg.created_at|timesince|default:"Just now" }} ago
+          {% endwith %}
+        </div>
+      </div>
+      {% if room.unread_count > 0 %}
+      <div class="chat-unread-badge">{{ room.unread_count }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Upcoming Trips Section -->
+
+
+<!-- Chat Action Card -->
+<a href="{% url 'chat_list' %}" class="action-card">
+    <div class="action-icon cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </div>
+    <span class="action-label">Chat Support</span>
+</a>
 
 <!-- Upcoming Trips Section - Shows Bus Information -->
 <div class="card">
@@ -136,7 +201,7 @@
         </div>
       </div>
 
-      <!-- BUS INFORMATION SECTION - This shows the bus added by admin -->
+      <!-- BUS INFORMATION SECTION -->
       <div class="bus-info-card">
         <div class="bus-header">
           <span class="bus-icon">🚌</span>
@@ -208,7 +273,7 @@
 {% endif %}
 
 <style>
-/* Dashboard specific styles */
+/* Dashboard specific styles - using direct colors instead of CSS variables */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -217,8 +282,8 @@
 }
 
 .stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--bg-card, #1c1c2e);
+  border: 1px solid var(--border, rgba(255,255,255,0.07));
   border-radius: 16px;
   padding: 20px;
   display: flex;
@@ -235,14 +300,14 @@
   justify-content: center;
 }
 
-.stat-icon.cyan { background: rgba(0,180,216,.08); color: #00b4d8; }
-.stat-icon.green { background: rgba(43,147,72,.08); color: #2b9348; }
-.stat-icon.amber { background: rgba(244,162,97,.08); color: #f4a261; }
-.stat-icon.red { background: rgba(230,57,70,.08); color: #e63946; }
+.stat-icon.cyan { background: rgba(0,180,216,0.08); color: #00b4d8; }
+.stat-icon.green { background: rgba(43,147,72,0.08); color: #2b9348; }
+.stat-icon.amber { background: rgba(244,162,97,0.08); color: #f4a261; }
+.stat-icon.red { background: rgba(230,57,70,0.08); color: #e63946; }
 
 .stat-label {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-muted, #a09ab8);
   display: block;
   margin-bottom: 4px;
 }
@@ -250,11 +315,62 @@
 .stat-value {
   font-size: 20px;
   font-weight: 600;
+  color: var(--text-primary, #ffffff);
 }
 
+/* Actions Grid */
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.action-card {
+  background: var(--bg-card, #1c1c2e);
+  border: 1px solid var(--border, rgba(255,255,255,0.07));
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.2s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-card:hover {
+  transform: translateY(-3px);
+  border-color: #ff4757;
+  background: rgba(255,71,87,0.05);
+}
+
+.action-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-icon.red { background: rgba(230,57,70,0.08); color: #e63946; }
+.action-icon.cyan { background: rgba(0,180,216,0.08); color: #00b4d8; }
+.action-icon.amber { background: rgba(244,162,97,0.08); color: #f4a261; }
+.action-icon.green { background: rgba(43,147,72,0.08); color: #2b9348; }
+
+.action-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+}
+
+/* Card Styles */
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--bg-card, #1c1c2e);
+  border: 1px solid var(--border, rgba(255,255,255,0.07));
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 24px;
@@ -267,22 +383,24 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--text-primary, #ffffff);
 }
 
 .badge {
-  background: var(--accent-red);
+  background: #ff4757;
   color: white;
   padding: 2px 10px;
   border-radius: 20px;
   font-size: 12px;
 }
 
+/* Trip Card */
 .trip-card {
   background: rgba(255,255,255,0.03);
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, rgba(255,255,255,0.07));
 }
 
 .trip-header {
@@ -295,6 +413,7 @@
 .trip-route {
   font-size: 16px;
   font-weight: 600;
+  color: var(--text-primary, #ffffff);
 }
 
 .trip-status.confirmed {
@@ -311,7 +430,7 @@
   flex-wrap: wrap;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.07));
 }
 
 .trip-detail {
@@ -319,7 +438,7 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--text-muted, #a09ab8);
 }
 
 .detail-icon {
@@ -340,7 +459,7 @@
   gap: 8px;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.07));
 }
 
 .bus-icon {
@@ -350,7 +469,7 @@
 .bus-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--accent-red);
+  color: #ff4757;
 }
 
 .bus-details-grid {
@@ -367,19 +486,20 @@
 }
 
 .detail-label {
-  color: var(--text-muted);
+  color: var(--text-muted, #a09ab8);
 }
 
 .detail-value {
-  color: var(--text-primary);
+  color: var(--text-primary, #ffffff);
   font-weight: 500;
 }
 
 .detail-value.price {
-  color: var(--accent-red);
+  color: #ff4757;
   font-weight: 600;
 }
 
+/* Trip Actions */
 .trip-actions {
   display: flex;
   gap: 12px;
@@ -389,25 +509,25 @@
 .btn-view-details {
   padding: 8px 16px;
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, rgba(255,255,255,0.07));
   border-radius: 8px;
-  color: var(--text-primary);
+  color: var(--text-primary, #ffffff);
   text-decoration: none;
   font-size: 13px;
   transition: all 0.2s;
 }
 
 .btn-view-details:hover {
-  border-color: var(--accent-red);
-  color: var(--accent-red);
+  border-color: #ff4757;
+  color: #ff4757;
 }
 
 .btn-cancel-booking {
   padding: 8px 16px;
   background: rgba(255,71,87,0.1);
-  border: 1px solid var(--accent-red);
+  border: 1px solid #ff4757;
   border-radius: 8px;
-  color: var(--accent-red);
+  color: #ff4757;
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
@@ -417,6 +537,7 @@
   background: rgba(255,71,87,0.2);
 }
 
+/* Empty State */
 .empty-state {
   text-align: center;
   padding: 40px;
@@ -429,17 +550,18 @@
 
 .empty-state h4 {
   margin-bottom: 8px;
+  color: var(--text-primary, #ffffff);
 }
 
 .empty-state p {
-  color: var(--text-muted);
+  color: var(--text-muted, #a09ab8);
   margin-bottom: 20px;
 }
 
 .btn-book-now {
   display: inline-block;
   padding: 10px 24px;
-  background: var(--accent-red);
+  background: #ff4757;
   color: white;
   text-decoration: none;
   border-radius: 8px;
@@ -448,8 +570,10 @@
 
 .btn-book-now:hover {
   transform: translateY(-2px);
+  background: #ff6b35;
 }
 
+/* Past Trips */
 .past-trips-list {
   display: flex;
   flex-direction: column;
@@ -469,34 +593,108 @@
 .past-trip-route {
   font-weight: 600;
   min-width: 60px;
+  color: var(--text-primary, #ffffff);
 }
 
 .past-trip-date {
-  color: var(--text-muted);
+  color: var(--text-muted, #a09ab8);
   min-width: 100px;
 }
 
 .past-trip-bus {
   min-width: 100px;
+  color: var(--text-primary, #ffffff);
 }
 
 .past-trip-amount {
-  color: var(--accent-red);
+  color: #ff4757;
   font-weight: 600;
 }
 
+/* Chat Rooms Styles */
+.chat-rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-room-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border, rgba(255,255,255,0.07));
+}
+
+.chat-room-item:hover {
+  background: rgba(255,71,87,0.08);
+  border-color: #ff4757;
+  transform: translateX(4px);
+}
+
+.chat-room-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff4757, #ff6b35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.chat-room-info {
+  flex: 1;
+}
+
+.chat-room-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+  color: var(--text-primary, #ffffff);
+}
+
+.chat-room-last-msg {
+  font-size: 12px;
+  color: var(--text-muted, #a09ab8);
+  margin-bottom: 2px;
+}
+
+.chat-room-time {
+  font-size: 10px;
+  color: var(--text-muted, #a09ab8);
+}
+
+.chat-unread-badge {
+  background: #ff4757;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 20px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-
   .bus-details-grid {
     grid-template-columns: 1fr;
   }
-
   .past-trip-item {
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>
@@ -523,6 +721,14 @@ function cancelBooking(bookingId) {
   }
 }
 
+function showToast(message, isError) {
+  var toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `position:fixed;bottom:20px;right:20px;background:${isError ? '#ff4757' : '#00c896'};color:white;padding:12px 20px;border-radius:8px;z-index:9999;font-size:14px;`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
 function getCookie(name) {
   let cookieValue = null;
   if (document.cookie && document.cookie !== '') {
@@ -538,16 +744,3 @@ function getCookie(name) {
   return cookieValue;
 }
 </script>
-
-
-
-
-
-<a href="{% url 'emergency' %}" class="action-card" style="border-color: #ff4757;">
-    <div class="action-icon red">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
-    </div>
-    <span class="action-label">Emergency</span>
-</a>

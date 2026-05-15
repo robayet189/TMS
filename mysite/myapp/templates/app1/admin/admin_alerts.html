@@ -56,17 +56,29 @@
          data-status="{{ alert.status }}"
          data-search="{{ alert.title|lower }} {{ alert.reporter|lower }} {{ alert.bus|lower }}">
       
+      <!-- SINGLE ALERT HEADER (FIXED - removed duplicate) -->
       <div class="alert-header">
-        <div class="alert-icon priority-{{ alert.priority|lower }}" data-type="{{ alert.alert_type }}">
-          {% if alert.alert_type == 'breakdown' %}⚠️{% elif alert.alert_type == 'medical' %}🏥{% elif alert.alert_type == 'accident' %}🚗{% elif alert.alert_type == 'tire' %}🛞{% else %}❄️{% endif %}
+        <div class="alert-icon priority-{{ alert.priority|lower }}">
+          {% if alert.alert_type == 'breakdown' %}⚠️
+          {% elif alert.alert_type == 'medical' %}🏥
+          {% elif alert.alert_type == 'accident' %}🚗
+          {% elif alert.alert_type == 'emergency' %}🚨
+          {% elif alert.alert_type == 'tire' %}🛞
+          {% else %}⚠️{% endif %}
         </div>
         <div class="alert-title-row">
           <span class="alert-title">{{ alert.title }}</span>
+          {% if alert.model_type == 'EmergencyAlert' %}
+          <span class="badge" style="background:rgba(138,99,255,0.12); color:#8a63ff;">User Alert</span>
+          {% else %}
+          <span class="badge" style="background:rgba(255,107,53,0.12); color:#ff6b35;">Driver Alert</span>
+          {% endif %}
           <span class="badge priority-{{ alert.priority|lower }}">{{ alert.priority }}</span>
           <span class="badge status-{{ alert.status }}">{{ alert.status|title }}</span>
         </div>
       </div>
 
+      <!-- Alert Meta Information -->
       <div class="alert-meta">
         <div class="meta-item">👤 <strong>Reporter:</strong> {{ alert.reporter }}</div>
         <div class="meta-item">📍 <strong>Location:</strong> {{ alert.location }}</div>
@@ -74,8 +86,9 @@
         <div class="meta-item">🕐 <strong>Reported:</strong> {{ alert.created_at|timesince }} ago</div>
       </div>
 
+      <!-- Alert Footer with Actions -->
       <div class="alert-footer">
-        <span class="alert-id">ID: #{{ alert.alert_id }}</span>
+        <span class="alert-id">ID: {{ alert.alert_id }}</span>
         <div class="alert-actions">
           <button class="action-btn call" onclick="callReporter('{{ alert.contact }}')">📞 Call</button>
           <button class="action-btn driver" onclick="contactDriver('{{ alert.driver_contact }}')">👨‍✈️ Driver</button>
@@ -106,11 +119,15 @@
 .filter-select { padding:10px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; color:var(--text-primary); font-size:14px; appearance:none; }
 
 .alerts-list { display:flex; flex-direction:column; gap:16px; }
-.alert-card { background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-red); border-radius:16px; padding:20px 24px; transition:transform 0.2s; }
+.alert-card { background:var(--bg-card); border:1px solid var(--border); border-left:4px solid #ff4757; border-radius:16px; padding:20px 24px; transition:transform 0.2s; }
 .alert-card:hover { transform:translateY(-2px); }
 
 .alert-header { display:flex; align-items:flex-start; gap:16px; margin-bottom:16px; }
 .alert-icon { width:50px; height:50px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+.alert-icon.priority-critical { background:rgba(255,71,87,0.12); }
+.alert-icon.priority-high { background:rgba(255,184,0,0.12); }
+.alert-icon.priority-medium { background:rgba(138,99,255,0.12); }
+.alert-icon.priority-low { background:rgba(90,84,112,0.12); }
 .alert-title-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1; }
 .alert-title { font-size:16px; font-weight:700; }
 
@@ -119,23 +136,23 @@
 .badge.priority-high { background:rgba(255,184,0,0.12); color:#ffb800; }
 .badge.priority-medium { background:rgba(138,99,255,0.12); color:#8a63ff; }
 .badge.priority-low { background:rgba(90,84,112,0.12); color:#5a5470; }
-.badge.status-open { background:rgba(255,71,87,0.1); color:#ff4757; }
-.badge.status-in-progress { background:rgba(255,184,0,0.1); color:#ffb800; }
-.badge.status-resolved { background:rgba(0,200,150,0.1); color:#00c896; }
+.badge.status-open { background:rgba(255,71,87,0.12); color:#ff4757; }
+.badge.status-in-progress { background:rgba(255,184,0,0.12); color:#ffb800; }
+.badge.status-resolved { background:rgba(0,200,150,0.12); color:#00c896; }
 
 .alert-meta { display:grid; grid-template-columns:repeat(2,1fr); gap:10px 20px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--border); }
 .meta-item { font-size:13px; color:var(--text-muted); }
 .meta-item strong { color:var(--text-primary); }
 
 .alert-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-.alert-id { font-size:12px; color:var(--text-dim); }
+.alert-id { font-size:12px; color:var(--text-muted); }
 .alert-actions { display:flex; gap:8px; }
 
-.action-btn { padding:8px 14px; border:none; border-radius:10px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; transition:opacity 0.15s; }
+.action-btn { padding:8px 14px; border:none; border-radius:10px; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s; }
 .action-btn:hover { opacity:0.85; }
-.action-btn.call { background:rgba(138,99,255,0.1); color:#8a63ff; }
-.action-btn.driver { background:rgba(255,184,0,0.1); color:#ffb800; }
-.action-btn.resolve { background:rgba(0,200,150,0.1); color:#00c896; }
+.action-btn.call { background:rgba(138,99,255,0.12); color:#8a63ff; }
+.action-btn.driver { background:rgba(255,184,0,0.12); color:#ffb800; }
+.action-btn.resolve { background:rgba(0,200,150,0.12); color:#00c896; }
 
 .empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
 
@@ -152,39 +169,69 @@ function filterAlerts() {
     const q = document.getElementById('searchInput').value.toLowerCase();
     const priority = document.getElementById('priorityFilter').value;
     const status = document.getElementById('statusFilter').value;
-    
+
     document.querySelectorAll('.alert-card').forEach(card => {
         const search = card.dataset.search || '';
         const p = card.dataset.priority || '';
         const s = card.dataset.status || '';
-        
+
         const matchQ = !q || search.includes(q);
         const matchP = !priority || p === priority;
         const matchS = !status || s === status;
-        
+
         card.style.display = (matchQ && matchP && matchS) ? '' : 'none';
     });
 }
 
-function callReporter(phone) { if(phone) window.location.href = `tel:${phone}`; }
-function contactDriver(phone) { if(phone) window.location.href = `tel:${phone}`; }
+function callReporter(phone) {
+    if(phone && phone !== 'N/A' && phone !== '') {
+        window.location.href = `tel:${phone}`;
+    } else {
+        showToast('No phone number available', true);
+    }
+}
+
+function contactDriver(phone) {
+    if(phone && phone !== 'N/A' && phone !== '') {
+        window.location.href = `tel:${phone}`;
+    } else {
+        showToast('No driver contact available', true);
+    }
+}
 
 function resolveAlert(alertId) {
     if(!confirm('Mark this alert as resolved?')) return;
+
     fetch(`/admin_page/api/resolve-alert/${alertId}/`, {
         method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' }
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
     })
     .then(res => res.json())
     .then(data => {
-        if(data.success) { showToast('Alert resolved successfully!'); setTimeout(() => location.reload(), 1000); }
-        else { showToast(data.message, true); }
+        if(data.success) {
+            showToast('Alert resolved successfully!');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Failed to resolve', true);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Failed to resolve alert', true);
     });
 }
 
 function showToast(msg, isError = false) {
+    // Remove any existing toast
+    const existingToast = document.querySelector('.custom-toast');
+    if(existingToast) existingToast.remove();
+
     const toast = document.createElement('div');
-    toast.style.cssText = `position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ${isError?'#ff4757':'#00c896'}; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;`;
+    toast.className = 'custom-toast';
+    toast.style.cssText = `position:fixed; bottom:28px; right:28px; background:#1c1c2e; border:1px solid var(--border); border-left:3px solid ${isError ? '#ff4757' : '#00c896'}; border-radius:12px; padding:14px 18px; font-size:13px; color:#fff; z-index:9999; transform:translateY(60px); opacity:0; transition:all 0.25s;`;
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; }, 10);
@@ -193,10 +240,14 @@ function showToast(msg, isError = false) {
 
 function getCookie(name) {
     let cookieValue = null;
-    if(document.cookie) {
-        for(let c of document.cookie.split(';')) {
-            c = c.trim();
-            if(c.startsWith(name + '=')) { cookieValue = decodeURIComponent(c.substring(name.length + 1)); break; }
+    if(document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for(let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if(cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
         }
     }
     return cookieValue;
