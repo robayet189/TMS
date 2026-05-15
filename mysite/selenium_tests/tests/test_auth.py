@@ -1,68 +1,66 @@
 import pytest
 from pages.login_page import LoginPage
-
-# tests/test_auth.py
-import pytest
-from pages.login_page import LoginPage
+from pages.register_page import RegisterPage
+from pages.dashboard_page import DashboardPage
+import time
 
 class TestAuthentication:
+    """Test authentication functionality"""
     
-    def test_valid_login(self, driver, base_url):
-        """Valid user login redirects to dashboard"""
-        page = LoginPage(driver, base_url)
+    @pytest.fixture(autouse=True)
+    def setup(self, setup):
+        """Setup test fixtures"""
+        self.driver = setup['driver']
+        self.base_url = setup['base_url']
+        self.login_page = LoginPage(self.driver, self.base_url)
+        self.register_page = RegisterPage(self.driver, self.base_url)
+        self.dashboard_page = DashboardPage(self.driver, self.base_url)
+    
+    def test_valid_login(self):
+        """Test valid user login"""
+        self.login_page.open_login_page()
+        self.login_page.login("student@test.com", "TestPass123!")
+        time.sleep(2)
         
-        # Open login page
-        page.open_login_page()
+        assert self.dashboard_page.is_dashboard_loaded(), "Dashboard did not load after login"
+        assert "/dashboard/" in self.driver.current_url
+    
+    def test_invalid_login(self):
+        """Test invalid login credentials"""
+        self.login_page.open_login_page()
+        self.login_page.login("invalid@test.com", "WrongPass")
+        time.sleep(2)
         
-        # Debug: Print current URL before login
-        print(f"\n🔍 URL before login: {page.get_current_url()}")
+        # Should stay on login page or show error
+        assert "/login/" in self.driver.current_url or self.login_page.is_element_present(*self.login_page.ERROR_MESSAGE)
+    
+    def test_user_registration(self):
+        """Test new user registration"""
+        import random
+        timestamp = str(int(time.time()))
         
-        # Perform login
-        page.login("student@test.com", "TestPass123!")
+        self.register_page.open_register_page()
+        self.register_page.register(
+            full_name=f"Test User {timestamp}",
+            email=f"test{timestamp}@test.com",
+            phone="01712345678",
+            password="TestPass123!"
+        )
+        time.sleep(2)
         
-        # Wait for potential redirect (increase timeout)
-        import time
-        time.sleep(3)  # Wait 3 seconds for redirect to complete
+        # Check if redirected to login or account created page
+        assert "/login/" in self.driver.current_url or "/account-created/" in self.driver.current_url
+    
+    def test_logout(self):
+        """Test user logout"""
+        # Login first
+        self.login_page.open_login_page()
+        self.login_page.login("student@test.com", "TestPass123!")
+        time.sleep(2)
         
-        # Debug: Print current URL after login
-        current_url = page.get_current_url()
-        print(f"🔍 URL after login: {current_url}")
+        # Logout
+        self.dashboard_page.click_logout()
+        time.sleep(2)
         
-        # Check for error toast
-        toast_msg = page.get_toast_message()
-        if toast_msg:
-            print(f"⚠️ Toast message: {toast_msg}")
-            if "error" in toast_msg.lower() or "invalid" in toast_msg.lower():
-                pytest.fail(f"Login failed with message: {toast_msg}")
-        
-        # Check if URL contains any expected dashboard pattern
-        expected_patterns = [
-            "/dashboard/",
-            "/admin_page/dashboard/",
-            "/driver/dashboard/",
-            "/homepage",
-            "/home",
-            "/"  # Fallback: root URL might be dashboard
-        ]
-        
-        url_lower = current_url.lower()
-        is_success = any(pattern.lower() in url_lower for pattern in expected_patterns)
-        
-        if not is_success:
-            print(f"❌ URL does not match any expected pattern:")
-            for pattern in expected_patterns:
-                print(f"   - Looking for: {pattern}")
-            print(f"   - Actual URL: {current_url}")
-        
-        assert is_success, f"Login failed or wrong redirect. Current URL: {current_url}"
-    def test_invalid_login(self, driver, base_url):
-        """Invalid credentials show error"""
-        page = LoginPage(driver, base_url)
-        page.open("/login/")
-        page.login("wrong_user", "wrong_pass")
-        assert page.get_error() is not None, "Error message should appear"
-
-
-
-
-# Additional authentication tests for logout, password reset, etc. can be added here as needed.        
+        # Should be redirected to login or homepage
+        assert "/login/" in self.driver.current_url or self.driver.current_url == self.base_url + "/"
