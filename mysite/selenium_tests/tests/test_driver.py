@@ -1,29 +1,16 @@
 import pytest
-from pages.login_page import LoginPage
-import time
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 
-class TestDriver:
-    """Test driver interface functionality"""
-    
-    @pytest.fixture(autouse=True)
-    def setup(self, setup):
-        """Setup test fixtures"""
-        self.driver = setup['driver']
-        self.base_url = setup['base_url']
-        self.login_page = LoginPage(self.driver, self.base_url)
+class TestDriverModule:
+    def test_driver_login_and_trip_view(self, driver, base_url, wait):
+        driver.get(f"{base_url}/login/")
+        wait.until(EC.presence_of_element_located((By.NAME, "username"))).send_keys("driver@test.com")
+        driver.find_element(By.NAME, "password").send_keys("DriverPass123!")
+        driver.find_element(By.ID, "loginBtn").click()
+        wait.until(EC.url_contains("/driver/dashboard/"))
+        assert "driver" in driver.current_url.lower()
         
-        # Login as driver
-        self.login_page.open_login_page()
-        self.login_page.login("driver@test.com", "DriverPass123!")
-        time.sleep(2)
-    
-    def test_driver_dashboard(self):
-        """Test driver can access dashboard"""
-        assert "/driver/dashboard/" in self.driver.current_url or "/dashboard/" in self.driver.current_url
-    
-    def test_view_trips(self):
-        """Test driver can view assigned trips"""
-        self.driver.get(f"{self.base_url}/driver/dashboard/")
-        time.sleep(2)
-        
-        assert self.driver.current_url is not None
+        # Verify trip cards load
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "trip-card")))
+        assert driver.find_elements(By.CLASS_NAME, "trip-card")
