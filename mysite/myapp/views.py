@@ -1134,6 +1134,7 @@ def driver_dashboard(request):
     print(f"Assigned route: {driver.assigned_route.code if driver.assigned_route else 'None'}")
     print(f"Assigned bus: {driver.assigned_bus.bus_number if driver.assigned_bus else 'None'}")
 
+    # ========== TRIPS ==========
     today_trips = Trip.objects.filter(
         driver=driver, travel_date=today
     ).select_related('route', 'bus').order_by('departure_time')
@@ -1149,6 +1150,7 @@ def driver_dashboard(request):
     all_trips = Trip.objects.filter(driver=driver).select_related('route', 'bus').order_by('-travel_date',
                                                                                            '-departure_time')
 
+    # ========== TRIPS DATA FOR TRIP STATUS PAGE ==========
     trips_data = []
     total_passengers_all = 0
     total_earnings_all = 0
@@ -1185,6 +1187,7 @@ def driver_dashboard(request):
 
     assigned_route = driver.assigned_route
 
+    # ========== SCHEDULES ==========
     schedules_for_driver = []
     upcoming_schedules = []
 
@@ -1199,65 +1202,82 @@ def driver_dashboard(request):
             travel_date__lte=today + timedelta(days=7)
         )[:10]
 
+    # ========== FIXED: TODAY'S EARNINGS CALCULATION ==========
     passenger_count = 0
     today_earnings = 0
     passenger_list = []
 
-    today_schedules = Schedule.objects.filter(
-        route=assigned_route if assigned_route else None,
+    # METHOD 1: Get earnings from completed trips for today
+    completed_trips_today = Trip.objects.filter(
+        driver=driver,
         travel_date=today,
-        is_active=True
-    )
+        status='completed'
+    ).select_related('route', 'bus')
 
-    for schedule in today_schedules:
-        bookings = Booking.objects.filter(
-            schedule=schedule,
-            status='confirmed'
-        ).select_related('user')
+    print(f"\n=== TODAY'S EARNINGS CALCULATION ===")
+    print(f"Completed trips today: {completed_trips_today.count()}")
 
-        for booking in bookings:
-            passenger_count += 1
-            passenger_list.append({
-                'seat': booking.seat_number,
-                'name': booking.passenger_name,
-                'type': booking.user.profile.user_type if hasattr(booking.user, 'profile') else 'Student',
-                'id': booking.user.profile.institution_id if hasattr(booking.user,
-                                                                     'profile') else booking.user.username,
-                'stop': schedule.route.end,
-            })
+    for trip in completed_trips_today:
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
 
-            trip_exists = Trip.objects.filter(
-                driver=driver,
-                route=schedule.route,
-                travel_date=schedule.travel_date,
-                departure_time=schedule.departure_time,
-                status='completed'
-            ).exists()
-
-            if trip_exists:
+        if schedule:
+            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+            for booking in bookings:
                 today_earnings += float(booking.amount)
+                passenger_count += 1
+                passenger_list.append({
+                    'seat': booking.seat_number,
+                    'name': booking.passenger_name,
+                    'type': booking.user.profile.user_type if hasattr(booking.user, 'profile') else 'Student',
+                    'id': booking.user.profile.institution_id if hasattr(booking.user,
+                                                                         'profile') else booking.user.username,
+                    'stop': schedule.route.end,
+                })
+            print(f"  Trip on {trip.route.code}: +৳{sum(float(b.amount) for b in bookings)}")
 
+    # METHOD 2: Also check if there are any completed trips from today_trips (backup)
     for trip in today_trips:
         if trip.status == 'completed':
-            schedule = Schedule.objects.filter(
-                route=trip.route,
-                travel_date=trip.travel_date,
-                departure_time=trip.departure_time
-            ).first()
-            if schedule:
-                bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-                for booking in bookings:
-                    already_counted = False
-                    for p in passenger_list:
-                        if p.get('seat') == booking.seat_number:
-                            already_counted = True
-                            break
-                    if not already_counted:
+            # Check if we already counted this trip
+            already_counted = False
+            for p in passenger_list:
+                if p.get('seat') == f"Trip-{trip.id}":
+                    already_counted = True
+                    break
+
+            if not already_counted:
+                schedule = Schedule.objects.filter(
+                    route=trip.route,
+                    travel_date=trip.travel_date,
+                    departure_time=trip.departure_time
+                ).first()
+                if schedule:
+                    bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
+                    for booking in bookings:
                         today_earnings += float(booking.amount)
                         passenger_count += 1
+                        passenger_list.append({
+                            'seat': f"Trip-{trip.id}",
+                            'name': booking.passenger_name,
+                            'type': booking.user.profile.user_type if hasattr(booking.user, 'profile') else 'Student',
+                            'id': booking.user.profile.institution_id if hasattr(booking.user,
+                                                                                 'profile') else booking.user.username,
+                            'stop': schedule.route.end,
+                        })
+                    print(f"  Additional trip {trip.id}: +৳{sum(float(b.amount) for b in bookings)}")
 
+    print(f"💰 TODAY'S TOTAL EARNINGS: ৳{today_earnings}")
+    print(f"👥 Total passengers today: {passenger_count}")
+    print(f"================================\n")
+
+    # ========== TRIPS COMPLETED COUNT ==========
     trips_completed = driver.trips.filter(status='completed').count()
 
+    # ========== TOTAL EARNINGS (LIFETIME) ==========
     total_earnings = 0
     for trip in driver.trips.filter(status='completed'):
         schedule = Schedule.objects.filter(
@@ -1269,24 +1289,27 @@ def driver_dashboard(request):
             bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
             total_earnings += sum(float(b.amount) for b in bookings)
 
+    # ========== STATS ==========
     total_trips_count = all_trips.count()
     total_passengers = total_passengers_all
     avg_passengers_per_trip = int(total_passengers / total_trips_count) if total_trips_count > 0 else 0
 
+    # ========== MONTHLY STATS ==========
     month_ago = today - timedelta(days=30)
     monthly_trips = driver.trips.filter(status='completed', travel_date__gte=month_ago)
     monthly_trips_completed = monthly_trips.count()
     monthly_distance = monthly_trips_completed * 15
     monthly_hours = monthly_trips_completed * 1
 
+    # ========== PERFORMANCE METRICS ==========
     on_time_rate = 98.5
     customer_rating = 4.8
     safety_score = 95
 
+    # ========== WEEKLY EARNINGS ==========
     week_ago = today - timedelta(days=7)
     weekly_earnings = 0
     weekly_bonus = 0
-    weekly_total = 0
 
     for trip in driver.trips.filter(status='completed', travel_date__gte=week_ago):
         schedule = Schedule.objects.filter(
@@ -1301,6 +1324,7 @@ def driver_dashboard(request):
 
     weekly_total = weekly_earnings + weekly_bonus
 
+    # ========== MONTHLY EARNINGS ==========
     monthly_earnings = 0
     for trip in driver.trips.filter(status='completed', travel_date__gte=month_ago):
         schedule = Schedule.objects.filter(
@@ -1312,9 +1336,11 @@ def driver_dashboard(request):
             bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
             monthly_earnings += sum(float(b.amount) for b in bookings)
 
+    # ========== AVERAGE PER TRIP ==========
     total_trips_completed = driver.trips.filter(status='completed').count()
     avg_per_trip = total_earnings / total_trips_completed if total_trips_completed > 0 else 0
 
+    # ========== WEEKLY CHART DATA ==========
     weekly_chart_data = []
     for i in range(6, -1, -1):
         day = today - timedelta(days=i)
@@ -1330,6 +1356,7 @@ def driver_dashboard(request):
                 day_earnings += sum(float(b.amount) for b in bookings)
         weekly_chart_data.append(day_earnings)
 
+    # ========== MONTHLY CHART DATA ==========
     monthly_labels = []
     monthly_earnings_data = []
     monthly_trips_data = []
@@ -1361,6 +1388,7 @@ def driver_dashboard(request):
         monthly_earnings_data.append(month_earnings)
         monthly_trips_data.append(month_trips)
 
+    # ========== PAYMENT HISTORY ==========
     payment_history = [
         {'period': 'Week 12', 'id': 'PAY-847', 'date': (today - timedelta(days=7)).strftime('%Y-%m-%d'),
          'method': 'Bank Transfer', 'amount': int(weekly_earnings)},
@@ -1370,15 +1398,18 @@ def driver_dashboard(request):
          'method': 'Bank Transfer', 'amount': int(weekly_earnings * 1.1)},
     ] if weekly_earnings > 0 else []
 
+    # ========== WORKING HOURS & RATE ==========
     working_hours = total_trips_completed
     hourly_rate = total_earnings / working_hours if working_hours > 0 else 0
 
+    # ========== NEXT PAYMENT ==========
     days_until_friday = (4 - today.weekday()) % 7
     if days_until_friday == 0:
         days_until_friday = 7
     next_payment_date = (today + timedelta(days=days_until_friday)).strftime('%b %d, %Y')
     next_payment_amount = int(weekly_earnings)
 
+    # Store passenger list in session
     request.session['driver_passengers'] = passenger_list
 
     context = {
@@ -1425,8 +1456,9 @@ def driver_dashboard(request):
     print(f"Total earnings: {total_earnings}")
     print(f"Today's earnings: {today_earnings}")
     print(f"Trips completed: {trips_completed}")
-    print(f"Weekly chart data: {weekly_chart_data}")
-    print(f"Monthly labels: {monthly_labels}")
+    print(f"Weekly earnings: {weekly_earnings}")
+    print(f"Monthly earnings: {monthly_earnings}")
+    print(f"Average per trip: {avg_per_trip}")
     print(f"============================\n")
 
     return render(request, 'app1/driver/driver_dashboard.html', context)

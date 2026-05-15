@@ -715,15 +715,117 @@ def admin_get_schedule(request, schedule_id):
         return JsonResponse({'success': True, 'schedule': {'id': s.id, 'route': s.route.id, 'bus': s.bus.id, 'travel_date': s.travel_date.strftime('%Y-%m-%d'), 'departure_time': s.departure_time.strftime('%H:%M'), 'fare': float(s.fare), 'is_active': s.is_active}})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
+
 @login_required
 @user_passes_test(is_admin)
 def admin_update_schedule(request, schedule_id):
     if request.method in ['POST', 'PUT']:
-        s = get_object_or_404(Schedule, id=schedule_id); data = json.loads(request.body)
-        s.route = get_object_or_404(Route, id=data.get('route', s.route.id)); s.bus = get_object_or_404(Bus, id=data.get('bus', s.bus.id))
-        s.travel_date = datetime.strptime(data.get('travel_date'), '%Y-%m-%d').date(); s.departure_time = datetime.strptime(data.get('departure_time'), '%H:%M').time()
-        s.fare = float(data.get('fare', s.fare)); s.available_seats = data.get('available_seats', s.available_seats); s.is_active = data.get('is_active', s.is_active); s.save()
-        return JsonResponse({'success': True, 'message': 'Schedule updated'})
+        try:
+            s = get_object_or_404(Schedule, id=schedule_id)
+            data = json.loads(request.body)
+
+            print(f"\n=== UPDATE SCHEDULE DEBUG ===")
+            print(f"Updating schedule ID: {schedule_id}")
+            print(f"Data received: {data}")
+
+            # Get the new route, bus, driver
+            new_route = get_object_or_404(Route, id=data.get('route', s.route.id))
+            new_bus = get_object_or_404(Bus, id=data.get('bus', s.bus.id))
+            new_travel_date = datetime.strptime(data.get('travel_date'), '%Y-%m-%d').date()
+            new_departure_time = datetime.strptime(data.get('departure_time'), '%H:%M').time()
+            driver_id = data.get('driver')
+
+            # Update schedule
+            s.route = new_route
+            s.bus = new_bus
+            s.travel_date = new_travel_date
+            s.departure_time = new_departure_time
+            s.arrival_time = datetime.strptime(data.get('arrival_time'), '%H:%M').time() if data.get(
+                'arrival_time') else None
+            s.fare = float(data.get('fare', s.fare))
+            s.available_seats = data.get('available_seats', s.available_seats)
+            s.is_active = data.get('is_active', s.is_active)
+            s.save()
+            print(f"✅ Schedule updated: ID={s.id}")
+
+            trip_updated = False
+            trip_error = None
+
+            # Handle driver assignment - UPDATE OR CREATE TRIP
+            if driver_id and str(driver_id).strip() and str(driver_id) not in ['null', 'undefined', 'None', '']:
+                try:
+                    if isinstance(driver_id, str):
+                        driver_id = int(driver_id)
+
+                    driver = Driver.objects.get(id=driver_id)
+                    print(f"✅ Found driver: {driver.user.username} (ID: {driver.id})")
+
+                    # Check if trip exists for this schedule
+                    existing_trip = Trip.objects.filter(
+                        route=s.route,
+                        travel_date=s.travel_date,
+                        departure_time=s.departure_time
+                    ).first()
+
+                    if existing_trip:
+                        # Update existing trip
+                        existing_trip.driver = driver
+                        existing_trip.route = s.route
+                        existing_trip.bus = s.bus
+                        existing_trip.travel_date = s.travel_date
+                        existing_trip.departure_time = s.departure_time
+                        existing_trip.arrival_time = s.arrival_time
+                        existing_trip.save()
+                        trip_updated = True
+                        print(f"✅ Updated existing trip ID: {existing_trip.id} with new driver")
+                    else:
+                        # Create new trip
+                        trip = Trip.objects.create(
+                            driver=driver,
+                            route=s.route,
+                            bus=s.bus,
+                            travel_date=s.travel_date,
+                            departure_time=s.departure_time,
+                            arrival_time=s.arrival_time,
+                            status='pending'
+                        )
+                        trip_updated = True
+                        print(f"✅ Created new trip ID: {trip.id} for driver {driver.user.username}")
+
+                    # Update driver's assigned route/bus if not set
+                    if not driver.assigned_route:
+                        driver.assigned_route = s.route
+                        driver.save()
+                        print(f"✅ Updated driver's assigned route to {s.route.code}")
+                    if not driver.assigned_bus:
+                        driver.assigned_bus = s.bus
+                        driver.save()
+                        print(f"✅ Updated driver's assigned bus to {s.bus.bus_number}")
+
+                except Driver.DoesNotExist:
+                    trip_error = f"Driver with ID {driver_id} not found!"
+                    print(f"❌ {trip_error}")
+                except Exception as e:
+                    trip_error = str(e)
+                    print(f"❌ Error updating trip: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f"⚠️ No driver ID provided")
+
+            return JsonResponse({
+                'success': True,
+                'message': f'Schedule updated. Trip updated: {trip_updated}',
+                'trip_updated': trip_updated,
+                'trip_error': trip_error
+            })
+
+        except Exception as e:
+            print(f"❌ Error in admin_update_schedule: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'message': str(e)})
+
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
 @login_required

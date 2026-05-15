@@ -636,10 +636,18 @@ function saveSchedule(e) {
     // Get values with proper validation
     const routeId = document.getElementById('route').value;
     const busId = document.getElementById('bus').value;
-    const driverId = document.getElementById('driver').value;
+    const driverId = document.getElementById('driver').value;  // ← CRITICAL: Get driver ID
     const travelDate = document.getElementById('travelDate').value;
     const departureTime = document.getElementById('departureTime').value;
     const fare = parseFloat(document.getElementById('fare').value);
+
+    // Debug - Check what values are being collected
+    console.log('Route ID:', routeId);
+    console.log('Bus ID:', busId);
+    console.log('Driver ID:', driverId);  // ← CRITICAL: Check this in console
+    console.log('Travel Date:', travelDate);
+    console.log('Departure Time:', departureTime);
+    console.log('Fare:', fare);
 
     // Validate required fields
     if (!routeId) {
@@ -651,7 +659,7 @@ function saveSchedule(e) {
         return;
     }
     if (!driverId) {
-        showToast('⚠️ Please select a driver - This is required for the driver to see trips on their dashboard!', true);
+        showToast('⚠️ Please select a driver - This is required!', true);
         document.getElementById('driver').focus();
         return;
     }
@@ -668,19 +676,18 @@ function saveSchedule(e) {
         return;
     }
 
-    // Get available seats (auto-fill from bus capacity if empty)
     let availableSeats = document.getElementById('availableSeats').value;
     if (!availableSeats || availableSeats === '') {
         const busSelect = document.getElementById('bus');
         const selectedOption = busSelect.options[busSelect.selectedIndex];
-        const capacity = selectedOption?.dataset?.capacity;
+        const capacity = selectedOption?.getAttribute('data-capacity');
         availableSeats = capacity || 40;
     }
 
     const formData = {
         route: parseInt(routeId),
         bus: parseInt(busId),
-        driver: parseInt(driverId),  // CRITICAL: Include driver
+        driver: parseInt(driverId),  // ← CRITICAL: Make sure this is included
         travel_date: travelDate,
         departure_time: departureTime,
         arrival_time: document.getElementById('arrivalTime').value || null,
@@ -689,17 +696,11 @@ function saveSchedule(e) {
         is_active: document.getElementById('isActive').value === 'true'
     };
 
-    console.log('Saving schedule with driver:', formData);
+    console.log('Sending data:', formData);  // ← Check what's being sent
 
     const scheduleId = document.getElementById('scheduleId').value;
     const url = scheduleId ? `/admin_page/api/update-schedule/${scheduleId}/` : '/admin_page/api/add-schedule/';
     const method = scheduleId ? 'PUT' : 'POST';
-
-    // Show loading state
-    const saveBtn = document.querySelector('.btn-save');
-    const originalText = saveBtn.textContent;
-    saveBtn.textContent = 'Saving...';
-    saveBtn.disabled = true;
 
     fetch(url, {
         method: method,
@@ -711,11 +712,9 @@ function saveSchedule(e) {
     })
     .then(res => res.json())
     .then(data => {
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
-
+        console.log('Response:', data);  // ← Check what the server returns
         if(data.success) {
-            showToast(data.message || '✅ Schedule saved successfully! Trip created for driver.');
+            showToast(data.message || 'Schedule saved successfully!');
             closeModal();
             setTimeout(() => location.reload(), 1500);
         } else {
@@ -723,8 +722,6 @@ function saveSchedule(e) {
         }
     })
     .catch(error => {
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
         console.error('Error:', error);
         showToast('An error occurred while saving', true);
     });
