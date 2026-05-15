@@ -1,4 +1,4 @@
-﻿from django.urls import path
+from django.urls import path
 from . import views, views_admin
 
 
@@ -103,9 +103,6 @@ urlpatterns = [
     path('admin_page/api/send-notification/', views_admin.send_notification_api, name='send_notification_api'),
     path('admin_page/api/resolve-alert/<int:alert_id>/', views_admin.resolve_alert_api, name='resolve_alert_api'),
 
-    # ================= CHAT URLs - REMOVED =================
-    # All chat URLs have been removed from admin and user sections
-
     # ================= DRIVER MODULE URLs =================
     # Authentication
     path('driver/login/', views.login_page, name='driver_login'),
@@ -129,14 +126,10 @@ urlpatterns = [
     path('driver/api/routes/', views.driver_routes_api, name='driver_routes_api'),
     path('driver/api/schedules/', views.driver_schedules_api, name='driver_schedules_api'),
 
-    # ================= DRIVER CHAT API URLs - REMOVED =================
-    # All driver chat URLs have been removed
-
     # ================= BUS TRACKING URLs =================
     path('track-bus/', views.track_bus, name='track_bus'),
-    path('api/bus/<int:bus_id>/update/', views.update_bus_location, name='update_bus_location'),
-    path('api/bus/<int:bus_id>/location/', views.get_bus_location, name='get_bus_location'),
-    path('api/buses/locations/', views.get_all_buses_location, name='get_all_buses_location'),
+    path('api/bus/<int:bus_id>/update/', views.update_bus_location, name='api_update_location'),
+    path('api/buses/locations/', views.get_all_buses_location, name='api_all_bus_locations'),
     path('track-bus-api/', views.track_bus_api, name='track_bus_api'),
 
     # ================= PAYMENT URLs =================
@@ -150,21 +143,6 @@ urlpatterns = [
     path('get-chat-messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
     path('close-chat/<int:room_id>/', views.close_chat, name='close_chat'),
 
-    # ==================== DRIVER MODULE URLs ====================
-    # ✅ FIXED: Changed to use unified login
-    path('driver/login/', views.login_page, name='driver_login'),  # ✅ Now uses same login page
-    path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
-    path('driver/logout/', views.driver_logout, name='driver_logout'),
-    path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
-    path('driver/profile/', views.driver_profile, name='driver_profile'),
-    path('driver/trip/<int:trip_id>/', views.trip_detail, name='trip_detail'),
-    path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
-    path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
-    path('driver/stop/<int:stop_id>/update/', views.update_stop_status, name='update_stop_status'),
-
-    # ✅ Driver Emergency Alert & Passenger API
-    path('driver/api/send-alert/', views.driver_send_alert, name='driver_send_alert'),
-    path('driver/api/passengers/', views.driver_get_passengers, name='driver_get_passengers'),
 
 
 #payment

@@ -24,6 +24,11 @@ from .models import (
 import json, random, string, re
 from datetime import datetime, timedelta
 from django.db.models import Sum, Q, Count
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
 
 
 # ==================== HELPER FUNCTIONS ====================
@@ -77,6 +82,7 @@ def account_created_page(request):
     return render(request, 'app1/account_created.html')
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def register_user(request):
     """
@@ -170,6 +176,7 @@ def register_user(request):
         return JsonResponse({'success': False, 'message': f'Registration failed: {str(e)}'}, status=500)
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def login_user(request):
     """
@@ -764,17 +771,16 @@ def track_bus(request):
     return render(request, 'app1/track_bus.html')
 
 
-# ==================== BUS TRACKING API (DRF) ====================
+@login_required(login_url='/login/')
+def track_bus_api(request):
+    """Renders the HTML page containing the map"""
+    return render(request, 'app1/track_bus_api.html')
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .serializers import BusSerializer, BusLocationSerializer
-from .models import Bus, BusLocation
-
-
+@csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def update_bus_location(request, bus_id):
-    """API endpoint to update bus GPS location - CHANGE REASON: Real-time tracking support"""
+    """API for the Flutter mobile app to push GPS coordinates to"""
     try:
         bus = Bus.objects.get(id=bus_id)
         lat = request.data.get('lat') or request.data.get('latitude')
@@ -786,47 +792,33 @@ def update_bus_location(request, bus_id):
     except Bus.DoesNotExist:
         return Response({"error": "Bus not found"}, status=404)
 
-
-@api_view(['GET'])
-def get_bus_location(request, bus_id):
-    """API endpoint to retrieve latest bus location - CHANGE REASON: Frontend tracking display"""
-    try:
-        bus = Bus.objects.get(id=bus_id)
-        latest_location = BusLocation.objects.filter(bus=bus).first()
-        data = {
-            'id': bus.id,
-            'bus_number': bus.bus_number,
-            'latitude': latest_location.latitude if latest_location else None,
-            'longitude': latest_location.longitude if latest_location else None,
-            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
-        }
-        return Response(data)
-    except Bus.DoesNotExist:
-        return Response({"error": "Bus not found"}, status=404)
-
-
 @api_view(['GET'])
 def get_all_buses_location(request):
-    """API endpoint to retrieve all bus locations for map display"""
-    buses = Bus.objects.all()
-    data = []
+    """API for the Web Dashboard to fetch all bus locations"""
+    buses = Bus.objects.filter(is_active=True).prefetch_related('locations', 'assigned_drivers')
+    bus_data = []
     for bus in buses:
-        latest_location = BusLocation.objects.filter(bus=bus).first()
-        data.append({
+        latest_location = bus.locations.first()
+
+        route_code = 'N/A'
+        try:
+            driver = bus.assigned_drivers.filter(is_active=True).first()
+            if driver and driver.assigned_route:
+                route_code = driver.assigned_route.code
+        except Exception:
+            pass
+
+        bus_data.append({
             'id': bus.id,
             'bus_number': bus.bus_number,
             'latitude': latest_location.latitude if latest_location else None,
             'longitude': latest_location.longitude if latest_location else None,
-            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+            'driver_name': bus.driver_name or 'Unassigned',
+            'route_code': route_code,
+            'last_updated': latest_location.updated_at.isoformat() if latest_location else None,
         })
-    return Response(data)
+    return Response({'success': True, 'buses': bus_data})
 
-
-@login_required
-def track_bus_api(request):
-    """Render bus tracking page with all active buses"""
-    buses = Bus.objects.filter(is_active=True)
-    return render(request, 'app1/track_bus_api.html', {'buses': buses})
 
 
 
