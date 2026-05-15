@@ -204,19 +204,22 @@ def login_user(request):
         login(request, user)
         redirect_url = '/dashboard/'
 
-        try:
-            if hasattr(user, 'profile'):
-                user_type = user.profile.user_type.lower()
-                if user_type == 'driver':
+        if user.is_superuser or user.is_staff:
+            redirect_url = '/admin/'
+        else:
+            try:
+                if hasattr(user, 'profile'):
+                    user_type = user.profile.user_type.lower()
+                    if user_type == 'driver':
+                        redirect_url = '/driver/dashboard/'
+                    elif user_type == 'admin':
+                        redirect_url = '/admin_page/dashboard/'
+                    else:
+                        redirect_url = '/dashboard/'
+                elif hasattr(user, 'driver_profile') and user.driver_profile.is_active:
                     redirect_url = '/driver/dashboard/'
-                elif user_type == 'admin':
-                    redirect_url = '/admin_page/dashboard/'
-                else:
-                    redirect_url = '/dashboard/'
-            elif hasattr(user, 'driver_profile') and user.driver_profile.is_active:
-                redirect_url = '/driver/dashboard/'
-        except Exception:
-            redirect_url = '/dashboard/'
+            except Exception:
+                redirect_url = '/dashboard/'
 
         full_name = user.get_full_name() or user.username
         msg = f'Welcome back Admin, {full_name}!' if 'admin' in redirect_url else f'Welcome back, {full_name}!'
