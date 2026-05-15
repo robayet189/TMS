@@ -1,120 +1,44 @@
-# selenium_tests/pages/login_page.py
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from .base_page import BasePage
-import time
 
 class LoginPage(BasePage):
-    USERNAME_INPUT = (By.CSS_SELECTOR, '[data-testid="username-input"]')
-    PASSWORD_INPUT = (By.CSS_SELECTOR, '[data-testid="password-input"]')
-    LOGIN_BUTTON = (By.CSS_SELECTOR, '[data-testid="login-button"]')
-    TOAST_MESSAGE = (By.CSS_SELECTOR, '[data-testid="toast-message"]')
+    """Login page object"""
     
-    USERNAME_INPUT_FALLBACK = [
-        (By.NAME, "username"), (By.ID, "username"), (By.CSS_SELECTOR, "input[name='username']"),
-    ]
-    PASSWORD_INPUT_FALLBACK = [
-        (By.NAME, "password"), (By.ID, "password"), (By.CSS_SELECTOR, "input[type='password']"),
-    ]
-    LOGIN_BUTTON_FALLBACK = [
-        (By.CSS_SELECTOR, "button[type='submit']"), (By.CSS_SELECTOR, "input[type='submit']"),
-        (By.CSS_SELECTOR, ".btn-login"), (By.XPATH, "//button[contains(text(), 'Sign In')]"),
-    ]
+    # Locators
+    USERNAME_INPUT = (By.NAME, "username")
+    PASSWORD_INPUT = (By.NAME, "password")
+    LOGIN_BUTTON = (By.XPATH, "//button[@type='submit']")
+    ERROR_MESSAGE = (By.CLASS_NAME, "error-message")
     
-    def _find_first_available(self, locators_list, timeout=10):
-        for locator in locators_list:
-            try:
-                return self.find(locator, timeout)
-            except:
-                continue
-        return None
-    
-    def _find_clickable_first(self, locators_list, timeout=10):
-        for locator in locators_list:
-            try:
-                return self.find_clickable(locator, timeout)
-            except:
-                continue
-        return None
+    def __init__(self, driver, base_url):
+        super().__init__(driver, base_url)
     
     def open_login_page(self):
-        self.open("/login/")
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "form, #loginForm")))
-        time.sleep(1)
+        """Open login page"""
+        self.open_url("/login/")
     
     def enter_username(self, username):
-        try:
-            element = self.find(self.USERNAME_INPUT)
-            element.clear(); element.send_keys(username); return
-        except:
-            pass
-        element = self._find_first_available(self.USERNAME_INPUT_FALLBACK)
-        if element:
-            element.clear(); element.send_keys(username)
+        """Enter username"""
+        self.enter_text(self.USERNAME_INPUT, username)
     
     def enter_password(self, password):
-        try:
-            element = self.find(self.PASSWORD_INPUT)
-            element.clear(); element.send_keys(password); return
-        except:
-            pass
-        element = self._find_first_available(self.PASSWORD_INPUT_FALLBACK)
-        if element:
-            element.clear(); element.send_keys(password)
+        """Enter password"""
+        self.enter_text(self.PASSWORD_INPUT, password)
     
-    def click_login_button(self):
-        try:
-            element = self.find_clickable(self.LOGIN_BUTTON)
-            self._smart_click(element); return
-        except:
-            pass
-        element = self._find_clickable_first(self.LOGIN_BUTTON_FALLBACK)
-        if element:
-            self._smart_click(element)
-    
-    def _smart_click(self, element):
-        try:
-            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'auto', block: 'center'});", element)
-            time.sleep(0.3)
-        except:
-            pass
-        try:
-            element.click(); return
-        except:
-            pass
-        self.driver.execute_script("arguments[0].click();", element)
+    def click_login(self):
+        """Click login button"""
+        self.click_element(self.LOGIN_BUTTON)
     
     def login(self, username, password):
+        """Complete login process"""
         self.enter_username(username)
         self.enter_password(password)
-        self.click_login_button()
-        time.sleep(2)
+        self.click_login()
     
-    def is_login_success(self, expected_urls=None):
-        if expected_urls is None:
-            expected_urls = ["/dashboard/", "/admin_page/dashboard/", "/driver/dashboard/", "/home/", "/homepage/"]
-        current_url = self.driver.current_url.lower()
-        if "/login/" not in current_url and "login" not in current_url:
-            return True
-        return any(url.lower() in current_url for url in expected_urls)
+    def get_error_message(self):
+        """Get error message"""
+        return self.get_element_text(self.ERROR_MESSAGE)
     
-    def get_error(self):
-        try:
-            toast = self.find_visible(self.TOAST_MESSAGE, timeout=3)
-            text = toast.text.lower()
-            if "error" in text or "invalid" in text or "failed" in text:
-                return toast.text.strip()
-        except:
-            pass
-        return None
-    
-    def get_toast_message(self):
-        try:
-            return self.find_visible(self.TOAST_MESSAGE, timeout=5).text.strip()
-        except:
-            return None
-
-
-
-# Additional methods for handling forgot password, social logins, etc. can be added here as needed.
+    def is_login_successful(self):
+        """Check if login was successful"""
+        return "/dashboard/" in self.get_current_url()
