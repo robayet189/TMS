@@ -1,30 +1,22 @@
 import pytest
 import random
-from pages.register_page import RegisterPage
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 
 class TestRegistration:
-    def test_successful_registration(self, driver, base_url):
-        """Register with valid data & verify success toast"""
-        page = RegisterPage(driver, base_url)
-        page.open("/register/")
+    def test_successful_registration(self, driver, base_url, wait):
+        driver.get(f"{base_url}/register/")
+        wait.until(EC.presence_of_element_located((By.NAME, "full_name")))
         
-       
-        unique_id = str(random.randint(1000, 9999))
-        page.register(
-            full_name="Selenium Test User",
-            email=f"test_{unique_id}@example.com",
-            password="SecurePass123!",
-            phone="01700000000",
-            inst_type="Educational",
-            user_type="Student",
-            inst_id=f"2024-1-60-{unique_id}"
-        )
+        unique_id = random.randint(1000, 9999)
+        driver.find_element(By.NAME, "full_name").send_keys(f"Test User {unique_id}")
+        driver.find_element(By.NAME, "email").send_keys(f"test{unique_id}@example.com")
+        driver.find_element(By.NAME, "password").send_keys("SecurePass123!")
+        driver.find_element(By.NAME, "phone").send_keys(f"017{unique_id}0000")
+        driver.find_element(By.NAME, "institution_type").send_keys("university")
+        driver.find_element(By.NAME, "user_type").send_keys("student")
+        driver.find_element(By.NAME, "institution_id").send_keys(f"STU{unique_id}")
         
-        
-        msg = page.get_toast_message()
-        assert msg is not None, "Success toast not shown"
-        assert "success" in msg.lower() or "created" in msg.lower(), f"Unexpected message: {msg}"
-
-
-
-# Additional registration tests for validation errors, duplicate emails, etc. can be added here as needed. But registration failure due to validation errors should not be treated as test failure - just return the error message and let the test assert on it.        
+        driver.find_element(By.ID, "registerBtn").click()
+        wait.until(EC.url_contains("/account-created/"))
+        assert "created" in driver.current_url.lower()
