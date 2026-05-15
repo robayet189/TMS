@@ -103,23 +103,8 @@ urlpatterns = [
     path('admin_page/api/send-notification/', views_admin.send_notification_api, name='send_notification_api'),
     path('admin_page/api/resolve-alert/<int:alert_id>/', views_admin.resolve_alert_api, name='resolve_alert_api'),
 
-    # Admin Chat URLs
-    path('admin_page/chat/', views_admin.admin_chat_list, name='admin_chat'),
-    path('admin_page/api/chat/rooms/', views_admin.admin_get_chat_rooms_api, name='admin_get_chat_rooms'),
-    path('admin_page/api/chat/send/<int:room_id>/', views_admin.admin_send_chat_message,
-         name='admin_send_chat_message'),
-    path('admin_page/api/chat/messages/<int:room_id>/', views_admin.admin_get_chat_messages_api,
-         name='admin_get_chat_messages'),
-    path('admin_page/api/chat/create/', views_admin.admin_create_chat_room, name='admin_create_chat_room'),
-
-    # ================= CHAT SYSTEM URLs (FIXED) =================
-    # User Chat - User views their chat list and rooms
-    path('chat/', views.chat_list, name='chat_list'),  # FIXED: was 'user_chat', now 'chat_list'
-    path('chat/<int:room_id>/', views.chat_room, name='chat_room'),
-    path('chat/<int:room_id>/send/', views.send_chat_message, name='send_chat_message'),
-    path('chat/<int:room_id>/messages/', views.get_chat_messages, name='get_chat_messages'),
-    path('chat/start/<str:booking_id>/', views.start_chat, name='start_chat'),
-    path('chat/<int:room_id>/close/', views.close_chat, name='close_chat'),
+    # ================= CHAT URLs - REMOVED =================
+    # All chat URLs have been removed from admin and user sections
 
     # ================= DRIVER MODULE URLs =================
     # Authentication
@@ -144,13 +129,8 @@ urlpatterns = [
     path('driver/api/routes/', views.driver_routes_api, name='driver_routes_api'),
     path('driver/api/schedules/', views.driver_schedules_api, name='driver_schedules_api'),
 
-    # Driver Chat API
-    path('driver/api/chat-rooms/', views.driver_get_chat_rooms, name='driver_get_chat_rooms'),
-    path('driver/api/chat/send/<int:room_id>/', views.driver_send_chat_message, name='driver_send_chat_message'),
-    path('driver/api/chat/messages/<int:room_id>/', views.driver_get_chat_messages, name='driver_get_chat_messages'),
-    path('driver/api/chat/mark-read/<int:room_id>/', views.driver_mark_chat_read, name='driver_mark_chat_read'),
-    path('driver/chat/start/<str:booking_id>/', views.driver_start_chat, name='driver_start_chat'),
-    path('driver/chat/<int:room_id>/', views.chat_room, name='driver_chat_room'),  # Uses same chat_room view
+    # ================= DRIVER CHAT API URLs - REMOVED =================
+    # All driver chat URLs have been removed
 
     # ================= BUS TRACKING URLs =================
     path('track-bus/', views.track_bus, name='track_bus'),
@@ -170,6 +150,7 @@ urlpatterns = [
     path('send-emergency/', views.send_emergency_alert, name='send_emergency'),
     path('emergency-history/', views.emergency_history, name='emergency_history'),
 
+    # Driver Emergency APIs
     path('driver/api/emergency-reports/', views.driver_get_emergency_reports, name='driver_emergency_reports'),
     path('driver/api/send-emergency-alert/', views.driver_send_emergency_alert, name='driver_send_emergency_alert'),
 ]

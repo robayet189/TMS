@@ -4,9 +4,8 @@ from django.http import JsonResponse
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import UserProfile, Route, Bus, Schedule, Booking, Driver, Trip, Alert, Notification, ChatMessage
+from .models import UserProfile, Route, Bus, Schedule, Booking, Driver, Trip, Alert, Notification
 from django.contrib.auth.models import User
-from .models import ChatRoom
 from decimal import Decimal
 import json
 
@@ -104,14 +103,12 @@ def admin_update_booking_status(request, booking_id):
         return JsonResponse({'success': False, 'message': 'Invalid status'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
-# In views_admin.py - Update the admin_fleet function
 @login_required
 @user_passes_test(is_admin)
 def admin_fleet(request):
     buses = Bus.objects.all().order_by('bus_number')
     drivers = Driver.objects.filter(is_approved=True, is_active=True).select_related('user')
-    routes = Route.objects.all().order_by('code')  # ✅ Add this
+    routes = Route.objects.all().order_by('code')
 
     context = {
         'active': 'fleet',
@@ -121,7 +118,7 @@ def admin_fleet(request):
         'inactive_buses': buses.filter(is_active=False).count(),
         'maintenance_buses': 0,
         'drivers': drivers,
-        'routes': routes,  # ✅ Add this
+        'routes': routes,
     }
     return render(request, 'app1/admin/admin_fleet.html', context)
 
@@ -131,16 +128,14 @@ def admin_routes(request):
     routes = Route.objects.all().annotate(schedule_count=Count('schedules'))
     return render(request, 'app1/admin/admin_routes.html', {'active': 'routes', 'routes': routes, 'active_routes': routes.filter(schedules__is_active=True).distinct().count()})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_schedule(request):
     """Admin schedule management with driver assignment"""
     schedules = Schedule.objects.select_related('route', 'bus').all().order_by('travel_date', 'departure_time')
 
-    # ✅ FIX: Annotate each schedule with its assigned driver
+    # Annotate each schedule with its assigned driver
     for schedule in schedules:
-        # Try to find the trip for this schedule
         trip = Trip.objects.filter(
             route=schedule.route,
             travel_date=schedule.travel_date,
@@ -156,7 +151,6 @@ def admin_schedule(request):
     drivers = Driver.objects.select_related('user').filter(is_active=True, is_approved=True)
     today = timezone.now().date()
 
-    # Calculate stats
     total_schedules = schedules.count()
     active_today = schedules.filter(travel_date=today, is_active=True).count()
     pending_schedules = schedules.filter(is_active=True, travel_date__gte=today).count()
@@ -174,8 +168,6 @@ def admin_schedule(request):
     }
     return render(request, 'app1/admin/admin_schedule.html', context)
 
-
-# In views_admin.py - REPLACE your existing admin_revenue function
 @login_required
 @user_passes_test(is_admin)
 def admin_revenue(request):
@@ -186,33 +178,27 @@ def admin_revenue(request):
 
     today = timezone.now().date()
 
-    # ========== BASIC STATS ==========
-    # Total revenue from all completed/approved bookings
     total_revenue = Booking.objects.filter(
         status__in=['approved', 'confirmed', 'completed']
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-    # Today's revenue
     today_revenue = Booking.objects.filter(
         status__in=['approved', 'confirmed', 'completed'],
         schedule__travel_date=today
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-    # This month's revenue
     first_day_of_month = today.replace(day=1)
     month_revenue = Booking.objects.filter(
         status__in=['approved', 'confirmed', 'completed'],
         booking_date__date__gte=first_day_of_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-    # Calculate profit (using Decimal for precise calculation)
-    expense_percentage = Decimal('0.35')  # 35% expenses
-    profit_percentage = Decimal('0.65')  # 65% profit
+    expense_percentage = Decimal('0.35')
+    profit_percentage = Decimal('0.65')
 
     estimated_expenses = total_revenue * expense_percentage
     total_profit = total_revenue * profit_percentage
 
-    # ========== REVENUE BY ROUTE ==========
     revenue_by_route = Booking.objects.filter(
         status__in=['approved', 'confirmed', 'completed']
     ).values('schedule__route__code').annotate(
@@ -220,7 +206,6 @@ def admin_revenue(request):
         booking_count=Count('id')
     ).order_by('-total')[:5]
 
-    # Convert Decimal to float for JSON serialization
     revenue_by_route_list = []
     for item in revenue_by_route:
         revenue_by_route_list.append({
@@ -229,7 +214,6 @@ def admin_revenue(request):
             'count': item['booking_count']
         })
 
-    # ========== PAYMENT METHOD DISTRIBUTION ==========
     payment_methods = Booking.objects.filter(
         status__in=['approved', 'confirmed', 'completed']
     ).values('payment_method').annotate(
@@ -237,30 +221,26 @@ def admin_revenue(request):
         count=Count('id')
     ).order_by('-total')
 
-    # Prepare payment data for chart
     payment_labels = []
     payment_data = []
     for pm in payment_methods:
         payment_labels.append(pm['payment_method'].title())
         payment_data.append(float(pm['total']) if pm['total'] else 0)
 
-    # ========== MONTHLY DATA FOR CHARTS (Last 6 months) ==========
     monthly_revenue = []
     monthly_expenses = []
     monthly_profit = []
     month_labels = []
 
-    for i in range(5, -1, -1):  # Last 6 months
+    for i in range(5, -1, -1):
         month_date = today - timedelta(days=30 * i)
         month_start = month_date.replace(day=1)
 
-        # Calculate next month start
         if month_date.month == 12:
             month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
         else:
             month_end = month_date.replace(month=month_date.month + 1, day=1) - timedelta(days=1)
 
-        # Get revenue for this month
         rev = Booking.objects.filter(
             status__in=['approved', 'confirmed', 'completed'],
             booking_date__date__gte=month_start,
@@ -272,22 +252,18 @@ def admin_revenue(request):
         monthly_profit.append(float(rev * profit_percentage))
         month_labels.append(month_start.strftime('%b'))
 
-    # ========== RECENT TRANSACTIONS ==========
     recent_bookings = Booking.objects.filter(
         status__in=['approved', 'confirmed', 'completed']
     ).select_related('user', 'schedule__route').order_by('-booking_date')[:10]
 
     context = {
         'active': 'revenue',
-        # Stats (as strings with commas for display)
         'total_revenue': f"{total_revenue:,.0f}",
         'total_profit': f"{total_profit:,.0f}",
         'month_revenue': f"{month_revenue:,.0f}",
         'today_revenue': f"{today_revenue:,.0f}",
-        # Data for tables
         'revenue_by_route': revenue_by_route_list,
         'recent_bookings': recent_bookings,
-        # Data for charts (as JSON-safe lists)
         'month_labels': month_labels,
         'revenue_data': monthly_revenue,
         'expenses_data': monthly_expenses,
@@ -298,7 +274,6 @@ def admin_revenue(request):
 
     return render(request, 'app1/admin/admin_revenue.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_alerts(request):
@@ -307,7 +282,6 @@ def admin_alerts(request):
 
     all_alerts = []
 
-    # Process Alert model alerts
     for alert in Alert.objects.all().order_by('-created_at'):
         all_alerts.append({
             'id': alert.id,
@@ -326,7 +300,6 @@ def admin_alerts(request):
             'model_type': 'Alert'
         })
 
-    # Process EmergencyAlert model alerts
     for alert in EmergencyAlert.objects.all().order_by('-created_at'):
         status_map = {
             'pending': 'open',
@@ -351,7 +324,6 @@ def admin_alerts(request):
             'model_type': 'EmergencyAlert'
         })
 
-    # Calculate stats
     total_alerts = len(all_alerts)
     critical_alerts = len([a for a in all_alerts if a['priority'] == 'CRITICAL' and a['status'] != 'resolved'])
     in_progress_alerts = len([a for a in all_alerts if a['status'] == 'in-progress'])
@@ -393,26 +365,22 @@ def admin_add_schedule(request):
             travel_date = datetime.strptime(data.get('travel_date'), '%Y-%m-%d').date()
             departure_time = datetime.strptime(data.get('departure_time'), '%H:%M').time()
 
-            # Check for duplicate schedule
             if Schedule.objects.filter(route=route, travel_date=travel_date, departure_time=departure_time).exists():
                 return JsonResponse({'success': False, 'message': 'Schedule already exists'})
 
-            # Create schedule
             schedule = Schedule.objects.create(
                 route=route,
                 bus=bus,
                 travel_date=travel_date,
                 departure_time=departure_time,
-                arrival_time=datetime.strptime(data.get('arrival_time'), '%H:%M').time() if data.get(
-                    'arrival_time') else None,
+                arrival_time=datetime.strptime(data.get('arrival_time'), '%H:%M').time() if data.get('arrival_time') else None,
                 fare=float(data.get('fare', 40)),
                 available_seats=data.get('available_seats') or bus.capacity,
                 is_active=data.get('is_active', True)
             )
             print(f"✅ Schedule created: ID={schedule.id}")
 
-            # ✅ CRITICAL FIX: Get driver from the form data
-            driver_id = data.get('driver')  # This comes from the driver dropdown
+            driver_id = data.get('driver')
             trip_created = False
 
             print(f"Driver ID from request: {driver_id}")
@@ -422,7 +390,6 @@ def admin_add_schedule(request):
                     driver = Driver.objects.get(id=int(driver_id))
                     print(f"✅ Found driver: {driver.user.username} (ID: {driver.id})")
 
-                    # ✅ CREATE TRIP (CRITICAL for driver dashboard)
                     trip, created = Trip.objects.get_or_create(
                         driver=driver,
                         route=route,
@@ -437,13 +404,11 @@ def admin_add_schedule(request):
                     trip_created = created
 
                     if created:
-                        print(
-                            f"✅ TRIP CREATED: Driver={driver.user.username}, Route={route.code}, Date={travel_date}, Time={departure_time}")
+                        print(f"✅ TRIP CREATED: Driver={driver.user.username}, Route={route.code}, Date={travel_date}, Time={departure_time}")
                         print(f"   Trip ID: {trip.id}, Status: {trip.status}")
                     else:
                         print(f"⚠️ Trip already existed for Driver={driver.user.username}")
 
-                    # ✅ Also update driver's assigned route and bus if not already set
                     if not driver.assigned_route:
                         driver.assigned_route = route
                     if not driver.assigned_bus:
@@ -481,15 +446,13 @@ def admin_add_schedule(request):
 
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
-# ==================== FLEET API (Fixed: driver_name, driver_phone save) ====================
+# ==================== FLEET API ====================
 @login_required
 @user_passes_test(is_admin)
 def admin_get_bus(request, bus_id):
     if request.method == 'GET':
         bus = get_object_or_404(Bus, id=bus_id)
 
-        # Find which driver is assigned to this bus
         driver_id = None
         driver = Driver.objects.filter(assigned_bus=bus).first()
         if driver:
@@ -501,7 +464,7 @@ def admin_get_bus(request, bus_id):
                 'id': bus.id,
                 'bus_number': bus.bus_number,
                 'capacity': bus.capacity,
-                'driver_id': driver_id,  # Driver ID from Driver model
+                'driver_id': driver_id,
                 'driver_name': bus.driver_name or '',
                 'driver_phone': bus.driver_phone or '',
                 'has_ac': bus.has_ac,
@@ -517,7 +480,6 @@ def admin_get_buses(request):
     if request.method == 'GET':
         return JsonResponse({'success': True, 'buses': list(Bus.objects.all().values('id', 'bus_number', 'capacity', 'is_active'))})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -535,7 +497,6 @@ def admin_add_bus(request):
             driver_phone = data.get('driver_phone', '')
             route_id = data.get('route_id')
 
-            # Create the bus first
             bus = Bus.objects.create(
                 bus_number=data['bus_number'],
                 capacity=data.get('capacity', 40),
@@ -546,15 +507,11 @@ def admin_add_bus(request):
                 is_active=data.get('is_active', True)
             )
 
-            # Handle driver assignment
             if driver_id and driver_id not in ['', 'null', 'none']:
                 try:
                     driver = Driver.objects.get(id=int(driver_id))
-
-                    # Update driver's assigned bus
                     driver.assigned_bus = bus
 
-                    # Update driver's assigned route if provided
                     if route_id and route_id not in ['', 'null', 'none']:
                         try:
                             route = Route.objects.get(id=int(route_id))
@@ -563,8 +520,6 @@ def admin_add_bus(request):
                             pass
 
                     driver.save()
-
-                    # Update bus with driver info from database
                     bus.driver_name = driver.user.get_full_name() or driver.user.username
                     bus.driver_phone = driver.phone
                     bus.save()
@@ -582,7 +537,6 @@ def admin_add_bus(request):
 
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_update_bus(request, bus_id):
@@ -592,33 +546,26 @@ def admin_update_bus(request, bus_id):
             bus = get_object_or_404(Bus, id=bus_id)
             data = json.loads(request.body)
 
-            # Get the old driver assigned to this bus (if any)
             old_driver_id = bus.driver_id
-
-            # Get new driver info from request
             driver_id = data.get('driver_id')
             driver_name = data.get('driver_name', '')
             driver_phone = data.get('driver_phone', '')
-            route_id = data.get('route_id')  # Get route_id if provided
+            route_id = data.get('route_id')
 
-            # Update bus info
             bus.bus_number = data.get('bus_number', bus.bus_number)
             bus.capacity = data.get('capacity', bus.capacity)
             bus.has_ac = data.get('has_ac', bus.has_ac)
             bus.has_wifi = data.get('has_wifi', bus.has_wifi)
             bus.is_active = data.get('is_active', bus.is_active)
 
-            # Handle driver assignment
             if driver_id and driver_id not in ['', 'null', 'none']:
                 try:
                     driver = Driver.objects.get(id=int(driver_id))
                     driver_name = driver.user.get_full_name() or driver.user.username
                     driver_phone = driver.phone
 
-                    # ✅ CRITICAL: Update driver's assigned bus
                     driver.assigned_bus = bus
 
-                    # ✅ Also assign route if provided
                     if route_id and route_id not in ['', 'null', 'none']:
                         try:
                             route = Route.objects.get(id=int(route_id))
@@ -634,7 +581,6 @@ def admin_update_bus(request, bus_id):
                     print(f"⚠️ Driver ID {driver_id} not found")
 
             else:
-                # No driver selected - clear assignment from old driver if exists
                 if old_driver_id:
                     try:
                         old_driver = Driver.objects.get(id=old_driver_id)
@@ -644,7 +590,6 @@ def admin_update_bus(request, bus_id):
                     except Driver.DoesNotExist:
                         pass
 
-            # Update bus with driver info
             bus.driver_name = driver_name
             bus.driver_phone = driver_phone
             bus.save()
@@ -675,21 +620,17 @@ def admin_delete_bus(request, bus_id):
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
 # ==================== ROUTE API ====================
-
 @login_required
 @user_passes_test(is_admin)
 def admin_get_routes(request):
-    """Get all routes as JSON for AJAX requests"""
     if request.method == 'GET':
         routes = Route.objects.all().values('id', 'code', 'start', 'end', 'distance_km')
         return JsonResponse({'success': True, 'routes': list(routes)})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_get_route(request, route_id):
-    """Get a single route by ID for editing"""
     if request.method == 'GET':
         try:
             route = get_object_or_404(Route, id=route_id)
@@ -735,20 +676,16 @@ def admin_update_route(request, route_id):
         return JsonResponse({'success': True, 'message': 'Route updated'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def admin_delete_route(request, route_id):
     if request.method in ['POST', 'DELETE']:
         route = get_object_or_404(Route, id=route_id)
-
-        # Check for any schedules (active or inactive)
         if route.schedules.exists():
             return JsonResponse({
                 'success': False,
                 'message': f'Cannot delete route {route.code} because it has {route.schedules.count()} schedule(s). Delete or deactivate all schedules first.'
             })
-
         route.delete()
         return JsonResponse({'success': True, 'message': f'Route {route.code} deleted successfully!'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
@@ -756,7 +693,6 @@ def admin_delete_route(request, route_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_toggle_route_status(request, route_id):
-    """Toggle route active/inactive status"""
     if request.method == 'POST':
         try:
             route = get_object_or_404(Route, id=route_id)
@@ -816,21 +752,18 @@ def send_notification_api(request):
         return JsonResponse({'success': True, 'message': 'Notification sent'})
     return JsonResponse({'success': False, 'message': 'Invalid method'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def resolve_alert_api(request, alert_id):
     """API: Resolve an emergency alert (handles both Alert and EmergencyAlert models)"""
     if request.method == 'POST':
         try:
-            # Try to find in Alert model first
             try:
                 alert = Alert.objects.get(id=alert_id)
                 alert.is_resolved = True
                 alert.resolved_at = timezone.now()
                 alert.save()
 
-                # Update notification
                 Notification.objects.filter(
                     related_driver=alert.driver,
                     type='emergency',
@@ -843,7 +776,6 @@ def resolve_alert_api(request, alert_id):
                 return JsonResponse({'success': True, 'message': 'Alert resolved successfully'})
 
             except Alert.DoesNotExist:
-                # Try EmergencyAlert model
                 try:
                     emergency_alert = EmergencyAlert.objects.get(id=alert_id)
                     emergency_alert.status = 'resolved'
@@ -860,229 +792,6 @@ def resolve_alert_api(request, alert_id):
 
     return JsonResponse({'success': False, 'message': 'Invalid method'}, status=400)
 
-
-# ==================== ADMIN CHAT FUNCTIONS ====================
-
-@login_required
-@user_passes_test(is_admin)
-def admin_chat_list(request):
-    """Admin view to see all chat rooms"""
-    chat_rooms = ChatRoom.objects.filter(is_active=True).select_related('user', 'driver__user', 'booking').order_by(
-        '-updated_at')
-
-    for room in chat_rooms:
-        room.unread_count = ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).count()
-        room.last_message = room.messages.first()
-
-    context = {
-        'active': 'chat',
-        'chat_rooms': chat_rooms,
-    }
-    return render(request, 'app1/admin/admin_chat.html', context)
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_get_chat_rooms_api(request):
-    """API: Get all chat rooms for admin"""
-    chat_rooms = ChatRoom.objects.filter(is_active=True).select_related('user', 'driver__user', 'booking').order_by(
-        '-updated_at')
-
-    rooms_data = []
-    for room in chat_rooms:
-        last_message = room.messages.first()
-        unread_count = room.messages.filter(is_read=False).exclude(sender=request.user).count()
-
-        # Determine room name
-        if room.user:
-            name = room.user.get_full_name() or room.user.username
-            avatar = room.user.first_name[0].upper() if room.user.first_name else room.user.username[0].upper()
-            room_type = 'user'
-        elif room.driver:
-            name = f"Driver: {room.driver.user.get_full_name() or room.driver.user.username}"
-            avatar = '🚌'
-            room_type = 'driver'
-        else:
-            name = 'Unknown'
-            avatar = '💬'
-            room_type = 'unknown'
-
-        rooms_data.append({
-            'id': room.id,
-            'name': name,
-            'avatar': avatar,
-            'room_type': room_type,
-            'last_message': last_message.message[:50] if last_message else 'No messages yet',
-            'last_message_time': last_message.created_at.strftime('%I:%M %p') if last_message else '',
-            'unread_count': unread_count,
-            'booking_id': room.booking.booking_id if room.booking else None,
-        })
-
-    return JsonResponse({'success': True, 'rooms': rooms_data})
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_send_chat_message(request, room_id):
-    """API: Admin sends message to a chat room"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid method'})
-
-    room = get_object_or_404(ChatRoom, id=room_id)
-    message_text = request.POST.get('message', '').strip()
-
-    if not message_text:
-        return JsonResponse({'success': False, 'error': 'Message cannot be empty'})
-
-    message = ChatMessage.objects.create(
-        room=room,
-        sender=request.user,
-        message=message_text,
-        message_type='text'
-    )
-
-    room.save()
-
-    return JsonResponse({
-        'success': True,
-        'message': {
-            'id': message.id,
-            'sender': message.sender.username,
-            'sender_name': message.sender.get_full_name() or message.sender.username,
-            'sender_avatar': message.sender.first_name[0].upper() if message.sender.first_name else
-            message.sender.username[0].upper(),
-            'message': message.message,
-            'time': message.created_at.strftime('%I:%M %p'),
-            'is_owner': True,
-        }
-    })
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_get_chat_messages_api(request, room_id):
-    """API: Get messages for admin chat room"""
-    room = get_object_or_404(ChatRoom, id=room_id)
-    last_id = request.GET.get('last_id', 0)
-    messages = room.messages.filter(id__gt=last_id).select_related('sender')
-
-    # Mark as read
-    messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
-
-    data = {
-        'success': True,
-        'messages': [
-            {
-                'id': msg.id,
-                'sender': msg.sender.username,
-                'sender_name': msg.sender.get_full_name() or msg.sender.username,
-                'sender_avatar': msg.sender.first_name[0].upper() if msg.sender.first_name else msg.sender.username[
-                    0].upper(),
-                'message': msg.message,
-                'time': msg.created_at.strftime('%I:%M %p'),
-                'is_owner': msg.sender == request.user,
-            }
-            for msg in messages
-        ]
-    }
-    return JsonResponse(data)
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_create_chat_room(request):
-    """Admin creates a chat room between driver and passenger"""
-    if request.method == 'POST':
-        try:
-            driver_id = request.POST.get('driver_id')
-            passenger_id = request.POST.get('passenger_id')
-            booking_id = request.POST.get('booking_id')
-
-            driver = get_object_or_404(Driver, id=driver_id) if driver_id else None
-            passenger = get_object_or_404(User, id=passenger_id) if passenger_id else None
-            booking = get_object_or_404(Booking, booking_id=booking_id) if booking_id else None
-
-            # Check if chat already exists
-            existing_room = ChatRoom.objects.filter(
-                driver=driver, user=passenger, is_active=True
-            ).first()
-
-            if existing_room:
-                return JsonResponse({'success': False, 'message': 'Chat room already exists'})
-
-            room = ChatRoom.objects.create(
-                user=passenger,
-                driver=driver,
-                admin=request.user,
-                booking=booking,
-                room_type='booking' if booking else 'user_admin',
-                is_active=True
-            )
-
-            ChatMessage.objects.create(
-                room=room,
-                sender=request.user,
-                message=f"📢 Chat room created. Admin can assist you here.",
-                message_type='system'
-            )
-
-            return JsonResponse({'success': True, 'room_id': room.id, 'message': 'Chat room created!'})
-
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)})
-
-    return JsonResponse({'success': False, 'message': 'Invalid method'})
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_assign_driver(request):
-    """Assign driver to route and bus - creates chat room automatically"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            driver_id = data.get('driver_id')
-            route_id = data.get('route_id')
-            bus_id = data.get('bus_id')
-
-            driver = get_object_or_404(Driver, id=driver_id)
-
-            if route_id:
-                route = get_object_or_404(Route, id=route_id)
-                driver.assigned_route = route
-            if bus_id:
-                bus = get_object_or_404(Bus, id=bus_id)
-                driver.assigned_bus = bus
-
-            driver.save()
-
-            # ✅ Create chat room for driver
-            admin_user = User.objects.filter(is_superuser=True).first()
-            if admin_user:
-                existing_chat = ChatRoom.objects.filter(driver=driver, room_type='driver_admin').first()
-                if not existing_chat:
-                    chat_room = ChatRoom.objects.create(
-                        driver=driver,
-                        admin=admin_user,
-                        room_type='driver_admin',
-                        is_active=True
-                    )
-                    ChatMessage.objects.create(
-                        room=chat_room,
-                        sender=admin_user,
-                        message=f"🚌 Driver {driver.user.username} has been assigned to Route {driver.assigned_route.code if driver.assigned_route else 'N/A'}",
-                        message_type='system'
-                    )
-
-            return JsonResponse({
-                'success': True,
-                'message': f'Driver {driver.user.username} assigned successfully!'
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)})
-    return JsonResponse({'success': False, 'message': 'Invalid method'})
-
-
 @login_required
 @user_passes_test(is_admin)
 def admin_create_trips_from_schedules(request):
@@ -1093,7 +802,6 @@ def admin_create_trips_from_schedules(request):
             skipped_count = 0
             results = []
 
-            # Get all active drivers
             drivers = Driver.objects.filter(is_active=True, is_approved=True)
 
             for driver in drivers:
@@ -1102,7 +810,6 @@ def admin_create_trips_from_schedules(request):
                     skipped_count += 1
                     continue
 
-                # Get all upcoming schedules for this driver's route
                 today = timezone.now().date()
                 schedules = Schedule.objects.filter(
                     route=driver.assigned_route,

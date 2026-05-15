@@ -56,128 +56,6 @@ def get_profile_context(user):
     }
 
 
-def get_other_participant(room, current_user):
-    """Get the other participant in the chat for display"""
-    if room.user and room.user != current_user:
-        return {'name': room.user.get_full_name() or room.user.username, 'type': 'user'}
-    elif room.driver and room.driver.user != current_user:
-        return {'name': room.driver.user.get_full_name() or room.driver.user.username, 'type': 'driver'}
-    elif room.admin and room.admin != current_user:
-        return {'name': room.admin.get_full_name() or room.admin.username, 'type': 'admin'}
-    return None
-
-
-def create_chat_notification(room, message, sender):
-    """Create notification for other participants in the chat"""
-    recipients = []
-    if room.user and room.user != sender:
-        recipients.append(room.user)
-    if room.driver and room.driver.user != sender:
-        recipients.append(room.driver.user)
-    if room.admin and room.admin != sender:
-        recipients.append(room.admin)
-
-    for recipient in recipients:
-        Notification.objects.create(
-            type='system',
-            title=f'New message from {sender.get_full_name() or sender.username}',
-            message=message.message[:100],
-            related_user=recipient,
-            is_read=False
-        )
-
-
-def ensure_chat_room_for_booking(booking):
-    """Create chat room with proper driver assignment"""
-    from .models import Trip, ChatRoom, ChatMessage, Driver, Schedule
-
-    print(f"=== CREATING CHAT ROOM FOR BOOKING {booking.booking_id} ===")
-
-    # Check if chat room already exists
-    existing_room = ChatRoom.objects.filter(booking=booking).first()
-    if existing_room:
-        print(f"Chat room already exists: {existing_room.id}")
-        return existing_room
-
-    schedule = booking.schedule
-    driver = None
-
-    # METHOD 1: Try to find driver via Trip model
-    trip = Trip.objects.filter(
-        route=schedule.route,
-        travel_date=schedule.travel_date,
-        departure_time=schedule.departure_time
-    ).first()
-
-    if trip and trip.driver:
-        driver = trip.driver
-        print(f"Found driver via Trip: {driver.user.username}")
-
-    # METHOD 2: If no trip found, try to find driver via Route assignment
-    if not driver:
-        # Find driver assigned to this route
-        driver = Driver.objects.filter(
-            assigned_route=schedule.route,
-            is_active=True,
-            is_approved=True
-        ).first()
-
-        if driver:
-            print(f"Found driver via Route assignment: {driver.user.username}")
-
-            # Also create a Trip for future reference
-            Trip.objects.get_or_create(
-                driver=driver,
-                route=schedule.route,
-                bus=schedule.bus,
-                travel_date=schedule.travel_date,
-                departure_time=schedule.departure_time,
-                defaults={'status': 'pending'}
-            )
-            print(f"Created Trip for driver {driver.user.username}")
-
-    # METHOD 3: If still no driver, try to find any available driver
-    if not driver:
-        driver = Driver.objects.filter(is_active=True, is_approved=True).first()
-        if driver:
-            print(f"Found any available driver: {driver.user.username}")
-
-    # Get admin user
-    admin_user = User.objects.filter(is_superuser=True).first()
-    if not admin_user:
-        admin_user = User.objects.filter(is_staff=True).first()
-
-    print(f"Admin user: {admin_user.username if admin_user else 'None'}")
-    print(f"Final driver: {driver.user.username if driver else 'None'}")
-
-    # Create chat room
-    chat_room = ChatRoom.objects.create(
-        user=booking.user,
-        driver=driver,
-        admin=admin_user,
-        booking=booking,
-        room_type='booking',
-        is_active=True
-    )
-
-    # Add welcome message
-    welcome_msg = f"🎫 Chat room created for your booking #{booking.booking_id}. "
-    if driver:
-        welcome_msg += f"Driver {driver.user.get_full_name() or driver.user.username} has been notified."
-    else:
-        welcome_msg += "No driver assigned yet. Admin will assist you."
-
-    ChatMessage.objects.create(
-        room=chat_room,
-        sender=admin_user if admin_user else booking.user,
-        message=welcome_msg,
-        message_type='system'
-    )
-
-    print(f"✅ Chat room {chat_room.id} created with driver={driver.user.username if driver else 'None'}")
-    return chat_room
-
-
 # ==================== AUTH & PAGES ====================
 
 def homepage(request):
@@ -479,19 +357,9 @@ def dashboard(request):
     pending_bookings = Booking.objects.filter(user=user, status='pending').count()
     total_spent = Booking.objects.filter(user=user, status='confirmed').aggregate(total=Sum('amount'))['total'] or 0
 
-    active_chat_rooms = ChatRoom.objects.filter(
-        user=user,
-        is_active=True
-    ).select_related('driver__user', 'admin').order_by('-updated_at')
-
-    for room in active_chat_rooms:
-        room.unread_count = ChatMessage.objects.filter(
-            room=room,
-            is_read=False
-        ).exclude(sender=user).count()
+    # REMOVED: Chat rooms queries - leaving empty list
+    active_chat_rooms = []
     total_unread = 0
-    for room in active_chat_rooms:
-        total_unread += room.unread_count
 
     context = {
         'first_name': user.first_name,
@@ -679,11 +547,7 @@ def book_ticket(request, schedule_id):
             schedule.available_seats -= number_of_seats
             schedule.save()
 
-            # ✅ CREATE CHAT ROOM
-            try:
-                ensure_chat_room_for_booking(booking)
-            except Exception as e:
-                print(f"❌ Error creating chat room: {e}")
+            # REMOVED: Chat room creation
 
             return JsonResponse({
                 'success': True, 'booking_id': booking.booking_id,
@@ -791,11 +655,7 @@ def confirm_booking(request):
         schedule.available_seats -= 1
         schedule.save()
 
-        # ✅ CREATE CHAT ROOM
-        try:
-            ensure_chat_room_for_booking(booking)
-        except Exception as e:
-            print(f"❌ Error creating chat room: {e}")
+        # REMOVED: Chat room creation
 
         messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
         return redirect('booking_confirmation', booking_id=booking.booking_id)
@@ -878,14 +738,7 @@ def confirm_booking_seat(request):
             schedule.available_seats -= 1
             schedule.save()
 
-            # ✅ CREATE CHAT ROOM
-            try:
-                chat_room = ensure_chat_room_for_booking(booking)
-                print(f"✅ Chat room created: {chat_room.id}")
-            except Exception as e:
-                print(f"❌ Error creating chat room: {e}")
-                import traceback
-                traceback.print_exc()
+            # REMOVED: Chat room creation
 
             messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
             return redirect('booking_confirmation_seat', booking_id=booking.booking_id)
@@ -977,227 +830,6 @@ def track_bus_api(request):
     return render(request, 'app1/track_bus_api.html', {'buses': buses})
 
 
-# ==================== CHAT SYSTEM VIEWS (COMPLETELY REWRITTEN) ====================
-
-@login_required
-def chat_list(request):
-    """Display chat room list based on user role"""
-    try:
-        # Debug print
-        print(f"=== CHAT LIST VIEW START ===")
-        print(f"User: {request.user.username}")
-
-        # Get user profile safely
-        try:
-            profile = request.user.profile
-            is_admin = profile.user_type == 'admin'
-            print(f"User type: {profile.user_type}")
-        except UserProfile.DoesNotExist:
-            is_admin = request.user.is_superuser
-            print(f"No profile, is_superuser: {is_admin}")
-
-        # Get chat rooms based on user type
-        if is_admin:
-            chat_rooms = ChatRoom.objects.filter(is_active=True).select_related('user', 'driver__user',
-                                                                                'admin').order_by('-updated_at')
-        elif hasattr(request.user, 'driver_profile'):
-            driver = request.user.driver_profile
-            chat_rooms = ChatRoom.objects.filter(driver=driver, is_active=True).select_related('user',
-                                                                                               'admin').order_by(
-                '-updated_at')
-        else:
-            chat_rooms = ChatRoom.objects.filter(user=request.user, is_active=True).select_related('driver__user',
-                                                                                                   'admin').order_by(
-                '-updated_at')
-
-        print(f"Found {chat_rooms.count()} chat rooms")
-
-        # Add unread count and last message to each room
-        for room in chat_rooms:
-            room.unread_count = ChatMessage.objects.filter(
-                room=room,
-                is_read=False
-            ).exclude(sender=request.user).count()
-            room.last_message = room.messages.first()
-            print(f"  Room {room.id}: unread={room.unread_count}, last_msg={room.last_message}")
-
-        total_unread = sum(room.unread_count for room in chat_rooms)
-
-        context = {
-            'chat_rooms': chat_rooms,
-            'is_admin': is_admin,
-            'total_unread': total_unread,
-        }
-
-        print(f"Rendering chat_list.html with {len(chat_rooms)} rooms")
-        return render(request, 'app1/chat_list.html', context)
-
-    except Exception as e:
-        print(f"ERROR in chat_list: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        messages.error(request, f"Error loading chats: {str(e)}")
-        return render(request, 'app1/chat_list.html', {'chat_rooms': [], 'error': str(e)})
-
-
-@login_required
-def chat_room(request, room_id):
-    """Display a specific chat room"""
-    room = get_object_or_404(ChatRoom, id=room_id, is_active=True)
-
-    # Check permission
-    if not room.can_user_access(request.user):
-        messages.error(request, 'You do not have permission to view this chat.')
-        return redirect('dashboard')
-
-    # Mark all messages as read for this user
-    ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).update(is_read=True)
-
-    # Get user role for template
-    try:
-        profile = request.user.profile
-        user_role = profile.user_type
-    except:
-        user_role = 'user'
-
-    context = {
-        'room': room,
-        'messages': room.messages.all().order_by('created_at'),
-        'user_role': user_role,
-        'other_participant': get_other_participant(room, request.user),
-    }
-
-    return render(request, 'app1/chat.html', context)
-
-
-@login_required
-def send_chat_message(request, room_id):
-    """Send a message in a chat room"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid method'})
-
-    room = get_object_or_404(ChatRoom, id=room_id)
-
-    # Check permission
-    if not room.can_user_access(request.user):
-        return JsonResponse({'success': False, 'error': 'Permission denied'})
-
-    message_text = request.POST.get('message', '').strip()
-    if not message_text:
-        return JsonResponse({'success': False, 'error': 'Message cannot be empty'})
-
-    # Create the message
-    message = ChatMessage.objects.create(
-        room=room,
-        sender=request.user,
-        message=message_text,
-        message_type='text'
-    )
-
-    # Update room's updated_at time
-    room.save()
-
-    # Create notification for other participants
-    create_chat_notification(room, message, request.user)
-
-    return JsonResponse({
-        'success': True,
-        'message': {
-            'id': message.id,
-            'message': message.message,
-            'time': message.created_at.strftime('%I:%M %p'),
-            'date': message.created_at.strftime('%b %d, %Y'),
-            'is_owner': True,
-            'sender_name': message.sender.get_full_name() or message.sender.username,
-        }
-    })
-
-
-@login_required
-def get_chat_messages(request, room_id):
-    """Get new messages (AJAX polling)"""
-    room = get_object_or_404(ChatRoom, id=room_id)
-
-    # Check permission
-    if not room.can_user_access(request.user):
-        return JsonResponse({'success': False, 'error': 'Permission denied'})
-
-    last_id = request.GET.get('last_id', 0)
-    try:
-        last_id = int(last_id)
-    except ValueError:
-        last_id = 0
-
-    # Get new messages
-    messages = room.messages.filter(id__gt=last_id).select_related('sender').order_by('created_at')
-
-    # Mark messages as read
-    messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
-
-    # Prepare response
-    messages_data = []
-    for msg in messages:
-        messages_data.append({
-            'id': msg.id,
-            'message': msg.message,
-            'time': msg.created_at.strftime('%I:%M %p'),
-            'date': msg.created_at.strftime('%b %d, %Y'),
-            'is_owner': msg.sender == request.user,
-            'sender_name': msg.sender.get_full_name() or msg.sender.username,
-            'sender_username': msg.sender.username,
-        })
-
-    return JsonResponse({
-        'success': True,
-        'messages': messages_data,
-        'last_id': messages.last().id if messages else last_id
-    })
-
-
-@login_required
-def start_chat(request, booking_id=None):
-    """Start a new chat for a booking"""
-    if request.method == 'POST':
-        booking_id = request.POST.get('booking_id') or booking_id
-        if booking_id:
-            booking = get_object_or_404(Booking, booking_id=booking_id, user=request.user)
-            chat_room = ensure_chat_room_for_booking(booking)
-            return JsonResponse({'success': True, 'room_id': chat_room.id, 'redirect_url': f'/chat/{chat_room.id}/'})
-
-    return JsonResponse({'success': False, 'error': 'Booking ID required'}, status=400)
-
-
-@login_required
-def close_chat(request, room_id):
-    """Close a chat room (admin only)"""
-    if request.method == 'POST':
-        room = get_object_or_404(ChatRoom, id=room_id)
-
-        # Check if user is admin
-        try:
-            profile = request.user.profile
-            is_admin = profile.user_type == 'admin'
-        except:
-            is_admin = request.user.is_superuser
-
-        if not is_admin:
-            return JsonResponse({'success': False, 'error': 'Permission denied'})
-
-        room.is_active = False
-        room.save()
-
-        ChatMessage.objects.create(
-            room=room,
-            sender=request.user,
-            message="🔒 This chat has been closed by admin.",
-            message_type='system'
-        )
-
-        return JsonResponse({'success': True, 'message': 'Chat closed successfully'})
-
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
-
-
 # ==================== DRIVER MODULE VIEWS ====================
 
 def driver_login_page(request):
@@ -1245,10 +877,9 @@ def driver_send_alert(request):
     try:
         data = json.loads(request.body)
         message = data.get('message', 'Emergency alert from driver')
-        priority = int(data.get('priority', 1))  # Get priority from request
+        priority = int(data.get('priority', 1))
         driver = request.user.driver_profile
 
-        # Map priority to alert type
         priority_map = {
             1: 'critical',
             2: 'high',
@@ -1264,7 +895,6 @@ def driver_send_alert(request):
             is_resolved=False
         )
 
-        # Create notification for admin
         Notification.objects.create(
             type='emergency',
             title=f'🚨 {priority_map.get(priority, "EMERGENCY").upper()} ALERT - {driver.user.get_full_name()}',
@@ -1294,7 +924,6 @@ def driver_get_passengers(request):
 
     passengers = []
 
-    # Get schedules for driver's assigned route today
     if driver.assigned_route:
         today_schedules = Schedule.objects.filter(
             route=driver.assigned_route,
@@ -1303,14 +932,12 @@ def driver_get_passengers(request):
         )
 
         for schedule in today_schedules:
-            # Get confirmed bookings for this schedule
             bookings = Booking.objects.filter(
                 schedule=schedule,
                 status='confirmed'
             ).select_related('user')
 
             for booking in bookings:
-                # Get user profile info
                 user_type = 'Student'
                 institution_id = booking.user.username
                 if hasattr(booking.user, 'profile'):
@@ -1325,7 +952,7 @@ def driver_get_passengers(request):
                     'stop': schedule.route.end,
                 })
 
-    print(f"Passengers found: {len(passengers)}")  # Debug print
+    print(f"Passengers found: {len(passengers)}")
 
     return JsonResponse({'success': True, 'passengers': passengers})
 
@@ -1340,13 +967,11 @@ def driver_dashboard(request):
     driver = request.user.driver_profile
     today = timezone.now().date()
 
-    # ========== DEBUG PRINTS ==========
     print(f"\n=== DRIVER DASHBOARD DEBUG ===")
     print(f"Driver: {driver.user.username}")
     print(f"Assigned route: {driver.assigned_route.code if driver.assigned_route else 'None'}")
     print(f"Assigned bus: {driver.assigned_bus.bus_number if driver.assigned_bus else 'None'}")
 
-    # ========== TRIPS (from Trip model) ==========
     today_trips = Trip.objects.filter(
         driver=driver, travel_date=today
     ).select_related('route', 'bus').order_by('departure_time')
@@ -1359,11 +984,9 @@ def driver_dashboard(request):
         driver=driver, status='ongoing'
     ).select_related('route', 'bus').first()
 
-    # ========== ALL TRIPS FOR TRIP STATUS PAGE ==========
     all_trips = Trip.objects.filter(driver=driver).select_related('route', 'bus').order_by('-travel_date',
                                                                                            '-departure_time')
 
-    # Calculate passenger count and earnings for each trip
     trips_data = []
     total_passengers_all = 0
     total_earnings_all = 0
@@ -1393,15 +1016,13 @@ def driver_dashboard(request):
             'departure_time': trip.departure_time,
             'passenger_count': passenger_count_trip,
             'earnings': trip_earnings,
-            'duration': '45 min',  # Default, can be calculated from arrival_time - departure_time
+            'duration': '45 min',
             'start': trip.route.start,
             'end': trip.route.end,
         })
 
-    # ========== ROUTES - ONLY driver's assigned route ==========
     assigned_route = driver.assigned_route
 
-    # ========== SCHEDULES - ONLY for driver's assigned route ==========
     schedules_for_driver = []
     upcoming_schedules = []
 
@@ -1416,12 +1037,10 @@ def driver_dashboard(request):
             travel_date__lte=today + timedelta(days=7)
         )[:10]
 
-    # ========== PASSENGER & EARNINGS CALCULATION FOR TODAY ==========
     passenger_count = 0
     today_earnings = 0
     passenger_list = []
 
-    # Get all schedules for today that have this driver's route
     today_schedules = Schedule.objects.filter(
         route=assigned_route if assigned_route else None,
         travel_date=today,
@@ -1429,7 +1048,6 @@ def driver_dashboard(request):
     )
 
     for schedule in today_schedules:
-        # Get confirmed bookings for this schedule
         bookings = Booking.objects.filter(
             schedule=schedule,
             status='confirmed'
@@ -1446,7 +1064,6 @@ def driver_dashboard(request):
                 'stop': schedule.route.end,
             })
 
-            # Check if there's a completed trip for this schedule
             trip_exists = Trip.objects.filter(
                 driver=driver,
                 route=schedule.route,
@@ -1458,7 +1075,6 @@ def driver_dashboard(request):
             if trip_exists:
                 today_earnings += float(booking.amount)
 
-    # Also check today_trips for earnings (for ongoing/completed trips)
     for trip in today_trips:
         if trip.status == 'completed':
             schedule = Schedule.objects.filter(
@@ -1469,7 +1085,6 @@ def driver_dashboard(request):
             if schedule:
                 bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
                 for booking in bookings:
-                    # Avoid double counting
                     already_counted = False
                     for p in passenger_list:
                         if p.get('seat') == booking.seat_number:
@@ -1481,7 +1096,6 @@ def driver_dashboard(request):
 
     trips_completed = driver.trips.filter(status='completed').count()
 
-    # Calculate total earnings (lifetime)
     total_earnings = 0
     for trip in driver.trips.filter(status='completed'):
         schedule = Schedule.objects.filter(
@@ -1493,25 +1107,20 @@ def driver_dashboard(request):
             bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
             total_earnings += sum(float(b.amount) for b in bookings)
 
-    # ========== STATS FOR TRIP STATUS PAGE ==========
     total_trips_count = all_trips.count()
     total_passengers = total_passengers_all
     avg_passengers_per_trip = int(total_passengers / total_trips_count) if total_trips_count > 0 else 0
 
-    # Calculate monthly stats (last 30 days)
     month_ago = today - timedelta(days=30)
     monthly_trips = driver.trips.filter(status='completed', travel_date__gte=month_ago)
     monthly_trips_completed = monthly_trips.count()
-    monthly_distance = monthly_trips_completed * 15  # Estimate 15km per trip
-    monthly_hours = monthly_trips_completed * 1  # Estimate 1 hour per trip
+    monthly_distance = monthly_trips_completed * 15
+    monthly_hours = monthly_trips_completed * 1
 
-    # Performance metrics (can be customized or fetched from a ratings model)
     on_time_rate = 98.5
     customer_rating = 4.8
     safety_score = 95
 
-    # ========== EARNINGS PAGE DATA ==========
-    # Calculate weekly earnings (last 7 days)
     week_ago = today - timedelta(days=7)
     weekly_earnings = 0
     weekly_bonus = 0
@@ -1530,7 +1139,6 @@ def driver_dashboard(request):
 
     weekly_total = weekly_earnings + weekly_bonus
 
-    # Calculate monthly earnings
     monthly_earnings = 0
     for trip in driver.trips.filter(status='completed', travel_date__gte=month_ago):
         schedule = Schedule.objects.filter(
@@ -1542,11 +1150,9 @@ def driver_dashboard(request):
             bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
             monthly_earnings += sum(float(b.amount) for b in bookings)
 
-    # Calculate average per trip
     total_trips_completed = driver.trips.filter(status='completed').count()
     avg_per_trip = total_earnings / total_trips_completed if total_trips_completed > 0 else 0
 
-    # Weekly chart data (last 7 days)
     weekly_chart_data = []
     for i in range(6, -1, -1):
         day = today - timedelta(days=i)
@@ -1562,7 +1168,6 @@ def driver_dashboard(request):
                 day_earnings += sum(float(b.amount) for b in bookings)
         weekly_chart_data.append(day_earnings)
 
-    # Monthly chart data (last 6 months)
     monthly_labels = []
     monthly_earnings_data = []
     monthly_trips_data = []
@@ -1571,7 +1176,6 @@ def driver_dashboard(request):
         month_date = today - timedelta(days=30 * i)
         month_start = month_date.replace(day=1)
 
-        # Calculate month end
         if month_date.month == 12:
             month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
         else:
@@ -1595,7 +1199,6 @@ def driver_dashboard(request):
         monthly_earnings_data.append(month_earnings)
         monthly_trips_data.append(month_trips)
 
-    # Payment history
     payment_history = [
         {'period': 'Week 12', 'id': 'PAY-847', 'date': (today - timedelta(days=7)).strftime('%Y-%m-%d'),
          'method': 'Bank Transfer', 'amount': int(weekly_earnings)},
@@ -1605,57 +1208,39 @@ def driver_dashboard(request):
          'method': 'Bank Transfer', 'amount': int(weekly_earnings * 1.1)},
     ] if weekly_earnings > 0 else []
 
-    # Working hours calculation (estimate: 1 hour per trip)
     working_hours = total_trips_completed
     hourly_rate = total_earnings / working_hours if working_hours > 0 else 0
 
-    # Next payment (next Friday)
     days_until_friday = (4 - today.weekday()) % 7
     if days_until_friday == 0:
         days_until_friday = 7
     next_payment_date = (today + timedelta(days=days_until_friday)).strftime('%b %d, %Y')
     next_payment_amount = int(weekly_earnings)
 
-    # Store passenger list in session for the API to access
     request.session['driver_passengers'] = passenger_list
 
     context = {
-        # Basic driver info
         'driver': driver,
         'assigned_route': assigned_route,
-
-        # Trips
         'today_trips': today_trips,
         'upcoming_trips': upcoming_trips,
         'ongoing_trip': ongoing_trip,
-
-        # All trips for Trip Status page
         'trips': trips_data,
         'total_trips_count': total_trips_count,
         'total_passengers': total_passengers,
         'total_earnings': total_earnings,
         'avg_passengers_per_trip': avg_passengers_per_trip,
-
-        # Monthly stats
         'monthly_trips_completed': monthly_trips_completed,
         'monthly_distance': monthly_distance,
         'monthly_hours': monthly_hours,
-
-        # Performance metrics
         'on_time_rate': on_time_rate,
         'customer_rating': customer_rating,
         'safety_score': safety_score,
-
-        # Schedules
         'schedules_for_driver': schedules_for_driver,
         'upcoming_schedules': upcoming_schedules,
-
-        # Statistics
         'passenger_count': passenger_count,
         'trips_completed': trips_completed,
         'today_earnings': today_earnings,
-
-        # Earnings page data
         'weekly_earnings': weekly_earnings,
         'monthly_earnings': monthly_earnings,
         'avg_per_trip': avg_per_trip,
@@ -1666,15 +1251,12 @@ def driver_dashboard(request):
         'next_payment_amount': next_payment_amount,
         'next_payment_date': next_payment_date,
         'payment_history': payment_history,
-
-        # Chart data
         'weekly_chart_data': weekly_chart_data,
         'monthly_labels': monthly_labels,
         'monthly_earnings_data': monthly_earnings_data,
         'monthly_trips_data': monthly_trips_data,
     }
 
-    # Debug prints
     print(f"\n=== FINAL CONTEXT VALUES ===")
     print(f"Total trips: {total_trips_count}")
     print(f"Total passengers: {total_passengers}")
@@ -1686,7 +1268,6 @@ def driver_dashboard(request):
     print(f"============================\n")
 
     return render(request, 'app1/driver/driver_dashboard.html', context)
-
 
 
 @login_required
@@ -1923,133 +1504,6 @@ def driver_logout(request):
     return redirect('homepage')
 
 
-# ==================== DRIVER CHAT API ====================
-
-@login_required
-def driver_get_chat_rooms(request):
-    """Get all chat rooms for the logged-in driver"""
-    if not hasattr(request.user, 'driver_profile'):
-        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
-
-    driver = request.user.driver_profile
-
-    chat_rooms = ChatRoom.objects.filter(
-        driver=driver,
-        is_active=True
-    ).select_related('user', 'admin', 'booking').order_by('-updated_at')
-
-    rooms_data = []
-    for room in chat_rooms:
-        last_message = room.messages.first()
-        unread_count = room.messages.filter(is_read=False).exclude(sender=request.user).count()
-
-        rooms_data.append({
-            'id': room.id,
-            'user_name': room.user.get_full_name() or room.user.username if room.user else 'Unknown',
-            'user_avatar': room.user.first_name[0].upper() if room.user and room.user.first_name else 'U',
-            'last_message': last_message.message[:50] if last_message else 'No messages yet',
-            'last_message_time': last_message.created_at.strftime('%I:%M %p') if last_message else '',
-            'unread_count': unread_count,
-            'booking_id': room.booking.booking_id if room.booking else None,
-        })
-
-    return JsonResponse({'success': True, 'rooms': rooms_data})
-
-
-@login_required
-def driver_send_chat_message(request, room_id):
-    """Send a message from driver to admin/user"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid method'})
-
-    if not hasattr(request.user, 'driver_profile'):
-        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
-
-    room = get_object_or_404(ChatRoom, id=room_id)
-    driver = request.user.driver_profile
-
-    if room.driver != driver:
-        return JsonResponse({'success': False, 'error': 'Permission denied'})
-
-    message_text = request.POST.get('message', '').strip()
-    if not message_text:
-        return JsonResponse({'success': False, 'error': 'Message cannot be empty'})
-
-    message = ChatMessage.objects.create(
-        room=room,
-        sender=request.user,
-        message=message_text,
-        message_type='text'
-    )
-
-    room.save()
-
-    if room.admin:
-        Notification.objects.create(
-            type='system',
-            title=f'New message from {request.user.get_full_name() or request.user.username}',
-            message=message_text[:100],
-            related_user=room.admin,
-            is_read=False
-        )
-
-    return JsonResponse({
-        'success': True,
-        'message': {
-            'id': message.id,
-            'sender': message.sender.username,
-            'sender_name': message.sender.get_full_name() or message.sender.username,
-            'sender_avatar': message.sender.first_name[0].upper() if message.sender.first_name else
-            message.sender.username[0].upper(),
-            'message': message.message,
-            'time': message.created_at.strftime('%I:%M %p'),
-            'date': message.created_at.strftime('%b %d, %Y'),
-            'is_owner': True,
-        }
-    })
-
-
-@login_required
-def driver_get_chat_messages(request, room_id):
-    """Get messages for a specific chat room (polling)"""
-    if not hasattr(request.user, 'driver_profile'):
-        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
-
-    room = get_object_or_404(ChatRoom, id=room_id)
-    driver = request.user.driver_profile
-
-    if room.driver != driver:
-        return JsonResponse({'success': False, 'error': 'Permission denied'})
-
-    last_id = request.GET.get('last_id', 0)
-    try:
-        last_id = int(last_id)
-    except ValueError:
-        last_id = 0
-
-    messages = room.messages.filter(id__gt=last_id).select_related('sender')
-
-    messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
-
-    data = {
-        'success': True,
-        'messages': [
-            {
-                'id': msg.id,
-                'sender': msg.sender.username,
-                'sender_name': msg.sender.get_full_name() or msg.sender.username,
-                'sender_avatar': msg.sender.first_name[0].upper() if msg.sender.first_name else msg.sender.username[
-                    0].upper(),
-                'message': msg.message,
-                'time': msg.created_at.strftime('%I:%M %p'),
-                'is_owner': msg.sender == request.user,
-                'is_read': msg.is_read,
-            }
-            for msg in messages
-        ]
-    }
-    return JsonResponse(data)
-
 def create_trips_for_driver(driver, schedule):
     """Create or get Trip for a schedule"""
     trip, created = Trip.objects.get_or_create(
@@ -2064,62 +1518,6 @@ def create_trips_for_driver(driver, schedule):
         }
     )
     return trip, created
-
-@login_required
-def driver_mark_chat_read(request, room_id):
-    """Mark all messages in a room as read"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid method'})
-
-    room = get_object_or_404(ChatRoom, id=room_id)
-    driver = request.user.driver_profile
-
-    if room.driver != driver:
-        return JsonResponse({'success': False, 'error': 'Permission denied'})
-
-    room.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
-
-    return JsonResponse({'success': True})
-
-
-@login_required
-def driver_start_chat(request, booking_id=None):
-    """Start a new chat with admin regarding a specific booking"""
-    if not hasattr(request.user, 'driver_profile'):
-        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
-
-    driver = request.user.driver_profile
-
-    if booking_id:
-        booking = get_object_or_404(Booking, booking_id=booking_id)
-
-        existing_room = ChatRoom.objects.filter(
-            driver=driver,
-            booking=booking,
-            is_active=True
-        ).first()
-
-        if existing_room:
-            return JsonResponse(
-                {'success': True, 'room_id': existing_room.id, 'redirect_url': f'/driver/chat/{existing_room.id}/'})
-
-        room = ChatRoom.objects.create(
-            user=booking.user,
-            driver=driver,
-            booking=booking,
-            is_active=True
-        )
-
-        ChatMessage.objects.create(
-            room=room,
-            sender=request.user,
-            message=f"🚌 Chat started for Booking #{booking.booking_id}. Please describe your issue.",
-            message_type='system'
-        )
-
-        return JsonResponse({'success': True, 'room_id': room.id, 'redirect_url': f'/driver/chat/{room.id}/'})
-
-    return JsonResponse({'success': False, 'error': 'Booking ID required'})
 
 
 # ==================== PAYMENT VIEWS ====================
@@ -2258,28 +1656,23 @@ def driver_get_emergency_reports(request):
 
     driver = request.user.driver_profile
 
-    # Get alerts from Alert model
     alerts = Alert.objects.filter(
         driver=driver
     ).order_by('-created_at')[:20]
 
-    # Also get from EmergencyAlert model
     emergency_alerts = EmergencyAlert.objects.filter(
         user=request.user
     ).order_by('-created_at')[:20]
 
     reports = []
 
-    # Process Alert model alerts
     for alert in alerts:
-        # Calculate response time if resolved
         response_time = None
         if alert.resolved_at:
             diff = alert.resolved_at - alert.created_at
             minutes = int(diff.total_seconds() / 60)
             response_time = f"{minutes} min"
 
-        # Map alert type to display
         alert_type_display = {
             'emergency': 'Emergency',
             'vehicle_issue': 'Vehicle Issue',
@@ -2299,9 +1692,7 @@ def driver_get_emergency_reports(request):
             'response_time': response_time
         })
 
-    # Process EmergencyAlert model alerts
     for alert in emergency_alerts:
-        # Calculate response time if responded
         response_time = None
         if alert.responded_at:
             diff = alert.responded_at - alert.created_at
@@ -2331,12 +1722,11 @@ def driver_get_emergency_reports(request):
             'response_time': response_time
         })
 
-    # Sort by created_at (newest first)
     reports.sort(key=lambda x: x['created_at'], reverse=True)
 
     return JsonResponse({
         'success': True,
-        'reports': reports[:20]  # Limit to 20 most recent
+        'reports': reports[:20]
     })
 
 
@@ -2358,7 +1748,6 @@ def driver_send_emergency_alert(request):
 
         driver = request.user.driver_profile
 
-        # Map alert types
         alert_type_map = {
             'breakdown': 'vehicle_issue',
             'accident': 'emergency',
@@ -2366,7 +1755,6 @@ def driver_send_emergency_alert(request):
             'other': 'general'
         }
 
-        # Priority mapping
         priority_map = {
             'breakdown': 2,
             'accident': 1,
@@ -2374,7 +1762,6 @@ def driver_send_emergency_alert(request):
             'other': 3
         }
 
-        # Create alert in Alert model
         alert = Alert.objects.create(
             driver=driver,
             alert_type=alert_type_map.get(alert_type, 'emergency'),
@@ -2383,7 +1770,6 @@ def driver_send_emergency_alert(request):
             is_resolved=False
         )
 
-        # Also create in EmergencyAlert model for better tracking
         emergency_alert = EmergencyAlert.objects.create(
             user=request.user,
             alert_type=alert_type,
@@ -2393,7 +1779,6 @@ def driver_send_emergency_alert(request):
             status='pending'
         )
 
-        # Create notification for admin
         Notification.objects.create(
             type='emergency',
             title=f'🚨 EMERGENCY ALERT - {driver.user.get_full_name() or driver.user.username}',
@@ -2417,7 +1802,8 @@ def driver_send_emergency_alert(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
-    
+
+
 @login_required
 def emergency_history(request):
     """View user's past emergency alerts"""
