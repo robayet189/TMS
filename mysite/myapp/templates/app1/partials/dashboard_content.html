@@ -109,6 +109,7 @@
   </a>
 </div>
 
+
 <!-- Active Conversations / Chat Rooms Section -->
 {% if active_chat_rooms %}
 <div class="card" style="margin-top: 24px;">
@@ -155,6 +156,19 @@
 {% endif %}
 
 <!-- Upcoming Trips Section -->
+
+
+<!-- Chat Action Card -->
+<a href="{% url 'chat_list' %}" class="action-card">
+    <div class="action-icon cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </div>
+    <span class="action-label">Chat Support</span>
+</a>
+
+<!-- Upcoming Trips Section - Shows Bus Information -->
 <div class="card">
   <div class="card-title">
     🚌 Upcoming Trips

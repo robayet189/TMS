@@ -140,6 +140,37 @@ urlpatterns = [
     path('track-bus-api/', views.track_bus_api, name='track_bus_api'),
 
     # ================= PAYMENT URLs =================
+
+
+    # ==================== CHAT SYSTEM URLs ====================
+    path('chat/', views.chat_list, name='chat_list'),
+    path('chat/<int:room_id>/', views.chat_room, name='chat_room'),
+    path('start-chat/', views.start_chat, name='start_chat'),
+    path('send-chat-message/<int:room_id>/', views.send_chat_message, name='send_chat_message'),
+    path('get-chat-messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
+    path('close-chat/<int:room_id>/', views.close_chat, name='close_chat'),
+
+    # ==================== DRIVER MODULE URLs ====================
+    # ✅ FIXED: Changed to use unified login
+    path('driver/login/', views.login_page, name='driver_login'),  # ✅ Now uses same login page
+    path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
+    path('driver/logout/', views.driver_logout, name='driver_logout'),
+    path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
+    path('driver/profile/', views.driver_profile, name='driver_profile'),
+    path('driver/trip/<int:trip_id>/', views.trip_detail, name='trip_detail'),
+    path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
+    path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
+    path('driver/stop/<int:stop_id>/update/', views.update_stop_status, name='update_stop_status'),
+
+    # ✅ Driver Emergency Alert & Passenger API
+    path('driver/api/send-alert/', views.driver_send_alert, name='driver_send_alert'),
+    path('driver/api/passengers/', views.driver_get_passengers, name='driver_get_passengers'),
+
+
+#payment
+
+
+
     path('payments/', views.payment_page, name='payments'),
     path('purchase-pass/', views.purchase_pass, name='purchase_pass'),
     path('payment-history/', views.payment_history, name='payment_history'),

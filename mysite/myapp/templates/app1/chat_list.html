@@ -1,66 +1,197 @@
 {% extends 'app1/base.html' %}
 {% load static %}
 
-{% block title %}My Messages - Easy Transport{% endblock %}
-
 {% block content %}
-<div style="max-width: 800px; margin: 40px auto; padding: 0 20px;">
-    <h1 style="font-size: 28px; margin-bottom: 8px;">💬 My Messages</h1>
-    <p style="color: var(--text-muted, #a09ab8); margin-bottom: 32px;">Your conversations with drivers and support</p>
+<style>
+    .chat-list-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .chat-header h1 {
+        font-size: 28px;
+        background: linear-gradient(135deg, #ff4757, #ff6b6b);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin: 0;
+    }
+    .new-chat-btn {
+        background: linear-gradient(135deg, #ff4757, #ff6b6b);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 40px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(255,71,87,0.3);
+    }
+    .new-chat-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(255,71,87,0.4);
+    }
+    .chat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+    .chat-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: 0.3s;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border: 1px solid #f0f0f0;
+    }
+    .chat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        border-color: #ff4757;
+    }
+    .chat-card-header {
+        background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
+        color: white;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .chat-id {
+        font-weight: bold;
+        background: rgba(255,255,255,0.2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+    }
+    .chat-date {
+        font-size: 12px;
+        opacity: 0.8;
+    }
+    .chat-card-body {
+        padding: 16px 20px;
+    }
+    .chat-with {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .chat-last-msg {
+        font-size: 13px;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+</style>
 
-    {% if error %}
-    <div style="background: rgba(255, 71, 87, 0.1); border: 1px solid #ff4757; border-radius: 12px; padding: 20px; margin-bottom: 20px; color: #ff4757;">
-        <strong>Error:</strong> {{ error }}
+<div class="chat-list-container">
+    <div class="chat-header">
+        <h1>💬 Support Chat</h1>
+        <button class="new-chat-btn" onclick="startNewChat()">➕ New Conversation</button>
     </div>
-    {% endif %}
 
     {% if chat_rooms %}
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-            {% for room in chat_rooms %}
-            <div onclick="window.location.href='{% url 'chat_room' room.id %}'"
-                 style="display: flex; align-items: center; gap: 16px; padding: 20px; background: var(--bg-card, #1c1c2e); border: 1px solid var(--border, rgba(255,255,255,0.07)); border-radius: 16px; cursor: pointer; transition: all 0.2s;">
-                <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #ff4757, #ff6b35); display: flex; align-items: center; justify-content: center; font-size: 28px;">
-                    {% if room.driver %}🚌{% else %}👤{% endif %}
+        <div class="chat-grid">
+        {% for room in chat_rooms %}
+            <a href="{% url 'chat_room' room.id %}" class="chat-card">
+                <div class="chat-card-header">
+                    <span class="chat-id">Chat #{{ room.id }}</span>
+                    <span class="chat-date">{{ room.created_at|date:"M d, Y" }}</span>
                 </div>
-                <div style="flex: 1;">
-                    <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary, white);">
-                        {% if room.driver %}
-                            Driver: {{ room.driver.user.get_full_name|default:room.driver.user.username }}
-                        {% elif room.user %}
-                            {{ room.user.get_full_name|default:room.user.username }}
+                <div class="chat-card-body">
+                    <div class="chat-with">
+                        {% if is_admin %}
+                            👤 {{ room.user.get_full_name|default:room.user.username }}
                         {% else %}
-                            Support
+                            🛡️ Support Team
                         {% endif %}
                     </div>
-                    <div style="font-size: 13px; color: var(--text-muted, #a09ab8);">
-                        {% with room.messages.first as last_msg %}
-                            {{ last_msg.message|truncatechars:60|default:"No messages yet" }}
+                    <div class="chat-last-msg">
+                        {% with last_msg=room.messages.last %}
+                            💬 {{ last_msg.message|truncatechars:50|default:"No messages yet" }}
                         {% endwith %}
                     </div>
                 </div>
-                {% if room.unread_count > 0 %}
-                <div style="background: #ff4757; color: white; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px;">{{ room.unread_count }}</div>
-                {% endif %}
-            </div>
-            {% endfor %}
+            </a>
+        {% endfor %}
         </div>
     {% else %}
-        <div style="text-align: center; padding: 60px; background: var(--bg-card, #1c1c2e); border-radius: 16px;">
-            <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
-            <h3 style="color: var(--text-primary, white); margin-bottom: 8px;">No active conversations</h3>
-            <p style="color: var(--text-muted, #a09ab8); margin-bottom: 20px;">When you book a trip, you can chat with the driver here.</p>
-            <a href="{% url 'schedule' %}" style="display: inline-block; padding: 12px 28px; background: linear-gradient(135deg, #ff4757, #ff6b35); color: white; border-radius: 10px; text-decoration: none;">Book a Trip →</a>
+        <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <p>No active conversations yet.</p>
+            <!-- এখানেও বাটন দিচ্ছি না, উপরের header বাটনই যথেষ্ট -->
         </div>
     {% endif %}
 </div>
 
-<style>
-    div[onclick] {
-        transition: transform 0.2s, border-color 0.2s;
+<script>
+    function startNewChat() {
+        fetch('/start-chat/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: 'subject='
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else {
+                alert('Could not start chat: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Network error. Please try again.');
+        });
     }
-    div[onclick]:hover {
-        transform: translateX(5px);
-        border-color: #ff4757 !important;
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
-</style>
+</script>
 {% endblock %}
