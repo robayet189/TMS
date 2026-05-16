@@ -50,7 +50,11 @@ from rest_framework.response import Response
 # ==================== HELPER FUNCTIONS ====================
 
 def is_ajax(request):
+<<<<<<< HEAD
     """Check if request is AJAX"""
+=======
+    """Check if request is AJAX - Support both jQuery & Fetch API"""
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
         request.headers.get('Accept') == 'text/html, */*; q=0.01'
 
@@ -844,7 +848,11 @@ def track_bus_api(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def update_bus_location(request, bus_id):
+<<<<<<< HEAD
     """API for the Flutter mobile app to push GPS coordinates to"""
+=======
+    """API endpoint to update bus GPS location"""
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     try:
         bus = Bus.objects.get(id=bus_id)
         lat = request.data.get('lat') or request.data.get('latitude')
@@ -857,6 +865,26 @@ def update_bus_location(request, bus_id):
         return Response({"error": "Bus not found"}, status=404)
 
 @api_view(['GET'])
+<<<<<<< HEAD
+=======
+def get_bus_location(request, bus_id):
+    """API endpoint to retrieve latest bus location"""
+    try:
+        bus = Bus.objects.get(id=bus_id)
+        latest_location = BusLocation.objects.filter(bus=bus).first()
+        data = {
+            'id': bus.id,
+            'bus_number': bus.bus_number,
+            'latitude': latest_location.latitude if latest_location else None,
+            'longitude': latest_location.longitude if latest_location else None,
+            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+        }
+        return Response(data)
+    except Bus.DoesNotExist:
+        return Response({"error": "Bus not found"}, status=404)
+
+@api_view(['GET'])
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
 def get_all_buses_location(request):
     """API for the Web Dashboard to fetch all bus locations"""
     buses = Bus.objects.filter(is_active=True).prefetch_related('locations', 'assigned_drivers')
@@ -1175,13 +1203,16 @@ def driver_get_passengers(request):
 
 @login_required
 def driver_dashboard(request):
+<<<<<<< HEAD
     """Driver dashboard - Shows ONLY driver's assigned routes and schedules"""
+=======
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     if not hasattr(request.user, 'driver_profile'):
-        messages.error(request, 'You are not registered as a driver.')
         return redirect('homepage')
 
     driver = request.user.driver_profile
     today = timezone.now().date()
+<<<<<<< HEAD
     assigned_route = driver.assigned_route
 
     # Trips
@@ -1243,6 +1274,24 @@ def driver_dashboard(request):
                 })
 
     # Stats
+=======
+    
+    # ✅ ট্রিপ ডাটা ফেচ
+    today_trips = Trip.objects.filter(driver=driver, travel_date=today).select_related('route', 'bus').order_by('departure_time')
+    upcoming_trips = Trip.objects.filter(driver=driver, travel_date__gt=today, status='pending').select_related('route', 'bus').order_by('travel_date', 'departure_time')[:5]
+    ongoing_trip = Trip.objects.filter(driver=driver, status='ongoing').select_related('route', 'bus').first()
+    
+    # ✅ রিয়েল-টাইম প্যাসেঞ্জার ও আয় ক্যালকুলেশন
+    passenger_count = 0
+    today_earnings = 0.0
+    
+    for trip in today_trips:
+        if trip.schedule:
+            count = Booking.objects.filter(schedule=trip.schedule, status='confirmed').count()
+            passenger_count += count
+            today_earnings += count * float(trip.schedule.fare)
+            
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     trips_completed = driver.trips.filter(status='completed').count()
     total_trips_count = all_trips.count()
     
@@ -1265,6 +1314,63 @@ def driver_dashboard(request):
 
     return render(request, 'app1/driver/driver_dashboard.html', context)
 
+<<<<<<< HEAD
+=======
+# ✅ NEW: Real-time Driver Dashboard API Endpoint
+@login_required
+def driver_dashboard_api(request):
+    """
+    API endpoint that returns real-time driver dashboard data.
+    Called by frontend every 5 seconds to update UI without page refresh.
+    """
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'error': 'Driver profile not found'}, status=404)
+    
+    driver = request.user.driver_profile
+    today = timezone.now().date()
+    
+    # Fetch today's assigned trips with related bus & route data
+    trips = Trip.objects.filter(
+        driver=driver,
+        travel_date=today
+    ).select_related('bus', 'route').order_by('departure_time')
+    
+    # Build trips data array
+    trips_data = []
+    for trip in trips:
+        # Count confirmed passengers for this trip
+        passenger_count = 0
+        if hasattr(trip, 'schedule'):
+            passenger_count = Booking.objects.filter(
+                schedule__trip=trip, 
+                status='confirmed'
+            ).count()
+        
+        trips_data.append({
+            'id': trip.id,
+            'route_code': trip.route.code,
+            'route_name': f"{trip.route.start} → {trip.route.end}",
+            'bus_number': trip.bus.bus_number if trip.bus else 'Unassigned',
+            'departure_time': trip.departure_time.strftime('%I:%M %p'),
+            'status': trip.status,
+            'passenger_count': passenger_count,
+        })
+    
+    response_data = {
+        'driver_name': f"{request.user.first_name} {request.user.last_name}",
+        'assigned_bus': {
+            'number': driver.bus.bus_number if driver.bus else 'Unassigned',
+            'plate': getattr(driver.bus, 'number_plate', 'N/A') if driver.bus else 'N/A',
+        },
+        'trips': trips_data,
+        'server_time': timezone.now().strftime('%H:%M:%S'),
+        'passenger_count': passenger_count,
+        'trips_completed': driver.trips.filter(status='completed').count(),
+        'today_earnings': today_earnings,
+    }
+    
+    return JsonResponse(response_data)
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
 
 @login_required
 def driver_profile(request):

@@ -23,6 +23,7 @@
 </div>
 
 <!-- Schedules Table -->
+<<<<<<< HEAD
 <div class="card">
     <div class="table-container">
         <table class="data-table">
@@ -168,6 +169,44 @@
         </form>
     </div>
 </div>
+=======
+<div class="card"><div class="table-container"><table class="data-table"><thead><tr><th>SCHEDULE ID</th><th>ROUTE</th><th>BUS</th><th>DRIVER</th><th>DATE</th><th>DEPARTURE</th><th>FARE</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody id="schedulesTableBody">
+    {% for schedule in schedules %}
+    <tr data-schedule-id="{{ schedule.id }}" data-date="{{ schedule.travel_date|date:'Y-m-d' }}" data-status="{% if schedule.is_active %}active{% else %}inactive{% endif %}">
+        <td><strong>#{{ schedule.id }}</strong></td>
+        <td>{{ schedule.route.code }}: {{ schedule.route.start }} → {{ schedule.route.end }}</td>
+        <td>{{ schedule.bus.bus_number }}</td>
+        <td>
+            {% if schedule.driver %}
+                <span style="color:var(--accent-green);">{{ schedule.driver.user.get_full_name|default:schedule.driver.user.username }}</span>
+            {% else %}
+                <span style="color:var(--text-muted);">Unassigned</span>
+            {% endif %}
+        </td>
+        <td>{{ schedule.travel_date|date:"M d, Y" }}</td>
+        <td>{{ schedule.departure_time|time:"g:i A" }}</td>
+        <td>৳{{ schedule.fare }}</td>
+        <td><span class="status-badge {% if schedule.is_active %}status-active{% else %}status-inactive{% endif %}">{% if schedule.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+        <td><div class="action-buttons"><button class="btn-icon btn-edit" onclick="editSchedule('{{ schedule.id }}')" title="Edit">✏️</button><button class="btn-icon btn-toggle" onclick="toggleScheduleStatus('{{ schedule.id }}')" title="Toggle">🔄</button><button class="btn-icon btn-delete" onclick="deleteSchedule('{{ schedule.id }}')" title="Delete">🗑️</button></div></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" class="empty-row">No schedules found. Click "Add New Schedule" to create one.</td></tr>
+    {% endfor %}
+</tbody></table></div></div>
+
+<!-- Modal -->
+<div id="scheduleModal" class="modal-overlay" style="display:none;"><div class="modal"><div class="modal-header"><h2 id="modalTitle">Add New Schedule</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+<form id="scheduleForm" onsubmit="saveSchedule(event)">
+    {% csrf_token %}<input type="hidden" id="scheduleId">
+    <div class="form-group"><label>Route *</label><select id="route" required><option value="">Select a Route</option>{% for route in routes %}<option value="{{ route.id }}">{{ route.code }}: {{ route.start }} → {{ route.end }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label>Bus *</label><select id="bus" required><option value="">Select a Bus</option></select><small style="color:var(--text-muted);">All buses shown</small></div>
+    <div class="form-group"><label>Assign Driver (For Driver Dashboard)</label><select id="driver"><option value="">-- Select a Driver (Optional) --</option>{% for driver in drivers %}<option value="{{ driver.id }}">{{ driver.user.get_full_name|default:driver.user.username }} - {{ driver.license_number }}</option>{% endfor %}</select><small style="color:var(--text-muted);">⚠️ Select driver to show trip in driver dashboard</small></div>
+    <div class="form-row"><div class="form-group"><label>Travel Date *</label><input type="date" id="travelDate" required></div><div class="form-group"><label>Departure Time *</label><input type="time" id="departureTime" required></div></div>
+    <div class="form-row"><div class="form-group"><label>Arrival Time</label><input type="time" id="arrivalTime"></div><div class="form-group"><label>Fare (৳) *</label><input type="number" id="fare" required placeholder="40" min="0" step="0.01"></div></div>
+    <div class="form-row"><div class="form-group"><label>Available Seats</label><input type="number" id="availableSeats" placeholder="Auto-filled" min="0"></div><div class="form-group"><label>Status</label><select id="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div></div>
+    <div class="modal-actions"><button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button><button type="submit" class="btn-save">Save Schedule</button></div>
+</form></div></div>
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
 
 <style>
 .stats-grid {
@@ -496,6 +535,7 @@
 
 <script>
 // Load buses into dropdown
+<<<<<<< HEAD
 function loadBusesDropdown() {
     const busSelect = document.getElementById('bus');
     busSelect.innerHTML = '<option value="">Loading buses...</option>';
@@ -508,15 +548,36 @@ function loadBusesDropdown() {
         if(data.success) {
             busSelect.innerHTML = '<option value="">Select a Bus</option>';
             if(data.buses.length === 0) {
+=======
+function loadBusesDropdown(){
+    const busSelect = document.getElementById('bus');
+    if (!busSelect) return Promise.resolve();
+    
+    busSelect.innerHTML = '<option value="">Loading buses...</option>';
+    
+    return fetch('/admin_page/api/get-buses/', {
+        headers: {'X-CSRFToken': getCookie('csrftoken')}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            busSelect.innerHTML = '<option value="">Select a Bus</option>';
+            if (data.buses.length === 0) {
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
                 busSelect.innerHTML = '<option value="">No buses available</option>';
                 return;
             }
             data.buses.forEach(bus => {
                 const option = document.createElement('option');
                 option.value = bus.id;
+<<<<<<< HEAD
                 option.textContent = `${bus.bus_number} (${bus.capacity} seats)${bus.is_active ? '' : ' - Inactive'}`;
                 option.dataset.capacity = bus.capacity;
                 if(!bus.is_active) {
+=======
+                option.textContent = `${bus.bus_number} (${bus.capacity} seats)${bus.is_active ? '' : ' (Inactive)'}`;
+                if (!bus.is_active) {
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
                     option.disabled = true;
                     option.style.color = 'var(--text-muted)';
                 }
@@ -529,6 +590,7 @@ function loadBusesDropdown() {
     .catch(error => {
         console.error('Error loading buses:', error);
         busSelect.innerHTML = '<option value="">Error loading buses</option>';
+<<<<<<< HEAD
     });
 }
 
@@ -567,18 +629,72 @@ function filterTable() {
 
 // Open add schedule modal
 function openAddScheduleModal() {
+=======
+    });
+}
+
+// Auto-fill seats when bus selected
+document.addEventListener('DOMContentLoaded', function(){
+    const busSelect = document.getElementById('bus');
+    const seatsInput = document.getElementById('availableSeats');
+    if (busSelect && seatsInput) {
+        busSelect.addEventListener('change', function(){
+            const match = this.options[this.selectedIndex].textContent.match(/\((\d+)\s*seats?\)/);
+            if (match && match[1]) {
+                seatsInput.value = match[1];
+            }
+        });
+    }
+});
+
+function filterTable(){
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const dateFilter = document.getElementById('dateFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const today = new Date().toISOString().split('T')[0];
+    
+    document.querySelectorAll('#schedulesTableBody tr').forEach(row => {
+        if (row.classList.contains('empty-row')) return;
+        
+        const text = row.textContent.toLowerCase();
+        const rowDate = row.dataset.date;
+        const rowStatus = row.dataset.status;
+        
+        let matchDate = true;
+        if (dateFilter === 'today') {
+            matchDate = rowDate === today;
+        } else if (dateFilter === 'tomorrow') {
+            const t = new Date();
+            t.setDate(t.getDate() + 1);
+            matchDate = rowDate === t.toISOString().split('T')[0];
+        } else if (dateFilter === 'week') {
+            const w = new Date();
+            w.setDate(w.getDate() + 7);
+            matchDate = rowDate >= today && rowDate <= w.toISOString().split('T')[0];
+        }
+        
+        row.style.display = (!q || text.includes(q)) && (status === 'all' || rowStatus === status) && matchDate ? '' : 'none';
+    });
+}
+
+function openAddScheduleModal(){
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     document.getElementById('modalTitle').textContent = 'Add New Schedule';
     document.getElementById('scheduleForm').reset();
     document.getElementById('scheduleId').value = '';
     document.getElementById('scheduleModal').style.display = 'flex';
+<<<<<<< HEAD
 
     // Set default date to tomorrow (so it's not today)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('travelDate').value = tomorrow.toISOString().split('T')[0];
 
+=======
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     loadBusesDropdown();
 
+<<<<<<< HEAD
     // Auto-fill available seats when bus is selected
     document.getElementById('bus').onchange = function() {
         const selectedOption = this.options[this.selectedIndex];
@@ -793,15 +909,177 @@ function showToast(msg, isError = false) {
     toast.textContent = msg;
     document.body.appendChild(toast);
 
+=======
+function editSchedule(scheduleId){
+    fetch(`/admin_page/api/schedule/${scheduleId}/`, {
+        headers: {'X-CSRFToken': getCookie('csrftoken')}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const s = data.schedule;
+            document.getElementById('modalTitle').textContent = 'Edit Schedule';
+            document.getElementById('scheduleId').value = s.id;
+            document.getElementById('route').value = s.route;
+            document.getElementById('bus').value = s.bus;
+            document.getElementById('driver').value = s.driver || '';
+            document.getElementById('travelDate').value = s.travel_date;
+            document.getElementById('departureTime').value = s.departure_time;
+            document.getElementById('arrivalTime').value = s.arrival_time || '';
+            document.getElementById('fare').value = s.fare;
+            document.getElementById('availableSeats').value = s.available_seats;
+            document.getElementById('isActive').value = s.is_active ? 'true' : 'false';
+            
+            loadBusesDropdown().then(() => {
+                setTimeout(() => {
+                    document.getElementById('bus').value = s.bus;
+                }, 100);
+            });
+            
+            document.getElementById('scheduleModal').style.display = 'flex';
+        } else {
+            showToast(data.message || 'Failed to load schedule', true);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error loading schedule', true);
+    });
+}
+
+// ✅ SINGLE saveSchedule function - 100% working
+function saveSchedule(e){
+    e.preventDefault();
+    
+    console.log('=== SAVE SCHEDULE CALLED ===');
+    
+    const scheduleId = document.getElementById('scheduleId').value;
+    const url = scheduleId ? `/admin_page/api/update-schedule/${scheduleId}/` : '/admin_page/api/add-schedule/';
+    const method = scheduleId ? 'PUT' : 'POST';
+    
+    // Get ALL form values
+    const routeValue = document.getElementById('route').value;
+    const busValue = document.getElementById('bus').value;
+    const driverSelect = document.getElementById('driver');
+    const driverValue = driverSelect ? driverSelect.value : null;
+    const travelDateValue = document.getElementById('travelDate').value;
+    const departureTimeValue = document.getElementById('departureTime').value;
+    
+    console.log('📍 Route ID:', routeValue);
+    console.log('🚌 Bus ID:', busValue);
+    console.log('👨‍✈️ Driver Select Element:', driverSelect);
+    console.log('👨‍✈️ Driver Value:', driverValue);
+    console.log('👨‍✈️ Driver Selected Index:', driverSelect ? driverSelect.selectedIndex : 'N/A');
+    console.log('👨‍✈️ Driver Selected Text:', driverSelect ? driverSelect.options[driverSelect.selectedIndex]?.text : 'N/A');
+    console.log('📅 Travel Date:', travelDateValue);
+    console.log('⏰ Departure Time:', departureTimeValue);
+    
+    const formData = {
+        route: parseInt(routeValue),
+        bus: parseInt(busValue),
+        driver: driverValue && driverValue !== '' && driverValue !== 'null' ? parseInt(driverValue) : null,
+        travel_date: travelDateValue,
+        departure_time: departureTimeValue,
+        arrival_time: document.getElementById('arrivalTime').value || null,
+        fare: parseFloat(document.getElementById('fare').value),
+        available_seats: parseInt(document.getElementById('availableSeats').value) || null,
+        is_active: document.getElementById('isActive').value === 'true'
+    };
+    
+    console.log('📤 FINAL FORM DATA BEING SENT:', JSON.stringify(formData, null, 2));
+    console.log('🔍 Driver in formData:', formData.driver);
+    console.log('🔍 Driver type:', typeof formData.driver);
+    
+    const saveBtn = document.querySelector('.btn-save');
+    const originalBtnText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(res => {
+        console.log('📥 Response status:', res.status);
+        return res.json();
+    })
+    .then(data => {
+        console.log('📥 Response data:', data);
+        
+        if (data.success) {
+            showToast(data.message);
+            closeModal();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Failed to save schedule', true);
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalBtnText;
+        }
+    })
+    .catch(error => {
+        console.error('❌ Fetch error:', error);
+        showToast('Error saving schedule. Check console for details.', true);
+        saveBtn.disabled = false;
+        saveBtn.textContent = originalBtnText;
+    });
+}
+function toggleScheduleStatus(scheduleId){
+    fetch(`/admin_page/api/toggle-schedule/${scheduleId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCookie('csrftoken')}
+    })
+    .then(res => res.json())
+    .then(data => {
+        showToast(data.message);
+        setTimeout(() => location.reload(), 1000);
+    });
+}
+
+function deleteSchedule(scheduleId){
+    if (!confirm('Delete this schedule?')) return;
+    
+    fetch(`/admin_page/api/delete-schedule/${scheduleId}/`, {
+        method: 'DELETE',
+        headers: {'X-CSRFToken': getCookie('csrftoken')}
+    })
+    .then(res => res.json())
+    .then(data => {
+        showToast(data.message);
+        if (data.success) {
+            setTimeout(() => location.reload(), 1000);
+        }
+    });
+}
+
+function closeModal(){
+    document.getElementById('scheduleModal').style.display = 'none';
+}
+
+function showToast(msg, isError = false){
+    const toast = document.createElement('div');
+    toast.style.cssText = `position:fixed;bottom:28px;right:28px;background:#1c1c2e;border:1px solid var(--border);border-left:3px solid ${isError ? '#ff4757' : '#00c896'};border-radius:12px;padding:14px 18px;font-size:13px;color:#fff;z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.25s;`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     setTimeout(() => {
         toast.style.transform = 'translateY(0)';
         toast.style.opacity = '1';
     }, 10);
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
     setTimeout(() => {
         toast.style.transform = 'translateY(60px)';
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 250);
+<<<<<<< HEAD
     }, 3500);
 }
 
@@ -813,10 +1091,23 @@ function getCookie(name) {
             cookie = cookie.trim();
             if(cookie.substring(0, name.length + 1) === (name + '=')) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+=======
+    }, 2800);
+}
+
+function getCookie(name){
+    let v = null;
+    if (document.cookie) {
+        for (let c of document.cookie.split(';')) {
+            c = c.trim();
+            if (c.startsWith(name + '=')) {
+                v = decodeURIComponent(c.substring(name.length + 1));
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
                 break;
             }
         }
     }
+<<<<<<< HEAD
     return cookieValue;
 }
 
@@ -836,5 +1127,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('Admin Schedule page loaded - Driver assignment enabled');
 });
+=======
+    return v;
+}
+
+// Close modal when clicking outside
+document.getElementById('scheduleModal').addEventListener('click', function(e){
+    if (e.target === this) {
+        closeModal();
+    }
+});
+
+console.log('✅ Admin Schedule page loaded - driver assignment ready');
+>>>>>>> 28cefd70405b01cf6cee8cfa8769a0de43e29fe4
 </script>
 {% endblock %}
