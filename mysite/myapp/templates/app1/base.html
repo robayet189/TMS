@@ -517,7 +517,7 @@
             Schedule
         </a>
         <!-- ✅ NEW: Track Bus Link -->
-        <a href="{% url 'track_bus' %}">
+        <a href="{% url 'track_bus_api' %}" data-full-load="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-6H8l-2 6-2.5.1C2.7 10.3 2 11.1 2 12v3c0 .6.4 1 1 1h2"/>
                 <circle cx="7" cy="17" r="2"/>
@@ -730,6 +730,11 @@
 
         navLinks.forEach(link => {
             link.addEventListener('click', function(e) {
+                // Full page load for tracking page
+                if (this.dataset.fullLoad === 'true') {
+                    window.location.href = this.href;
+                    return;
+                }
                 e.preventDefault();
                 const url = this.href;
                 loadPage(url, true);

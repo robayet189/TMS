@@ -97,13 +97,49 @@ urlpatterns = [
     path('admin_page/api/send-notification/', views_admin.send_notification_api, name='send_notification_api'),
     path('admin_page/api/resolve-alert/<int:alert_id>/', views_admin.resolve_alert_api, name='resolve_alert_api'),
 
-    # ================= CHAT SYSTEM =================
+   # ================= CHAT SYSTEM =================
+
+    # ================= DRIVER MODULE URLs =================
+    # Authentication
+    path('driver/login/', views.login_page, name='driver_login'),
+    path('driver/login/submit/', views.driver_login, name='driver_login_submit'),
+    path('driver/logout/', views.driver_logout, name='driver_logout'),
+
+    # Dashboard & Profile
+    path('driver/dashboard/', views.driver_dashboard, name='driver_dashboard'),
+    path('driver/profile/', views.driver_profile, name='driver_profile'),
+
+    # Trip Management
+    path('driver/trip/<int:trip_id>/', views.trip_detail, name='trip_detail'),
+    path('driver/trip/<int:trip_id>/start/', views.start_trip, name='start_trip'),
+    path('driver/trip/<int:trip_id>/complete/', views.complete_trip, name='complete_trip'),
+    path('driver/stop/<int:stop_id>/update/', views.update_stop_status, name='update_stop_status'),
+
+    # Driver API Endpoints
+    path('driver/api/send-alert/', views.driver_send_alert, name='driver_send_alert'),
+    path('driver/api/passengers/', views.driver_get_passengers, name='driver_get_passengers'),
+    path('driver/api/trips/', views.driver_trips_api, name='driver_trips_api'),
+    path('driver/api/routes/', views.driver_routes_api, name='driver_routes_api'),
+    path('driver/api/schedules/', views.driver_schedules_api, name='driver_schedules_api'),
+
+    # ================= BUS TRACKING URLs =================
+    path('track-bus/', views.track_bus, name='track_bus'),
+    path('api/bus/<int:bus_id>/update/', views.update_bus_location, name='api_update_location'),
+    path('api/buses/locations/', views.get_all_buses_location, name='api_all_bus_locations'),
+    path('track-bus-api/', views.track_bus_api, name='track_bus_api'),
+
+    # ================= PAYMENT URLs =================
+
+
+    # ==================== CHAT SYSTEM URLs ====================
+
     path('chat/', views.chat_list, name='chat_list'),
     path('chat/<int:room_id>/', views.chat_room, name='chat_room'),
     path('start-chat/', views.start_chat, name='start_chat'),
     path('send-chat-message/<int:room_id>/', views.send_chat_message, name='send_chat_message'),
     path('get-chat-messages/<int:room_id>/', views.get_chat_messages, name='get_chat_messages'),
     path('close-chat/<int:room_id>/', views.close_chat, name='close_chat'),
+
 
     # ================= DRIVER MODULE =================
     # Authentication
@@ -129,6 +165,7 @@ urlpatterns = [
     path('driver/api/schedules/', views.driver_schedules_api, name='driver_schedules_api'),
     path('driver/api/emergency-reports/', views.driver_get_emergency_reports, name='driver_emergency_reports'),
     path('driver/api/send-emergency-alert/', views.driver_send_emergency_alert, name='driver_send_emergency_alert'),
+
 
     # ================= BUS TRACKING =================
     path('track-bus/', views.track_bus, name='track_bus'),

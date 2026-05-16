@@ -414,58 +414,6 @@ class Notification(models.Model):
 
 
 
-       # ==================== PAYMENT MODELS ====================
-class PaymentMethod(models.Model):
-    name = models.CharField(max_length=50)
-    code = models.CharField(max_length=20, unique=True)
-    is_active = models.BooleanField(default=True)
-    icon = models.CharField(max_length=50, blank=True)
-    def __str__(self):
-        return self.name
-
-class PaymentTransaction(models.Model):
-    STATUS_CHOICES = [('pending','Pending'),('completed','Completed'),('failed','Failed'),('refunded','Refunded')]
-    PAYMENT_TYPE_CHOICES = [('pass','Transport Pass'),('single','Single Trip'),('booking','Booking Payment')]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
-    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True)
-    transaction_id = models.CharField(max_length=100, unique=True, blank=True)
-    payment_method = models.CharField(max_length=50)
-    payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES, default='pass')
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    pass_type = models.CharField(max_length=20, blank=True)
-    pass_valid_from = models.DateField(null=True, blank=True)
-    pass_valid_until = models.DateField(null=True, blank=True)
-    payment_details = models.JSONField(default=dict, blank=True)
-    remarks = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def save(self, *args, **kwargs):
-        if not self.transaction_id:
-            import random, string
-            self.transaction_id = 'TXN' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
-        super().save(*args, **kwargs)
-    def __str__(self):
-        return f"{self.transaction_id} - {self.user.username} - ৳{self.amount}"
-    class Meta:
-        ordering = ['-created_at']
-
-class UserPass(models.Model):
-    PASS_TYPES = [('monthly','Monthly Pass'),('semester','Semester Pass')]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='passes')
-    pass_type = models.CharField(max_length=20, choices=PASS_TYPES)
-    transaction = models.OneToOneField(PaymentTransaction, on_delete=models.CASCADE, related_name='user_pass')
-    start_date = models.DateField()
-    end_date = models.DateField()
-    is_active = models.BooleanField(default=True)
-    total_rides = models.IntegerField(default=0)
-    remaining_rides = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    def __str__(self):
-        return f"{self.user.username} - {self.pass_type} (Valid till {self.end_date})"
-    class Meta:
-        ordering = ['-created_at']
 
 
 

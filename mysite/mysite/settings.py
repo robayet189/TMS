@@ -19,7 +19,15 @@ SECRET_KEY = 'django-insecure-w0wtmb1*$w9*+olet#qff#t&42#bv-)8=a+7g%7-l=9&csu+rz
 # SECURITY WARNING: Don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*'] # Flexible for dev/staging
+
+# CSRF Settings for mobile app and hosting
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.pythonanywhere.com',
+    'http://*.pythonanywhere.com',
+]
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False
 
 # Application definition
 INSTALLED_APPS = [
@@ -99,9 +107,17 @@ USE_TZ = True
 
 # Static files configuration (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+
 # Default primary key field type for Django models
+
+# Media files (Uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Authentication settings
