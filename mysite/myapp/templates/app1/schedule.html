@@ -1,2 +1,126 @@
 {% extends 'app1/base.html' %}
-{% block content %}{% include 'app1/partials/schedule_content.html' %}{% endblock %}
+{% load static %}
+
+{% block title %}Schedule - Easy Transport{% endblock %}
+
+{% block content %}
+<div class="schedule-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>Transport Schedule</h1>
+        <p class="page-subtitle">View available routes and book your seat</p>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filters-bar">
+        <input type="date" id="dateFilter" placeholder="Select date">
+        <select id="routeFilter">
+            <option value="">All Routes</option>
+            {% for route in routes %}
+            <option value="{{ route.route.code }}">{{ route.route.code }} - {{ route.route.start }} to {{ route.route.end }}</option>
+            {% endfor %}
+        </select>
+        <select id="timeFilter">
+            <option value="">All Times</option>
+            <option value="morning">Morning (6AM - 12PM)</option>
+            <option value="afternoon">Afternoon (12PM - 5PM)</option>
+            <option value="evening">Evening (5PM - 10PM)</option>
+        </select>
+    </div>
+
+    <!-- Schedule Grid -->
+    <div class="routes-grid" id="scheduleGrid">
+        {% if routes %}
+            {% for schedule in routes %}
+            <!-- Route Card with data-testid for Selenium -->
+            <div class="route-card" data-testid="route-card-{{ schedule.id }}">
+                <div class="route-code">{{ schedule.route.code }}</div>
+                <div class="route-path">
+                    {{ schedule.route.start }} → {{ schedule.route.end }}
+                </div>
+                <div class="route-time">
+                    🕐 {{ schedule.departure_time|time:"g:i A" }} | 
+                    🚌 {{ schedule.bus.bus_number }} | 
+                    💰 ৳{{ schedule.fare }}
+                </div>
+                
+                <!-- Book Button with data-testid -->
+                {% if schedule.available_seats > 0 %}
+                    <a href="{% url 'book_ticket' schedule.id %}" 
+                       class="btn-book" 
+                       data-testid="book-button-{{ schedule.id }}"
+                       data-schedule-id="{{ schedule.id }}">
+                        Book Now ({{ schedule.available_seats }} seats)
+                    </a>
+                {% else %}
+                    <button class="btn-book" disabled style="background:#ccc;cursor:not-allowed;" data-testid="book-button-disabled-{{ schedule.id }}">
+                        Full
+                    </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state" data-testid="schedule-empty">
+                <p>📅 No schedules available for today.</p>
+                <p>Check back later or contact transport admin.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Loading Indicator (hidden by default) -->
+    <div id="scheduleLoading" style="display:none; text-align:center; padding:40px;">
+        <p>Loading schedules...</p>
+    </div>
+</div>
+
+<!-- JavaScript for filtering and AJAX loading -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Filter functionality
+        const dateFilter = document.getElementById('dateFilter');
+        const routeFilter = document.getElementById('routeFilter');
+        const timeFilter = document.getElementById('timeFilter');
+        
+        function applyFilters() {
+            const cards = document.querySelectorAll('.route-card');
+            const selectedDate = dateFilter.value;
+            const selectedRoute = routeFilter.value;
+            const selectedTime = timeFilter.value;
+            
+            cards.forEach(card => {
+                let show = true;
+                
+                // Filter by route
+                if (selectedRoute && !card.textContent.includes(selectedRoute)) {
+                    show = false;
+                }
+                
+                // Filter by time (simple implementation)
+                if (selectedTime) {
+                    const timeText = card.textContent.toLowerCase();
+                    if (selectedTime === 'morning' && !timeText.includes('am')) {
+                        if (!timeText.match(/\d+(am|pm)/i)?.[1]?.toLowerCase().includes('am')) {
+                            // More sophisticated time parsing would go here
+                        }
+                    }
+                }
+                
+                card.style.display = show ? 'block' : 'none';
+            });
+        }
+        
+        // Attach event listeners
+        if (dateFilter) dateFilter.addEventListener('change', applyFilters);
+        if (routeFilter) routeFilter.addEventListener('change', applyFilters);
+        if (timeFilter) timeFilter.addEventListener('change', applyFilters);
+        
+        // AJAX loading for dynamic content (optional)
+        const grid = document.getElementById('scheduleGrid');
+        if (grid) {
+            // Example: Load more schedules on scroll
+            // Implement infinite scroll or pagination as needed
+        }
+    });
+</script>
+{% endblock %}

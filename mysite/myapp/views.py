@@ -1,3 +1,4 @@
+# Import required Django modules and utilities
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -6,7 +7,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
@@ -14,13 +15,27 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
-# Import ALL models including Alert and Notification
+import json, random, string, re
+from datetime import datetime, timedelta
+
+# Import ALL models
 from .models import (
     UserProfile, Route, Bus, Schedule, Booking, BusLocation,
     Driver, Trip, TripStop, VehicleIssue, Alert, Notification,
     ChatRoom, ChatMessage, EmergencyAlert, EmergencyContact,
     PaymentMethod, PaymentTransaction, UserPass
 )
+
+
+# REST Framework imports (only if DRF is used)
+try:
+    from rest_framework.decorators import api_view
+    from rest_framework.response import Response
+    from .serializers import BusSerializer, BusLocationSerializer
+    HAS_DRF = True
+except ImportError:
+    HAS_DRF = False
+
 import json, random, string, re
 from datetime import datetime, timedelta
 from django.db.models import Sum, Q, Count
@@ -31,22 +46,21 @@ from rest_framework.response import Response
 
 
 
+
 # ==================== HELPER FUNCTIONS ====================
 
 def is_ajax(request):
-    """
-    Check if request is AJAX - CHANGE REASON: Support both jQuery & Fetch API
-    Returns True if request contains AJAX headers
-    """
+
+    """Check if request is AJAX"""
+
+    """Check if request is AJAX - Support both jQuery & Fetch API"""
+
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
         request.headers.get('Accept') == 'text/html, */*; q=0.01'
 
 
 def get_profile_context(user):
-    """
-    Helper to get profile context data - CHANGE REASON: Centralize profile data retrieval
-    Returns dictionary with user profile information for template context
-    """
+    """Helper to get profile context data"""
     profile, created = UserProfile.objects.get_or_create(user=user)
     is_active = getattr(profile, 'is_pass_active', False)
     pass_date = getattr(profile, 'pass_valid_until', None)
@@ -85,10 +99,7 @@ def account_created_page(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def register_user(request):
-    """
-    Handle user registration via POST request - CHANGE REASON: API endpoint for user signup
-    Validates input, creates user account, and returns JSON response
-    """
+    """Handle user registration via POST request"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
 
@@ -130,19 +141,14 @@ def register_user(request):
             user_type=user_type, institution_id=institution_id
         )
 
+        # Auto-assign route/bus for drivers if available
         if user_type == 'driver':
             unique_license = f"DL-{timezone.now().strftime('%Y%m%d')}-{random.randint(10000, 99999)}-{user.id}"
-
             default_route = Route.objects.first()
             default_bus = Bus.objects.first()
 
-            if not default_route:
-                default_route = Route.objects.first()
-            if not default_bus:
-                default_bus = Bus.objects.first()
-
             if not Driver.objects.filter(user=user).exists():
-                driver = Driver.objects.create(
+                Driver.objects.create(
                     user=user,
                     license_number=unique_license,
                     license_expiry=timezone.now().date() + timedelta(days=365 * 5),
@@ -154,16 +160,6 @@ def register_user(request):
                     assigned_route=default_route,
                     assigned_bus=default_bus
                 )
-
-                if default_route:
-                    print(f"✅ New driver {username} assigned to route: {default_route.code}")
-                else:
-                    print(f"⚠️ No route available to assign to driver {username}")
-
-                if default_bus:
-                    print(f"✅ New driver {username} assigned to bus: {default_bus.bus_number}")
-                else:
-                    print(f"⚠️ No bus available to assign to driver {username}")
 
         return JsonResponse({
             'success': True,
@@ -179,10 +175,7 @@ def register_user(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def login_user(request):
-    """
-    Handle user authentication via POST request - CHANGE REASON: API endpoint for user login
-    Validates credentials and returns appropriate redirect URL based on user role
-    """
+    """Handle user authentication via POST request"""
     username_or_email = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
 
@@ -191,6 +184,7 @@ def login_user(request):
 
     user = None
 
+    # Try login by email or username
     if '@' in username_or_email:
         try:
             user_obj = User.objects.get(email__iexact=username_or_email)
@@ -202,25 +196,30 @@ def login_user(request):
 
     if user is not None:
         login(request, user)
-        redirect_url = '/dashboard/'
-
+        
+        # Determine redirect URL based on user role
+        redirect_url = '/dashboard/'  # Default for students/regular users
+        
         try:
             if hasattr(user, 'profile'):
-                user_type = user.profile.user_type.lower()
-                if user_type == 'driver':
-                    redirect_url = '/driver/dashboard/'
-                elif user_type == 'admin':
+                user_type = user.profile.user_type.lower().strip()
+                if user_type == 'admin':
                     redirect_url = '/admin_page/dashboard/'
-                else:
-                    redirect_url = '/dashboard/'
+                elif user_type == 'driver':
+                    redirect_url = '/driver/dashboard/'
             elif hasattr(user, 'driver_profile') and user.driver_profile.is_active:
                 redirect_url = '/driver/dashboard/'
         except Exception:
-            redirect_url = '/dashboard/'
+            redirect_url = '/dashboard/'  # Fallback
 
         full_name = user.get_full_name() or user.username
         msg = f'Welcome back Admin, {full_name}!' if 'admin' in redirect_url else f'Welcome back, {full_name}!'
-        return JsonResponse({'success': True, 'message': msg, 'redirect_url': redirect_url})
+        
+        return JsonResponse({
+            'success': True, 
+            'message': msg, 
+            'redirect_url': redirect_url
+        })
 
     return JsonResponse({'success': False, 'message': 'Invalid username/email or password'}, status=401)
 
@@ -344,31 +343,45 @@ def password_reset_request(request):
 
 @login_required
 def dashboard(request):
-    """Render user dashboard with booking history and chat rooms"""
+    """Render user dashboard with booking history"""
     user = request.user
     profile, _ = UserProfile.objects.get_or_create(user=user)
     today = timezone.now().date()
 
+    # Upcoming bookings
     upcoming_bookings = Booking.objects.filter(
         user=user, status='confirmed', schedule__travel_date__gte=today
-    ).select_related('schedule__route', 'schedule__bus').order_by('schedule__travel_date', 'schedule__departure_time')[
-        :5]
+    ).select_related('schedule__route', 'schedule__bus').order_by(
+        'schedule__travel_date', 'schedule__departure_time'
+    )[:5]
 
+    # Past bookings
     past_bookings = Booking.objects.filter(
         user=user, status='confirmed', schedule__travel_date__lt=today
     ).select_related('schedule__route', 'schedule__bus').order_by('-schedule__travel_date')[:3]
 
+    # Statistics
     total_bookings = Booking.objects.filter(user=user, status='confirmed').count()
     approved_bookings = Booking.objects.filter(user=user, status='approved').count()
     pending_bookings = Booking.objects.filter(user=user, status='pending').count()
-    total_spent = Booking.objects.filter(user=user, status='confirmed').aggregate(total=Sum('amount'))['total'] or 0
+    total_spent = Booking.objects.filter(
+        user=user, status='confirmed'
+    ).aggregate(total=Sum('amount'))['total'] or 0
 
-    # REMOVED: Chat rooms queries - leaving empty list
+    # Chat rooms (optional - can be empty if chat is disabled)
     active_chat_rooms = []
     total_unread = 0
+    try:
+        if hasattr(user, 'profile') and user.profile.user_type == 'admin':
+            active_chat_rooms = ChatRoom.objects.filter(is_active=True).select_related('user')[:10]
+        else:
+            active_chat_rooms = ChatRoom.objects.filter(user=user, is_active=True).select_related('admin')[:10]
+        total_unread = sum(room.messages.filter(is_read=False).exclude(sender=user).count() for room in active_chat_rooms)
+    except:
+        pass  # Chat feature optional
 
     context = {
-        'first_name': user.first_name,
+        'first_name': user.first_name or user.username,
         'pass_status': 'Active' if profile.is_pass_active else 'Inactive',
         'next_payment': '৳1,200 due on 15th' if profile.is_pass_active else 'No active pass',
         'upcoming_bookings': upcoming_bookings,
@@ -392,12 +405,16 @@ def schedule(request):
     """Render transport schedule page with filtering options"""
     try:
         today = timezone.now().date()
-        routes = Schedule.objects.filter(is_active=True, travel_date__gte=today).select_related('route',
-                                                                                                'bus').order_by(
-            'travel_date', 'departure_time')
+        routes = Schedule.objects.filter(
+            is_active=True, travel_date__gte=today
+        ).select_related('route', 'bus').order_by('travel_date', 'departure_time')
         morning_routes = routes.filter(departure_time__hour__lt=12)
         evening_routes = routes.filter(departure_time__hour__gte=12)
-        context = {'routes': routes, 'morning_routes': morning_routes, 'evening_routes': evening_routes}
+        context = {
+            'routes': routes, 
+            'morning_routes': morning_routes, 
+            'evening_routes': evening_routes
+        }
         if is_ajax(request):
             return render(request, 'app1/partials/schedule_content.html', context)
         return render(request, 'app1/schedule.html', context)
@@ -412,11 +429,14 @@ def schedule_details(request, schedule_id):
     return JsonResponse({
         'success': True,
         'schedule': {
-            'id': schedule.id, 'route_code': schedule.route.code,
-            'start': schedule.route.start, 'end': schedule.route.end,
+            'id': schedule.id, 
+            'route_code': schedule.route.code,
+            'start': schedule.route.start, 
+            'end': schedule.route.end,
             'date': schedule.travel_date.strftime('%A, %B %d, %Y'),
             'time': schedule.departure_time.strftime('%I:%M %p'),
-            'fare': float(schedule.fare), 'bus_number': schedule.bus.bus_number,
+            'fare': float(schedule.fare), 
+            'bus_number': schedule.bus.bus_number,
             'available_seats': schedule.available_seats,
         }
     })
@@ -428,21 +448,23 @@ def schedule_details(request, schedule_id):
 def profile(request):
     """Handle user profile viewing and updating"""
     user = request.user
-    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile_obj, _ = UserProfile.objects.get_or_create(user=user)
+    
     if request.method == 'POST':
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
         if first_name: user.first_name = first_name
         if last_name: user.last_name = last_name
         user.save()
-        profile.phone = request.POST.get('phone', profile.phone)
-        profile.department = request.POST.get('department', profile.department)
-        profile.institution_id = request.POST.get('institution_id', profile.institution_id)
-        profile.save()
+        profile_obj.phone = request.POST.get('phone', profile_obj.phone)
+        profile_obj.department = request.POST.get('department', profile_obj.department)
+        profile_obj.institution_id = request.POST.get('institution_id', profile_obj.institution_id)
+        profile_obj.save()
         messages.success(request, 'Profile updated successfully!')
         if is_ajax(request):
             return render(request, 'app1/partials/profile_content.html', get_profile_context(user))
         return redirect('profile')
+    
     context = get_profile_context(user)
     if is_ajax(request):
         return render(request, 'app1/partials/profile_content.html', context)
@@ -453,22 +475,27 @@ def profile(request):
 def edit_profile(request):
     """Handle user profile editing with form validation"""
     user = request.user
-    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile_obj, _ = UserProfile.objects.get_or_create(user=user)
+    
     if request.method == 'POST':
         user.first_name = request.POST.get('first_name', user.first_name)
         user.last_name = request.POST.get('last_name', user.last_name)
         user.email = request.POST.get('email', user.email)
         user.save()
-        profile.phone = request.POST.get('phone', profile.phone)
-        profile.department = request.POST.get('department', profile.department)
-        profile.institution_id = request.POST.get('institution_id', profile.institution_id)
-        profile.save()
+        
+        profile_obj.phone = request.POST.get('phone', profile_obj.phone)
+        profile_obj.department = request.POST.get('department', profile_obj.department)
+        profile_obj.institution_id = request.POST.get('institution_id', profile_obj.institution_id)
+        profile_obj.save()
+        
         messages.success(request, "Profile updated successfully!")
         return redirect('profile')
+    
     context = get_profile_context(user)
+    # Use same template as profile view for consistency
     if is_ajax(request):
-        return render(request, 'app1/partials/edit_profile_content.html', context)
-    return render(request, 'app1/edit_profile.html', context)
+        return render(request, 'app1/partials/profile_content.html', context)
+    return render(request, 'app1/profile.html', context)
 
 
 @login_required
@@ -479,6 +506,7 @@ def change_password(request):
         current_password = request.POST.get('current_password')
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
+        
         if not check_password(current_password, user.password):
             messages.error(request, 'Current password is incorrect.')
         elif len(new_password) < 6:
@@ -492,6 +520,7 @@ def change_password(request):
             if is_ajax(request):
                 return JsonResponse({'redirect': '/login/'})
             return redirect('login_page')
+        
         if is_ajax(request):
             return render(request, 'app1/partials/profile_content.html', get_profile_context(user))
         return redirect('profile')
@@ -552,8 +581,6 @@ def book_ticket(request, schedule_id):
 
             schedule.available_seats -= number_of_seats
             schedule.save()
-
-            # REMOVED: Chat room creation
 
             return JsonResponse({
                 'success': True, 'booking_id': booking.booking_id,
@@ -660,9 +687,6 @@ def confirm_booking(request):
         )
         schedule.available_seats -= 1
         schedule.save()
-
-        # REMOVED: Chat room creation
-
         messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
         return redirect('booking_confirmation', booking_id=booking.booking_id)
     return redirect('schedule')
@@ -743,18 +767,11 @@ def confirm_booking_seat(request):
 
             schedule.available_seats -= 1
             schedule.save()
-
-            # REMOVED: Chat room creation
-
             messages.success(request, f'Booking confirmed! ID: {booking.booking_id}')
             return redirect('booking_confirmation_seat', booking_id=booking.booking_id)
         except Exception as e:
-            print(f"Error in confirm_booking_seat: {e}")
-            import traceback
-            traceback.print_exc()
             messages.error(request, f"Error: {str(e)}")
             return redirect('schedule')
-
     return redirect('schedule')
 
 
@@ -771,6 +788,57 @@ def track_bus(request):
     return render(request, 'app1/track_bus.html')
 
 
+
+# ==================== BUS TRACKING API (DRF) ====================
+
+if HAS_DRF:
+    @api_view(['POST'])
+    def update_bus_location(request, bus_id):
+        """API endpoint to update bus GPS location"""
+        try:
+            bus = Bus.objects.get(id=bus_id)
+            lat = request.data.get('lat') or request.data.get('latitude')
+            lng = request.data.get('lng') or request.data.get('longitude')
+            if lat is None or lng is None:
+                return Response({"error": "Latitude and longitude required"}, status=400)
+            BusLocation.objects.create(bus=bus, latitude=lat, longitude=lng)
+            return Response({"message": "Location updated", "bus_id": bus_id, "lat": lat, "lng": lng})
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found"}, status=404)
+
+    @api_view(['GET'])
+    def get_bus_location(request, bus_id):
+        """API endpoint to retrieve latest bus location"""
+        try:
+            bus = Bus.objects.get(id=bus_id)
+            latest_location = BusLocation.objects.filter(bus=bus).first()
+            data = {
+                'id': bus.id,
+                'bus_number': bus.bus_number,
+                'latitude': latest_location.latitude if latest_location else None,
+                'longitude': latest_location.longitude if latest_location else None,
+                'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+            }
+            return Response(data)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found"}, status=404)
+
+    @api_view(['GET'])
+    def get_all_buses_location(request):
+        """API endpoint to retrieve all bus locations for map display"""
+        buses = Bus.objects.all()
+        data = []
+        for bus in buses:
+            latest_location = BusLocation.objects.filter(bus=bus).first()
+            data.append({
+                'id': bus.id,
+                'bus_number': bus.bus_number,
+                'latitude': latest_location.latitude if latest_location else None,
+                'longitude': latest_location.longitude if latest_location else None,
+                'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+            })
+        return Response(data)
+
 @login_required(login_url='/login/')
 def track_bus_api(request):
     """Renders the HTML page containing the map"""
@@ -780,7 +848,11 @@ def track_bus_api(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def update_bus_location(request, bus_id):
+
     """API for the Flutter mobile app to push GPS coordinates to"""
+
+    """API endpoint to update bus GPS location"""
+
     try:
         bus = Bus.objects.get(id=bus_id)
         lat = request.data.get('lat') or request.data.get('latitude')
@@ -793,6 +865,26 @@ def update_bus_location(request, bus_id):
         return Response({"error": "Bus not found"}, status=404)
 
 @api_view(['GET'])
+
+
+def get_bus_location(request, bus_id):
+    """API endpoint to retrieve latest bus location"""
+    try:
+        bus = Bus.objects.get(id=bus_id)
+        latest_location = BusLocation.objects.filter(bus=bus).first()
+        data = {
+            'id': bus.id,
+            'bus_number': bus.bus_number,
+            'latitude': latest_location.latitude if latest_location else None,
+            'longitude': latest_location.longitude if latest_location else None,
+            'updated_at': latest_location.updated_at.strftime('%H:%M:%S') if latest_location else None,
+        }
+        return Response(data)
+    except Bus.DoesNotExist:
+        return Response({"error": "Bus not found"}, status=404)
+
+@api_view(['GET'])
+
 def get_all_buses_location(request):
     """API for the Web Dashboard to fetch all bus locations"""
     buses = Bus.objects.filter(is_active=True).prefetch_related('locations', 'assigned_drivers')
@@ -824,77 +916,89 @@ def get_all_buses_location(request):
 
 # ==================== CHAT SYSTEM VIEWS ====================
 
-# ==================== CHAT SYSTEM VIEWS ====================
-
 @login_required
 def chat_list(request):
     """Display chat room list"""
-    if request.user.profile.user_type == 'admin':
-        chat_rooms = ChatRoom.objects.filter(is_active=True).select_related('user')
-    else:
-        chat_rooms = ChatRoom.objects.filter(user=request.user, is_active=True)
-    context = {'chat_rooms': chat_rooms, 'is_admin': request.user.profile.user_type == 'admin'}
-    return render(request, 'app1/chat_list.html', context)
+    try:
+        if request.user.profile.user_type == 'admin':
+            chat_rooms = ChatRoom.objects.filter(is_active=True).select_related('user')
+        else:
+            chat_rooms = ChatRoom.objects.filter(user=request.user, is_active=True)
+        context = {
+            'chat_rooms': chat_rooms, 
+            'is_admin': request.user.profile.user_type == 'admin'
+        }
+        return render(request, 'app1/chat_list.html', context)
+    except:
+        # Fallback if chat not configured
+        return render(request, 'app1/chat_list.html', {'chat_rooms': [], 'is_admin': False})
 
 
 @login_required
 def chat_room(request, room_id):
     """Display chat room"""
-    room = get_object_or_404(ChatRoom, id=room_id)
-    
-    # Permission check
-    if request.user.profile.user_type != 'admin' and room.user != request.user:
-        messages.error(request, 'Permission denied')
+    try:
+        room = get_object_or_404(ChatRoom, id=room_id)
+        
+        # Permission check
+        if request.user.profile.user_type != 'admin' and room.user != request.user:
+            messages.error(request, 'Permission denied')
+            return redirect('chat_list')
+        
+        ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).update(is_read=True)
+        
+        context = {
+            'room': room,
+            'messages': room.messages.all().order_by('created_at'),
+            'is_admin': request.user.profile.user_type == 'admin'
+        }
+        return render(request, 'app1/chat_room.html', context)
+    except:
         return redirect('chat_list')
-    
-    ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).update(is_read=True)
-    
-    context = {
-        'room': room,
-        'messages': room.messages.all(),
-        'is_admin': request.user.profile.user_type == 'admin'
-    }
-    return render(request, 'app1/chat_room.html', context)
 
 
 @login_required
 def start_chat(request):
     """Create new chat room"""
     if request.method == 'POST':
-        subject = request.POST.get('subject', '').strip()
-        
-        # Get admin user
-        admin_user = User.objects.filter(profile__user_type='admin').first()
-        if not admin_user:
-            admin_user = User.objects.filter(is_superuser=True).first()
-        
-        if not admin_user:
-            return JsonResponse({'success': False, 'error': 'No admin available'})
-        
-        # Create new chat room
-        room = ChatRoom.objects.create(
-            user=request.user,
-            admin=admin_user,
-            is_active=True
-        )
-        
-        # Welcome message
-        welcome = "📌 New conversation started."
-        if subject:
-            welcome = f"📌 New conversation started. Subject: {subject}"
-        
-        ChatMessage.objects.create(
-            room=room,
-            sender=request.user,
-            message=welcome
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'redirect_url': reverse('chat_room', args=[room.id])
-        })
+        try:
+            subject = request.POST.get('subject', '').strip()
+            
+            # Get admin user
+            admin_user = User.objects.filter(profile__user_type='admin').first()
+            if not admin_user:
+                admin_user = User.objects.filter(is_superuser=True).first()
+            
+            if not admin_user:
+                return JsonResponse({'success': False, 'error': 'No admin available'})
+            
+            # Create new chat room
+            room = ChatRoom.objects.create(
+                user=request.user,
+                admin=admin_user,
+                is_active=True
+            )
+            
+            # Welcome message
+            welcome = "📌 New conversation started."
+            if subject:
+                welcome = f"📌 New conversation started. Subject: {subject}"
+            
+            ChatMessage.objects.create(
+                room=room,
+                sender=request.user,
+                message=welcome
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('chat_room', args=[room.id])
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
     
     return JsonResponse({'success': False, 'error': 'Invalid request'})
+
 
 @login_required
 def send_chat_message(request, room_id):
@@ -966,32 +1070,29 @@ def get_chat_messages(request, room_id):
 def close_chat(request, room_id):
     """Close chat room (admin only)"""
     if request.method == 'POST':
-        room = get_object_or_404(ChatRoom, id=room_id)
-        
-        if request.user.profile.user_type != 'admin':
-            return JsonResponse({'success': False, 'error': 'Permission denied'})
-        
-        room.is_active = False
-        room.save()
-        
-        ChatMessage.objects.create(
-            room=room,
-            sender=request.user,
-            message="🔒 This chat has been closed by admin."
-        )
-        
-        return JsonResponse({'success': True, 'message': 'Chat closed successfully'})
+        try:
+            room = get_object_or_404(ChatRoom, id=room_id)
+            
+            if request.user.profile.user_type != 'admin':
+                return JsonResponse({'success': False, 'error': 'Permission denied'})
+            
+            room.is_active = False
+            room.save()
+            
+            ChatMessage.objects.create(
+                room=room,
+                sender=request.user,
+                message="🔒 This chat has been closed by admin."
+            )
+            
+            return JsonResponse({'success': True, 'message': 'Chat closed successfully'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
     
     return JsonResponse({'success': False, 'error': 'Invalid request'})
 
 
-
-
-    
-
-
-
-
+# ==================== DRIVER VIEWS ====================
 
 @require_http_methods(["POST"])
 def driver_login(request):
@@ -999,6 +1100,7 @@ def driver_login(request):
     username = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
     user = authenticate(request, username=username, password=password)
+    
     if user is not None:
         if hasattr(user, 'driver_profile'):
             driver = user.driver_profile
@@ -1008,18 +1110,14 @@ def driver_login(request):
                     return JsonResponse(
                         {'success': True, 'message': 'Login successful', 'redirect_url': '/driver/dashboard/'})
                 else:
-                    return JsonResponse({'success': False, 'message': 'Your account is deactivated. Contact admin.'},
-                                        status=403)
+                    return JsonResponse({'success': False, 'message': 'Your account is deactivated. Contact admin.'}, status=403)
             else:
-                return JsonResponse({'success': False, 'message': 'Your account is pending approval. Contact admin.'},
-                                    status=403)
+                return JsonResponse({'success': False, 'message': 'Your account is pending approval. Contact admin.'}, status=403)
         else:
             return JsonResponse({'success': False, 'message': 'You are not registered as a driver.'}, status=403)
     else:
         return JsonResponse({'success': False, 'message': 'Invalid username or password'}, status=401)
 
-
-# ==================== DRIVER EMERGENCY ALERT & PASSENGER API ====================
 
 @login_required
 @require_http_methods(["POST"])
@@ -1034,12 +1132,7 @@ def driver_send_alert(request):
         priority = int(data.get('priority', 1))
         driver = request.user.driver_profile
 
-        priority_map = {
-            1: 'critical',
-            2: 'high',
-            3: 'medium',
-            4: 'low'
-        }
+        priority_map = {1: 'critical', 2: 'high', 3: 'medium', 4: 'low'}
 
         alert = Alert.objects.create(
             driver=driver,
@@ -1075,7 +1168,6 @@ def driver_get_passengers(request):
 
     driver = request.user.driver_profile
     today = timezone.now().date()
-
     passengers = []
 
     if driver.assigned_route:
@@ -1106,27 +1198,24 @@ def driver_get_passengers(request):
                     'stop': schedule.route.end,
                 })
 
-    print(f"Passengers found: {len(passengers)}")
-
     return JsonResponse({'success': True, 'passengers': passengers})
 
 
 @login_required
 def driver_dashboard(request):
+
     """Driver dashboard - Shows ONLY driver's assigned routes and schedules"""
+
+
     if not hasattr(request.user, 'driver_profile'):
-        messages.error(request, 'You are not registered as a driver.')
         return redirect('homepage')
 
     driver = request.user.driver_profile
     today = timezone.now().date()
 
-    print(f"\n=== DRIVER DASHBOARD DEBUG ===")
-    print(f"Driver: {driver.user.username}")
-    print(f"Assigned route: {driver.assigned_route.code if driver.assigned_route else 'None'}")
-    print(f"Assigned bus: {driver.assigned_bus.bus_number if driver.assigned_bus else 'None'}")
+    assigned_route = driver.assigned_route
 
-    # ========== TRIPS ==========
+    # Trips
     today_trips = Trip.objects.filter(
         driver=driver, travel_date=today
     ).select_related('route', 'bus').order_by('departure_time')
@@ -1139,75 +1228,31 @@ def driver_dashboard(request):
         driver=driver, status='ongoing'
     ).select_related('route', 'bus').first()
 
-    all_trips = Trip.objects.filter(driver=driver).select_related('route', 'bus').order_by('-travel_date',
-                                                                                           '-departure_time')
+    all_trips = Trip.objects.filter(driver=driver).select_related('route', 'bus').order_by('-travel_date', '-departure_time')
 
-    # ========== TRIPS DATA FOR TRIP STATUS PAGE ==========
-    trips_data = []
-    total_passengers_all = 0
-    total_earnings_all = 0
-
-    for trip in all_trips:
-        schedule = Schedule.objects.filter(
-            route=trip.route,
-            travel_date=trip.travel_date,
-            departure_time=trip.departure_time
-        ).first()
-
-        passenger_count_trip = 0
-        trip_earnings = 0
-
-        if schedule:
-            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-            passenger_count_trip = bookings.count()
-            trip_earnings = sum(float(b.amount) for b in bookings)
-            total_passengers_all += passenger_count_trip
-            total_earnings_all += trip_earnings
-
-        trips_data.append({
-            'id': trip.id,
-            'route': trip.route,
-            'status': trip.status,
-            'travel_date': trip.travel_date,
-            'departure_time': trip.departure_time,
-            'passenger_count': passenger_count_trip,
-            'earnings': trip_earnings,
-            'duration': '45 min',
-            'start': trip.route.start,
-            'end': trip.route.end,
-        })
-
-    assigned_route = driver.assigned_route
-
-    # ========== SCHEDULES ==========
+    # Schedules for assigned route
     schedules_for_driver = []
     upcoming_schedules = []
-
     if assigned_route:
         schedules_for_driver = Schedule.objects.filter(
             route=assigned_route,
             travel_date__gte=today,
             is_active=True
         ).select_related('route', 'bus').order_by('travel_date', 'departure_time')
-
         upcoming_schedules = schedules_for_driver.filter(
             travel_date__lte=today + timedelta(days=7)
         )[:10]
 
-    # ========== FIXED: TODAY'S EARNINGS CALCULATION ==========
+    # Calculate today's earnings from completed trips
     passenger_count = 0
     today_earnings = 0
     passenger_list = []
 
-    # METHOD 1: Get earnings from completed trips for today
     completed_trips_today = Trip.objects.filter(
         driver=driver,
         travel_date=today,
         status='completed'
     ).select_related('route', 'bus')
-
-    print(f"\n=== TODAY'S EARNINGS CALCULATION ===")
-    print(f"Completed trips today: {completed_trips_today.count()}")
 
     for trip in completed_trips_today:
         schedule = Schedule.objects.filter(
@@ -1215,7 +1260,6 @@ def driver_dashboard(request):
             travel_date=trip.travel_date,
             departure_time=trip.departure_time
         ).first()
-
         if schedule:
             bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
             for booking in bookings:
@@ -1225,182 +1269,32 @@ def driver_dashboard(request):
                     'seat': booking.seat_number,
                     'name': booking.passenger_name,
                     'type': booking.user.profile.user_type if hasattr(booking.user, 'profile') else 'Student',
-                    'id': booking.user.profile.institution_id if hasattr(booking.user,
-                                                                         'profile') else booking.user.username,
+                    'id': booking.user.profile.institution_id if hasattr(booking.user, 'profile') else booking.user.username,
                     'stop': schedule.route.end,
                 })
-            print(f"  Trip on {trip.route.code}: +৳{sum(float(b.amount) for b in bookings)}")
 
-    # METHOD 2: Also check if there are any completed trips from today_trips (backup)
+    # Stats
+
+    
+  
+    today_trips = Trip.objects.filter(driver=driver, travel_date=today).select_related('route', 'bus').order_by('departure_time')
+    upcoming_trips = Trip.objects.filter(driver=driver, travel_date__gt=today, status='pending').select_related('route', 'bus').order_by('travel_date', 'departure_time')[:5]
+    ongoing_trip = Trip.objects.filter(driver=driver, status='ongoing').select_related('route', 'bus').first()
+    
+
+    passenger_count = 0
+    today_earnings = 0.0
+    
     for trip in today_trips:
-        if trip.status == 'completed':
-            # Check if we already counted this trip
-            already_counted = False
-            for p in passenger_list:
-                if p.get('seat') == f"Trip-{trip.id}":
-                    already_counted = True
-                    break
+        if trip.schedule:
+            count = Booking.objects.filter(schedule=trip.schedule, status='confirmed').count()
+            passenger_count += count
+            today_earnings += count * float(trip.schedule.fare)
+            
 
-            if not already_counted:
-                schedule = Schedule.objects.filter(
-                    route=trip.route,
-                    travel_date=trip.travel_date,
-                    departure_time=trip.departure_time
-                ).first()
-                if schedule:
-                    bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-                    for booking in bookings:
-                        today_earnings += float(booking.amount)
-                        passenger_count += 1
-                        passenger_list.append({
-                            'seat': f"Trip-{trip.id}",
-                            'name': booking.passenger_name,
-                            'type': booking.user.profile.user_type if hasattr(booking.user, 'profile') else 'Student',
-                            'id': booking.user.profile.institution_id if hasattr(booking.user,
-                                                                                 'profile') else booking.user.username,
-                            'stop': schedule.route.end,
-                        })
-                    print(f"  Additional trip {trip.id}: +৳{sum(float(b.amount) for b in bookings)}")
-
-    print(f"💰 TODAY'S TOTAL EARNINGS: ৳{today_earnings}")
-    print(f"👥 Total passengers today: {passenger_count}")
-    print(f"================================\n")
-
-    # ========== TRIPS COMPLETED COUNT ==========
     trips_completed = driver.trips.filter(status='completed').count()
-
-    # ========== TOTAL EARNINGS (LIFETIME) ==========
-    total_earnings = 0
-    for trip in driver.trips.filter(status='completed'):
-        schedule = Schedule.objects.filter(
-            route=trip.route,
-            travel_date=trip.travel_date,
-            departure_time=trip.departure_time
-        ).first()
-        if schedule:
-            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-            total_earnings += sum(float(b.amount) for b in bookings)
-
-    # ========== STATS ==========
     total_trips_count = all_trips.count()
-    total_passengers = total_passengers_all
-    avg_passengers_per_trip = int(total_passengers / total_trips_count) if total_trips_count > 0 else 0
-
-    # ========== MONTHLY STATS ==========
-    month_ago = today - timedelta(days=30)
-    monthly_trips = driver.trips.filter(status='completed', travel_date__gte=month_ago)
-    monthly_trips_completed = monthly_trips.count()
-    monthly_distance = monthly_trips_completed * 15
-    monthly_hours = monthly_trips_completed * 1
-
-    # ========== PERFORMANCE METRICS ==========
-    on_time_rate = 98.5
-    customer_rating = 4.8
-    safety_score = 95
-
-    # ========== WEEKLY EARNINGS ==========
-    week_ago = today - timedelta(days=7)
-    weekly_earnings = 0
-    weekly_bonus = 0
-
-    for trip in driver.trips.filter(status='completed', travel_date__gte=week_ago):
-        schedule = Schedule.objects.filter(
-            route=trip.route,
-            travel_date=trip.travel_date,
-            departure_time=trip.departure_time
-        ).first()
-        if schedule:
-            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-            trip_earnings = sum(float(b.amount) for b in bookings)
-            weekly_earnings += trip_earnings
-
-    weekly_total = weekly_earnings + weekly_bonus
-
-    # ========== MONTHLY EARNINGS ==========
-    monthly_earnings = 0
-    for trip in driver.trips.filter(status='completed', travel_date__gte=month_ago):
-        schedule = Schedule.objects.filter(
-            route=trip.route,
-            travel_date=trip.travel_date,
-            departure_time=trip.departure_time
-        ).first()
-        if schedule:
-            bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-            monthly_earnings += sum(float(b.amount) for b in bookings)
-
-    # ========== AVERAGE PER TRIP ==========
-    total_trips_completed = driver.trips.filter(status='completed').count()
-    avg_per_trip = total_earnings / total_trips_completed if total_trips_completed > 0 else 0
-
-    # ========== WEEKLY CHART DATA ==========
-    weekly_chart_data = []
-    for i in range(6, -1, -1):
-        day = today - timedelta(days=i)
-        day_earnings = 0
-        for trip in driver.trips.filter(status='completed', travel_date=day):
-            schedule = Schedule.objects.filter(
-                route=trip.route,
-                travel_date=day,
-                departure_time=trip.departure_time
-            ).first()
-            if schedule:
-                bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-                day_earnings += sum(float(b.amount) for b in bookings)
-        weekly_chart_data.append(day_earnings)
-
-    # ========== MONTHLY CHART DATA ==========
-    monthly_labels = []
-    monthly_earnings_data = []
-    monthly_trips_data = []
-
-    for i in range(5, -1, -1):
-        month_date = today - timedelta(days=30 * i)
-        month_start = month_date.replace(day=1)
-
-        if month_date.month == 12:
-            month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
-        else:
-            month_end = month_date.replace(month=month_date.month + 1, day=1) - timedelta(days=1)
-
-        month_earnings = 0
-        month_trips = 0
-
-        for trip in driver.trips.filter(status='completed', travel_date__gte=month_start, travel_date__lte=month_end):
-            month_trips += 1
-            schedule = Schedule.objects.filter(
-                route=trip.route,
-                travel_date=trip.travel_date,
-                departure_time=trip.departure_time
-            ).first()
-            if schedule:
-                bookings = Booking.objects.filter(schedule=schedule, status='confirmed')
-                month_earnings += sum(float(b.amount) for b in bookings)
-
-        monthly_labels.append(month_start.strftime('%b'))
-        monthly_earnings_data.append(month_earnings)
-        monthly_trips_data.append(month_trips)
-
-    # ========== PAYMENT HISTORY ==========
-    payment_history = [
-        {'period': 'Week 12', 'id': 'PAY-847', 'date': (today - timedelta(days=7)).strftime('%Y-%m-%d'),
-         'method': 'Bank Transfer', 'amount': int(weekly_earnings)},
-        {'period': 'Week 11', 'id': 'PAY-846', 'date': (today - timedelta(days=14)).strftime('%Y-%m-%d'),
-         'method': 'Bank Transfer', 'amount': int(weekly_earnings * 0.9)},
-        {'period': 'Week 10', 'id': 'PAY-845', 'date': (today - timedelta(days=21)).strftime('%Y-%m-%d'),
-         'method': 'Bank Transfer', 'amount': int(weekly_earnings * 1.1)},
-    ] if weekly_earnings > 0 else []
-
-    # ========== WORKING HOURS & RATE ==========
-    working_hours = total_trips_completed
-    hourly_rate = total_earnings / working_hours if working_hours > 0 else 0
-
-    # ========== NEXT PAYMENT ==========
-    days_until_friday = (4 - today.weekday()) % 7
-    if days_until_friday == 0:
-        days_until_friday = 7
-    next_payment_date = (today + timedelta(days=days_until_friday)).strftime('%b %d, %Y')
-    next_payment_amount = int(weekly_earnings)
-
+    
     # Store passenger list in session
     request.session['driver_passengers'] = passenger_list
 
@@ -1410,50 +1304,72 @@ def driver_dashboard(request):
         'today_trips': today_trips,
         'upcoming_trips': upcoming_trips,
         'ongoing_trip': ongoing_trip,
-        'trips': trips_data,
-        'total_trips_count': total_trips_count,
-        'total_passengers': total_passengers,
-        'total_earnings': total_earnings,
-        'avg_passengers_per_trip': avg_passengers_per_trip,
-        'monthly_trips_completed': monthly_trips_completed,
-        'monthly_distance': monthly_distance,
-        'monthly_hours': monthly_hours,
-        'on_time_rate': on_time_rate,
-        'customer_rating': customer_rating,
-        'safety_score': safety_score,
         'schedules_for_driver': schedules_for_driver,
         'upcoming_schedules': upcoming_schedules,
         'passenger_count': passenger_count,
         'trips_completed': trips_completed,
         'today_earnings': today_earnings,
-        'weekly_earnings': weekly_earnings,
-        'monthly_earnings': monthly_earnings,
-        'avg_per_trip': avg_per_trip,
-        'weekly_bonus': weekly_bonus,
-        'weekly_total': weekly_total,
-        'working_hours': working_hours,
-        'hourly_rate': hourly_rate,
-        'next_payment_amount': next_payment_amount,
-        'next_payment_date': next_payment_date,
-        'payment_history': payment_history,
-        'weekly_chart_data': weekly_chart_data,
-        'monthly_labels': monthly_labels,
-        'monthly_earnings_data': monthly_earnings_data,
-        'monthly_trips_data': monthly_trips_data,
+        'total_trips_count': total_trips_count,
     }
 
-    print(f"\n=== FINAL CONTEXT VALUES ===")
-    print(f"Total trips: {total_trips_count}")
-    print(f"Total passengers: {total_passengers}")
-    print(f"Total earnings: {total_earnings}")
-    print(f"Today's earnings: {today_earnings}")
-    print(f"Trips completed: {trips_completed}")
-    print(f"Weekly earnings: {weekly_earnings}")
-    print(f"Monthly earnings: {monthly_earnings}")
-    print(f"Average per trip: {avg_per_trip}")
-    print(f"============================\n")
-
     return render(request, 'app1/driver/driver_dashboard.html', context)
+
+
+
+# ✅ NEW: Real-time Driver Dashboard API Endpoint
+@login_required
+def driver_dashboard_api(request):
+    """
+    API endpoint that returns real-time driver dashboard data.
+    Called by frontend every 5 seconds to update UI without page refresh.
+    """
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'error': 'Driver profile not found'}, status=404)
+    
+    driver = request.user.driver_profile
+    today = timezone.now().date()
+    
+    # Fetch today's assigned trips with related bus & route data
+    trips = Trip.objects.filter(
+        driver=driver,
+        travel_date=today
+    ).select_related('bus', 'route').order_by('departure_time')
+    
+    # Build trips data array
+    trips_data = []
+    for trip in trips:
+        # Count confirmed passengers for this trip
+        passenger_count = 0
+        if hasattr(trip, 'schedule'):
+            passenger_count = Booking.objects.filter(
+                schedule__trip=trip, 
+                status='confirmed'
+            ).count()
+        
+        trips_data.append({
+            'id': trip.id,
+            'route_code': trip.route.code,
+            'route_name': f"{trip.route.start} → {trip.route.end}",
+            'bus_number': trip.bus.bus_number if trip.bus else 'Unassigned',
+            'departure_time': trip.departure_time.strftime('%I:%M %p'),
+            'status': trip.status,
+            'passenger_count': passenger_count,
+        })
+    
+    response_data = {
+        'driver_name': f"{request.user.first_name} {request.user.last_name}",
+        'assigned_bus': {
+            'number': driver.bus.bus_number if driver.bus else 'Unassigned',
+            'plate': getattr(driver.bus, 'number_plate', 'N/A') if driver.bus else 'N/A',
+        },
+        'trips': trips_data,
+        'server_time': timezone.now().strftime('%H:%M:%S'),
+        'passenger_count': passenger_count,
+        'trips_completed': driver.trips.filter(status='completed').count(),
+        'today_earnings': today_earnings,
+    }
+    
+    return JsonResponse(response_data)
 
 
 @login_required
@@ -1506,48 +1422,6 @@ def driver_profile(request):
 
 
 @login_required
-def driver_trips_api(request):
-    """API endpoint to get driver's trips as JSON"""
-    if not hasattr(request.user, 'driver_profile'):
-        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
-
-    driver = request.user.driver_profile
-    today = timezone.now().date()
-
-    trips = Trip.objects.filter(
-        driver=driver, travel_date__gte=today
-    ).select_related('route', 'bus').order_by('travel_date', 'departure_time')
-
-    trips_data = []
-    for trip in trips:
-        schedule = Schedule.objects.filter(
-            route=trip.route,
-            travel_date=trip.travel_date,
-            departure_time=trip.departure_time
-        ).first()
-
-        passenger_count = 0
-        if schedule:
-            passenger_count = Booking.objects.filter(
-                schedule=schedule, status='approved'
-            ).count()
-
-        trips_data.append({
-            'id': trip.id,
-            'route_code': trip.route.code,
-            'start': trip.route.start,
-            'end': trip.route.end,
-            'departure_time': trip.departure_time.strftime('%I:%M %p'),
-            'travel_date': trip.travel_date.strftime('%b %d, %Y'),
-            'status': trip.status,
-            'bus_number': trip.bus.bus_number,
-            'passenger_count': passenger_count,
-        })
-
-    return JsonResponse({'success': True, 'trips': trips_data})
-
-
-@login_required
 def trip_detail(request, trip_id):
     """Display detailed trip information with stop sequence"""
     if not hasattr(request.user, 'driver_profile'):
@@ -1588,6 +1462,201 @@ def complete_trip(request, trip_id):
         return JsonResponse({'success': True, 'message': 'Trip completed successfully'})
     else:
         return JsonResponse({'success': False, 'message': 'Trip cannot be completed in current status'}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_stop_status(request, stop_id):
+    """API endpoint to update stop arrival/departure status"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'message': 'Not a driver'}, status=403)
+    stop = get_object_or_404(TripStop, id=stop_id)
+    if stop.trip.driver != request.user.driver_profile:
+        return JsonResponse({'success': False, 'message': 'Not authorized'}, status=403)
+    action = request.POST.get('action')
+    if action == 'arrive':
+        stop.arrival_time = timezone.now().time()
+        stop.save()
+        return JsonResponse({'success': True, 'message': 'Arrival recorded'})
+    elif action == 'depart':
+        stop.departure_time = timezone.now().time()
+        stop.is_completed = True
+        stop.save()
+        return JsonResponse({'success': True, 'message': 'Departure recorded'})
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid action'}, status=400)
+
+
+@login_required
+def driver_logout(request):
+    """Handle driver logout with session cleanup"""
+    logout(request)
+    request.session.flush()
+    messages.success(request, 'Logged out successfully.')
+    return redirect('homepage')
+
+
+# ==================== PAYMENT VIEWS ====================
+
+@login_required
+def payment_page(request):
+    current_pass = UserPass.objects.filter(user=request.user, is_active=True, end_date__gte=timezone.now().date()).first()
+    payment_history = PaymentTransaction.objects.filter(user=request.user)[:10]
+    total_spent = PaymentTransaction.objects.filter(user=request.user, status='completed').aggregate(total=Sum('amount'))['total'] or 0
+    active_pass_count = UserPass.objects.filter(user=request.user, is_active=True, end_date__gte=timezone.now().date()).count()
+    return render(request, 'app1/payments.html', {
+        'current_pass': current_pass,
+        'payment_history': payment_history,
+        'total_spent': total_spent,
+        'active_pass_count': active_pass_count,
+    })
+
+
+@login_required
+def purchase_pass(request):
+    if request.method == 'POST':
+        data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
+        pass_type = data.get('pass_type')
+        payment_method = data.get('payment_method')
+        if pass_type not in ['monthly', 'semester']:
+            return JsonResponse({'success': False, 'error': 'Invalid pass type'})
+        amount = 1200 if pass_type == 'monthly' else 5500
+        validity_days = 30 if pass_type == 'monthly' else 120
+        start_date = timezone.now().date()
+        end_date = start_date + timedelta(days=validity_days)
+        transaction = PaymentTransaction.objects.create(
+            user=request.user, payment_method=payment_method, payment_type='pass',
+            amount=amount, status='completed', pass_type=pass_type,
+            pass_valid_from=start_date, pass_valid_until=end_date
+        )
+        UserPass.objects.create(
+            user=request.user, pass_type=pass_type, transaction=transaction,
+            start_date=start_date, end_date=end_date, is_active=True
+        )
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        profile.is_pass_active = True
+        profile.pass_valid_until = end_date
+        profile.pass_id = f"PASS-{request.user.id}-{timezone.now().year}"
+        profile.save()
+        return JsonResponse({'success': True, 'message': f'{pass_type.capitalize()} Pass purchased!', 'transaction_id': transaction.transaction_id, 'valid_until': end_date.strftime('%Y-%m-%d')})
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+@login_required
+def payment_history(request):
+    transactions = PaymentTransaction.objects.filter(user=request.user).order_by('-created_at')
+    total_spent = transactions.filter(status='completed').aggregate(total=Sum('amount'))['total'] or 0
+    return render(request, 'app1/payment_history.html', {'transactions': transactions, 'total_spent': total_spent})
+
+
+@login_required
+def payment_success(request, transaction_id):
+    transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id, user=request.user)
+    return render(request, 'app1/payment_success.html', {'transaction': transaction})
+
+
+# ==================== EMERGENCY ALERT VIEWS ====================
+
+@login_required
+def emergency_page(request):
+    """Display emergency alert page with call options"""
+    contacts = EmergencyContact.objects.filter(is_active=True)
+    return render(request, 'app1/emergency.html', {'contacts': contacts})
+
+
+@login_required
+def send_emergency_alert(request):
+    """API endpoint to send emergency alert"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
+            alert_type = data.get('alert_type', 'other')
+            message = data.get('message', '')
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+            location_name = data.get('location_name', '')
+            booking_id = data.get('booking_id')
+
+            alert = EmergencyAlert.objects.create(
+                user=request.user,
+                alert_type=alert_type,
+                message=message or f"Emergency reported by {request.user.get_full_name() or request.user.username}",
+                latitude=latitude,
+                longitude=longitude,
+                location_name=location_name,
+                priority=1,
+                status='pending'
+            )
+
+            if booking_id:
+                try:
+                    alert.booking = Booking.objects.get(id=booking_id)
+                    alert.save()
+                except:
+                    pass
+
+            return JsonResponse({
+                'success': True,
+                'alert_id': alert.id,
+                'message': 'Emergency alert sent! Admin has been notified.'
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+
+@login_required
+def emergency_history(request):
+    """View user's past emergency alerts"""
+    alerts = EmergencyAlert.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'app1/emergency_history.html', {'alerts': alerts})
+
+
+# ==================== ADDITIONAL DRIVER API ENDPOINTS ====================
+# ✅ THESE 3 FUNCTIONS WERE MISSING - NOW ADDED AT THE END
+
+@login_required
+def driver_trips_api(request):
+    """API endpoint to get driver's trips as JSON"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
+
+    driver = request.user.driver_profile
+    today = timezone.now().date()
+
+    # Get trips for this driver
+    trips = Trip.objects.filter(
+        driver=driver, travel_date__gte=today
+    ).select_related('route', 'bus').order_by('travel_date', 'departure_time')
+
+    trips_data = []
+    for trip in trips:
+        # Get schedule to count passengers
+        schedule = Schedule.objects.filter(
+            route=trip.route,
+            travel_date=trip.travel_date,
+            departure_time=trip.departure_time
+        ).first()
+        
+        passenger_count = 0
+        if schedule:
+            passenger_count = Booking.objects.filter(
+                schedule=schedule, status='confirmed'
+            ).count()
+
+        trips_data.append({
+            'id': trip.id,
+            'route_code': trip.route.code,
+            'start': trip.route.start,
+            'end': trip.route.end,
+            'departure_time': trip.departure_time.strftime('%I:%M %p'),
+            'travel_date': trip.travel_date.strftime('%b %d, %Y'),
+            'status': trip.status,
+            'bus_number': trip.bus.bus_number if trip.bus else '',
+            'passenger_count': passenger_count,
+        })
+
+    return JsonResponse({'success': True, 'trips': trips_data})
 
 
 @login_required
@@ -1646,8 +1715,8 @@ def driver_schedules_api(request):
                 'travel_date_formatted': s.travel_date.strftime('%b %d, %Y'),
                 'departure_time': s.departure_time.strftime('%I:%M %p'),
                 'fare': float(s.fare),
-                'bus_number': s.bus.bus_number,
-                'bus_capacity': s.bus.capacity,
+                'bus_number': s.bus.bus_number if s.bus else '',
+                'bus_capacity': s.bus.capacity if s.bus else 40,
                 'available_seats': s.available_seats,
             })
 
@@ -1656,184 +1725,6 @@ def driver_schedules_api(request):
         'has_assigned_route': assigned_route is not None,
         'schedules': schedules_data
     })
-
-
-@login_required
-@require_http_methods(["POST"])
-def update_stop_status(request, stop_id):
-    """API endpoint to update stop arrival/departure status"""
-    if not hasattr(request.user, 'driver_profile'):
-        return JsonResponse({'success': False, 'message': 'Not a driver'}, status=403)
-    stop = get_object_or_404(TripStop, id=stop_id)
-    if stop.trip.driver != request.user.driver_profile:
-        return JsonResponse({'success': False, 'message': 'Not authorized'}, status=403)
-    action = request.POST.get('action')
-    if action == 'arrive':
-        stop.arrival_time = timezone.now().time()
-        stop.save()
-        return JsonResponse({'success': True, 'message': 'Arrival recorded'})
-    elif action == 'depart':
-        stop.departure_time = timezone.now().time()
-        stop.is_completed = True
-        stop.save()
-        return JsonResponse({'success': True, 'message': 'Departure recorded'})
-    else:
-        return JsonResponse({'success': False, 'message': 'Invalid action'}, status=400)
-
-
-@login_required
-def driver_logout(request):
-    """Handle driver logout with session cleanup"""
-    logout(request)
-    request.session.flush()
-    messages.success(request, 'Logged out successfully.')
-    return redirect('homepage')
-
-
-def create_trips_for_driver(driver, schedule):
-    """Create or get Trip for a schedule"""
-    trip, created = Trip.objects.get_or_create(
-        driver=driver,
-        route=schedule.route,
-        bus=schedule.bus,
-        travel_date=schedule.travel_date,
-        departure_time=schedule.departure_time,
-        defaults={
-            'arrival_time': schedule.arrival_time,
-            'status': 'pending'
-        }
-    )
-    return trip, created
-
-
-# ==================== PAYMENT VIEWS ====================
-from datetime import timedelta
-from django.db.models import Sum
-from .models import PaymentTransaction, UserPass, PaymentMethod
-
-
-@login_required
-def payment_page(request):
-    current_pass = UserPass.objects.filter(user=request.user, is_active=True,
-                                           end_date__gte=timezone.now().date()).first()
-    payment_history = PaymentTransaction.objects.filter(user=request.user)[:10]
-    total_spent = \
-    PaymentTransaction.objects.filter(user=request.user, status='completed').aggregate(total=Sum('amount'))[
-        'total'] or 0
-    active_pass_count = UserPass.objects.filter(user=request.user, is_active=True,
-                                                end_date__gte=timezone.now().date()).count()
-    return render(request, 'app1/payments.html', {
-        'current_pass': current_pass,
-        'payment_history': payment_history,
-        'total_spent': total_spent,
-        'active_pass_count': active_pass_count,
-    })
-
-
-@login_required
-def purchase_pass(request):
-    if request.method == 'POST':
-        import json
-        data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
-        pass_type = data.get('pass_type')
-        payment_method = data.get('payment_method')
-        if pass_type not in ['monthly', 'semester']:
-            return JsonResponse({'success': False, 'error': 'Invalid pass type'})
-        amount = 1200 if pass_type == 'monthly' else 5500
-        validity_days = 30 if pass_type == 'monthly' else 120
-        start_date = timezone.now().date()
-        end_date = start_date + timedelta(days=validity_days)
-        transaction = PaymentTransaction.objects.create(
-            user=request.user, payment_method=payment_method, payment_type='pass',
-            amount=amount, status='completed', pass_type=pass_type,
-            pass_valid_from=start_date, pass_valid_until=end_date
-        )
-        UserPass.objects.create(
-            user=request.user, pass_type=pass_type, transaction=transaction,
-            start_date=start_date, end_date=end_date, is_active=True
-        )
-        profile, created = UserProfile.objects.get_or_create(user=request.user)
-        profile.is_pass_active = True
-        profile.pass_valid_until = end_date
-        profile.pass_id = f"PASS-{request.user.id}-{timezone.now().year}"
-        profile.save()
-        return JsonResponse({'success': True, 'message': f'{pass_type.capitalize()} Pass purchased!',
-                             'transaction_id': transaction.transaction_id,
-                             'valid_until': end_date.strftime('%Y-%m-%d')})
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
-
-
-@login_required
-def payment_history(request):
-    transactions = PaymentTransaction.objects.filter(user=request.user).order_by('-created_at')
-    total_spent = transactions.filter(status='completed').aggregate(total=Sum('amount'))['total'] or 0
-    return render(request, 'app1/payment_history.html', {'transactions': transactions, 'total_spent': total_spent})
-
-
-@login_required
-def payment_success(request, transaction_id):
-    transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id, user=request.user)
-    return render(request, 'app1/payment_success.html', {'transaction': transaction})
-
-
-# ==================== EMERGENCY ALERT VIEWS ====================
-
-from .models import EmergencyAlert, EmergencyContact
-
-
-@login_required
-def emergency_page(request):
-    """Display emergency alert page with call options"""
-    contacts = EmergencyContact.objects.filter(is_active=True)
-    return render(request, 'app1/emergency.html', {'contacts': contacts})
-
-
-@login_required
-def send_emergency_alert(request):
-    """API endpoint to send emergency alert"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
-            alert_type = data.get('alert_type', 'other')
-            message = data.get('message', '')
-            latitude = data.get('latitude')
-            longitude = data.get('longitude')
-            location_name = data.get('location_name', '')
-            booking_id = data.get('booking_id')
-
-            alert = EmergencyAlert.objects.create(
-                user=request.user,
-                alert_type=alert_type,
-                message=message or f"Emergency reported by {request.user.get_full_name() or request.user.username}",
-                latitude=latitude,
-                longitude=longitude,
-                location_name=location_name,
-                priority=1,
-                status='pending'
-            )
-
-            if booking_id:
-                try:
-                    alert.booking = Booking.objects.get(id=booking_id)
-                    alert.save()
-                except:
-                    pass
-
-            print(f"🚨 EMERGENCY ALERT #{alert.id} from {request.user.username}")
-            print(f"Type: {alert_type}, Message: {message}")
-
-            return JsonResponse({
-                'success': True,
-                'alert_id': alert.id,
-                'message': 'Emergency alert sent! Admin has been notified.'
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
-
-
-# ==================== DRIVER EMERGENCY REPORTS API ====================
-
 @login_required
 def driver_get_emergency_reports(request):
     """API: Get driver's emergency alert history"""
@@ -1842,16 +1733,19 @@ def driver_get_emergency_reports(request):
 
     driver = request.user.driver_profile
 
+    # Get alerts sent by this driver
     alerts = Alert.objects.filter(
         driver=driver
     ).order_by('-created_at')[:20]
 
+    # Get emergency alerts from EmergencyAlert model
     emergency_alerts = EmergencyAlert.objects.filter(
         user=request.user
     ).order_by('-created_at')[:20]
 
     reports = []
 
+    # Process Alert objects
     for alert in alerts:
         response_time = None
         if alert.resolved_at:
@@ -1878,6 +1772,7 @@ def driver_get_emergency_reports(request):
             'response_time': response_time
         })
 
+    # Process EmergencyAlert objects
     for alert in emergency_alerts:
         response_time = None
         if alert.responded_at:
@@ -1900,7 +1795,88 @@ def driver_get_emergency_reports(request):
             'id': alert.id,
             'alert_id': f"EMG-{alert.id}",
             'alert_type': alert.alert_type,
-            'alert_type_display': alert.get_alert_type_display(),
+            'alert_type_display': alert.get_alert_type_display() if hasattr(alert, 'get_alert_type_display') else alert.alert_type.capitalize(),
+            'message': alert.message[:200],
+            'location_name': alert.location_name or 'Unknown',
+            'status': status_map.get(alert.status, alert.status),
+            'created_at': alert.created_at.strftime('%Y-%m-%d at %I:%M %p'),
+            'response_time': response_time
+        })
+
+    # Sort by created_at descending and limit to 20
+    reports.sort(key=lambda x: x['created_at'], reverse=True)
+
+    return JsonResponse({
+        'success': True,
+        'reports': reports[:20]
+    })
+@login_required
+def driver_get_emergency_reports(request):
+    """API: Get driver's emergency alert history"""
+    if not hasattr(request.user, 'driver_profile'):
+        return JsonResponse({'success': False, 'error': 'Not a driver'}, status=403)
+
+    driver = request.user.driver_profile
+
+    # Get alerts sent by this driver
+    alerts = Alert.objects.filter(driver=driver).order_by('-created_at')[:20]
+    
+    # Get emergency alerts from EmergencyAlert model
+    emergency_alerts = EmergencyAlert.objects.filter(user=request.user).order_by('-created_at')[:20]
+
+    reports = []
+
+    # Process Alert objects
+    for alert in alerts:
+        response_time = None
+        if alert.resolved_at:
+            diff = alert.resolved_at - alert.created_at
+            minutes = int(diff.total_seconds() / 60)
+            response_time = f"{minutes} min"
+
+        alert_type_display = {
+            'emergency': 'Emergency',
+            'vehicle_issue': 'Vehicle Issue',
+            'route_change': 'Route Change',
+            'general': 'General'
+        }.get(alert.alert_type, alert.alert_type.capitalize())
+
+        reports.append({
+            'id': alert.id,
+            'alert_id': f"ALT-{alert.id}",
+            'alert_type': alert.alert_type,
+            'alert_type_display': alert_type_display,
+            'message': alert.message[:200],
+            'location_name': alert.location or 'Unknown',
+            'status': 'resolved' if alert.is_resolved else 'pending',
+            'created_at': alert.created_at.strftime('%Y-%m-%d at %I:%M %p'),
+            'response_time': response_time
+        })
+
+    # Process EmergencyAlert objects
+    for alert in emergency_alerts:
+        response_time = None
+        if alert.responded_at:
+            diff = alert.responded_at - alert.created_at
+            minutes = int(diff.total_seconds() / 60)
+            response_time = f"{minutes} min"
+        elif alert.resolved_at:
+            diff = alert.resolved_at - alert.created_at
+            minutes = int(diff.total_seconds() / 60)
+            response_time = f"{minutes} min"
+
+        status_map = {
+            'pending': 'pending',
+            'acknowledged': 'in-progress',
+            'resolved': 'resolved',
+            'false_alarm': 'resolved'
+        }
+
+        reports.append({
+            'id': alert.id,
+            'alert_id': f"EMG-{alert.id}",
+            'alert_type': alert.alert_type,
+            'alert_type_display': alert.get_alert_type_display() if hasattr(alert, 'get_alert_type_display') else alert.alert_type.capitalize(),
             'message': alert.message[:200],
             'location_name': alert.location_name or 'Unknown',
             'status': status_map.get(alert.status, alert.status),
@@ -1988,10 +1964,3 @@ def driver_send_emergency_alert(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': str(e)}, status=400)
-
-
-@login_required
-def emergency_history(request):
-    """View user's past emergency alerts"""
-    alerts = EmergencyAlert.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'app1/emergency_history.html', {'alerts': alerts})

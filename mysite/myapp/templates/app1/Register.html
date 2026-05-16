@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Register — Next Route | Smart Transport</title>
+<title>Register — Easy Transport</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -226,14 +226,14 @@
 <body>
 
 <nav>
-  <a href="/" class="logo">
+  <a href="{% url 'homepage' %}" class="logo">
     <div class="logo-icon-custom">
-      <img style="width: 100%; height: 100%" src="{% static 'app1/logo.png' %}" alt="Next Route Logo">
+      <img style="width: 100%; height: 100%" src="{% static 'app1/logo.png' %}" alt="Easy Transport Logo">
     </div>
     <span class="logo-text">Easy Transport</span>
   </a>
   <div class="nav-right">
-    <a href="/login/" class="nav-login">Already have an account? <strong>Login →</strong></a>
+    <a href="{% url 'login_page' %}" class="nav-login">Already have an account? <strong>Login →</strong></a>
     <div class="theme-toggle" id="themeToggle">
       <span class="toggle-icon" id="toggleIcon">🌙</span>
     </div>
@@ -254,17 +254,26 @@
       <div class="prog-dot" id="dot3"></div>
     </div>
 
-    <form id="registerForm" onsubmit="event.preventDefault(); handleRegister();">
+    <!-- ✅ FIXED: Form now uses POST method, correct action, and CSRF token -->
+    <form id="registerForm" method="post" action="{% url 'register_user' %}" onsubmit="event.preventDefault(); handleRegister();">
       {% csrf_token %}
 
       <div class="form-group">
         <label>Full Name <span class="req">*</span></label>
-        <div class="input-wrap"><span class="icon">👤</span><input type="text" id="fullName" placeholder="John Doe"></div>
+        <div class="input-wrap">
+          <span class="icon">👤</span>
+          <!-- ✅ FIXED: Added name="full_name" for Django -->
+          <input type="text" id="fullName" name="full_name" placeholder="John Doe" required>
+        </div>
       </div>
 
       <div class="form-group">
         <label>Institution Email <span class="req">*</span></label>
-        <div class="input-wrap"><span class="icon">✉️</span><input type="email" id="email" placeholder="you@institution.edu.bd"></div>
+        <div class="input-wrap">
+          <span class="icon">✉️</span>
+          <!-- ✅ FIXED: Added name="email" for Django -->
+          <input type="email" id="email" name="email" placeholder="you@institution.edu.bd" required>
+        </div>
       </div>
 
       <div class="form-group">
@@ -273,7 +282,8 @@
             <label>Password <span class="req">*</span></label>
             <div class="input-wrap">
               <span class="icon">🔒</span>
-              <input type="password" id="password" placeholder="••••••••" oninput="checkStrength(this.value)">
+              <!-- ✅ FIXED: Added name="password" for Django -->
+              <input type="password" id="password" name="password" placeholder="••••••••" oninput="checkStrength(this.value)" required>
               <button class="eye-btn" onclick="togglePwd('password',this)" type="button">👁️</button>
             </div>
             <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
@@ -282,7 +292,8 @@
             <label>Confirm <span class="req">*</span></label>
             <div class="input-wrap">
               <span class="icon">🔒</span>
-              <input type="password" id="confirmPwd" placeholder="••••••••">
+              <!-- ✅ FIXED: Added name="confirm_password" for Django -->
+              <input type="password" id="confirmPwd" name="confirm_password" placeholder="••••••••" required>
               <button class="eye-btn" onclick="togglePwd('confirmPwd',this)" type="button">👁️</button>
             </div>
           </div>
@@ -291,7 +302,11 @@
 
       <div class="form-group">
         <label>Phone Number <span class="req">*</span></label>
-        <div class="input-wrap"><span class="icon">📱</span><input type="tel" id="phone" placeholder="+880 1XXXXXXXXX"></div>
+        <div class="input-wrap">
+          <span class="icon">📱</span>
+          <!-- ✅ FIXED: Added name="phone" for Django -->
+          <input type="tel" id="phone" name="phone" placeholder="+880 1XXXXXXXXX" required>
+        </div>
       </div>
 
       <!-- INSTITUTION TYPE -->
@@ -311,6 +326,8 @@
         </div>
         <div class="type-badge edu" id="eduBadge">🎓 University / College selected</div>
         <div class="type-badge ind" id="indBadge">🏭 Company / Industry selected</div>
+        <!-- ✅ FIXED: Hidden input to send institution_type to Django -->
+        <input type="hidden" id="institutionTypeInput" name="institution_type" value="">
       </div>
 
       <!-- USER TYPE SECTION -->
@@ -326,13 +343,19 @@
             <div class="dropdown-menu" id="userTypeMenu"></div>
           </div>
         </div>
+        <!-- ✅ FIXED: Hidden input to send user_type to Django -->
+        <input type="hidden" id="userTypeInput" name="user_type" value="">
       </div>
 
       <!-- INSTITUTION ID SECTION -->
       <div id="institutionIdSection" class="dynamic-section">
         <div class="form-group">
           <label id="idLabel">Institution ID <span class="req">*</span></label>
-          <div class="input-wrap"><span class="icon">🪪</span><input type="text" id="institutionId" placeholder="Student / Employee ID"></div>
+          <div class="input-wrap">
+            <span class="icon">🪪</span>
+            <!-- ✅ FIXED: Added name="institution_id" for Django -->
+            <input type="text" id="institutionId" name="institution_id" placeholder="Student / Employee ID" required>
+          </div>
         </div>
       </div>
 
@@ -341,7 +364,7 @@
         <div class="spinner"></div>
       </button>
 
-      <div class="login-link">Already have an account? <a href="/login/">Login here</a></div>
+      <div class="login-link">Already have an account? <a href="{% url 'login_page' %}">Login here</a></div>
     </form>
   </div>
 </div>
@@ -349,18 +372,14 @@
 <div class="toast" id="toast"><span id="toastIcon">✅</span><span id="toastMsg"></span></div>
 
 <script>
-  // ========== THEME TOGGLE ==========
+  // Theme Toggle
   const themeToggle = document.getElementById('themeToggle');
   const toggleIcon = document.getElementById('toggleIcon');
   const body = document.body;
 
   const savedTheme = localStorage.getItem('registerTheme');
-  if (savedTheme === 'light') {
-    body.classList.add('light');
-    toggleIcon.textContent = '☀️';
-  } else {
-    toggleIcon.textContent = '🌙';
-  }
+  if (savedTheme === 'light') { body.classList.add('light'); toggleIcon.textContent = '☀️'; }
+  else { toggleIcon.textContent = '🌙'; }
 
   themeToggle.addEventListener('click', () => {
     body.classList.toggle('light');
@@ -371,19 +390,14 @@
     setTimeout(() => { themeToggle.style.transform = ''; }, 150);
   });
 
-  // ========== ROLE DEFINITIONS ==========
+  // Role Definitions
   const EDUCATIONAL_ROLES = [
-    { icon: '🎓', label: 'student' },
-    { icon: '👨‍🏫', label: 'faculty' },
-    { icon: '👩‍💼', label: 'staff' },
-    { icon: '🛡️', label: 'admin' },
-    { icon: '🚌', label: 'driver' }
+    { icon: '🎓', label: 'student' }, { icon: '👨‍🏫', label: 'faculty' },
+    { icon: '👩‍💼', label: 'staff' }, { icon: '🛡️', label: 'admin' }, { icon: '🚌', label: 'driver' }
   ];
   const INDUSTRIAL_ROLES = [
-    { icon: '👔', label: 'executive' },
-    { icon: '👩‍', label: 'staff' },
-    { icon: '🛡️', label: 'admin' },
-    { icon: '🚌', label: 'driver' }
+    { icon: '👔', label: 'executive' }, { icon: '👩‍', label: 'staff' },
+    { icon: '🛡️', label: 'admin' }, { icon: '🚌', label: 'driver' }
   ];
 
   let selectedInstType = null;
@@ -399,15 +413,10 @@
     const menu = document.getElementById(which + 'Menu');
     const isOpen = menu.classList.contains('open');
     closeAllDropdowns();
-    if (!isOpen) {
-      menu.classList.add('open');
-      btn.classList.add('open');
-    }
+    if (!isOpen) { menu.classList.add('open'); btn.classList.add('open'); }
   }
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.dropdown-wrap')) closeAllDropdowns();
-  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown-wrap')) closeAllDropdowns(); });
 
   function selectInstType(type, icon) {
     selectedInstType = type;
@@ -415,16 +424,15 @@
     document.getElementById('instTypeText').innerHTML = icon + ' ' + type.charAt(0).toUpperCase() + type.slice(1);
     document.getElementById('instTypeBtn').classList.add('has-value');
     closeAllDropdowns();
-
     document.querySelectorAll('#instTypeMenu .dropdown-option').forEach(opt => opt.classList.remove('selected'));
     event.currentTarget.classList.add('selected');
-
     const eduBadge = document.getElementById('eduBadge');
     const indBadge = document.getElementById('indBadge');
-    eduBadge.classList.remove('visible');
-    indBadge.classList.remove('visible');
-    if (type === 'educational') eduBadge.classList.add('visible');
-    else indBadge.classList.add('visible');
+    eduBadge.classList.remove('visible'); indBadge.classList.remove('visible');
+    if (type === 'educational') eduBadge.classList.add('visible'); else indBadge.classList.add('visible');
+    
+    // ✅ FIXED: Update hidden input value for Django
+    document.getElementById('institutionTypeInput').value = type;
 
     const roles = type === 'educational' ? EDUCATIONAL_ROLES : INDUSTRIAL_ROLES;
     const menu = document.getElementById('userTypeMenu');
@@ -433,18 +441,10 @@
       const optionDiv = document.createElement('div');
       optionDiv.className = 'dropdown-option';
       optionDiv.innerHTML = `<span class="opt-icon">${role.icon}</span> ${role.label.charAt(0).toUpperCase() + role.label.slice(1)}`;
-      optionDiv.onclick = (e) => {
-        e.stopPropagation();
-        selectUserType(role.label, role.icon);
-      };
+      optionDiv.onclick = (e) => { e.stopPropagation(); selectUserType(role.label, role.icon); };
       menu.appendChild(optionDiv);
-      if (idx < roles.length - 1) {
-        const divider = document.createElement('div');
-        divider.className = 'dropdown-divider';
-        menu.appendChild(divider);
-      }
+      if (idx < roles.length - 1) { const divider = document.createElement('div'); divider.className = 'dropdown-divider'; menu.appendChild(divider); }
     });
-
     document.getElementById('userTypeText').innerHTML = 'Select your role';
     document.getElementById('userTypeBtn').classList.remove('has-value');
     document.getElementById('institutionIdSection').classList.remove('visible');
@@ -457,17 +457,15 @@
     document.getElementById('userTypeText').innerHTML = icon + ' ' + type.charAt(0).toUpperCase() + type.slice(1);
     document.getElementById('userTypeBtn').classList.add('has-value');
     closeAllDropdowns();
-
     document.querySelectorAll('#userTypeMenu .dropdown-option').forEach(opt => opt.classList.remove('selected'));
     event.currentTarget.classList.add('selected');
+    
+    // ✅ FIXED: Update hidden input value for Django
+    document.getElementById('userTypeInput').value = type;
 
-    const labels = {
-      'student': 'Student ID', 'faculty': 'Faculty ID', 'staff': 'Staff ID',
-      'admin': 'Admin ID', 'driver': 'Driver License No.', 'executive': 'Employee ID'
-    };
+    const labels = { 'student': 'Student ID', 'faculty': 'Faculty ID', 'staff': 'Staff ID', 'admin': 'Admin ID', 'driver': 'Driver License No.', 'executive': 'Employee ID' };
     const labelElem = document.getElementById('idLabel');
     labelElem.innerHTML = (labels[type] || 'Institution ID') + ' <span class="req">*</span>';
-
     const idInput = document.getElementById('institutionId');
     if (type === 'driver') idInput.placeholder = 'DL-XXXXXXXXX';
     else if (type === 'student') idInput.placeholder = '2024-1-60-XXX';
@@ -475,16 +473,12 @@
     else if (type === 'faculty') idInput.placeholder = 'FAC-XXXXXX';
     else idInput.placeholder = 'ID-' + (type === 'admin' ? 'ADMIN' : 'REG') + 'XXXX';
     idInput.value = '';
-
     document.getElementById('institutionIdSection').classList.add('visible');
     updateProgress(3);
   }
 
   function updateProgress(step) {
-    for (let i = 1; i <= 3; i++) {
-      const dot = document.getElementById('dot' + i);
-      dot.classList.toggle('active', i <= step);
-    }
+    for (let i = 1; i <= 3; i++) { const dot = document.getElementById('dot' + i); dot.classList.toggle('active', i <= step); }
   }
 
   function togglePwd(id, btn) {
@@ -510,17 +504,14 @@
     const toast = document.getElementById('toast');
     const msgEl = document.getElementById('toastMsg');
     const iconEl = document.getElementById('toastIcon');
-    
     if (!toast || !msgEl || !iconEl) return;
-    
     msgEl.textContent = msg || 'Notification';
     iconEl.textContent = isError ? '❌' : '✅';
     toast.className = `toast show${isError ? ' error' : ''}`;
-    
     setTimeout(() => { toast.classList.remove('show'); }, 3500);
   }
 
-  // ✅ FIXED: Redirect to login page after successful registration
+  // ✅ FIXED: Registration handler with proper field names for Django
   function handleRegister() {
     const fullName = document.getElementById('fullName').value.trim();
     const email = document.getElementById('email').value.trim();
@@ -562,7 +553,7 @@
         if (data.success) {
             showToast(data.message || 'Registration successful! Redirecting to login...');
             setTimeout(() => {
-                // ✅ Always redirect to login page after registration
+                // ✅ FIXED: Always redirect to login page after registration
                 window.location.href = data.redirect_url || '/login/';
             }, 1500);
         } else {

@@ -1222,6 +1222,95 @@
     function downloadReport() { showToast('Report download started...', false); }
 
     // Passenger loading
+
+    // =============================================
+    // REAL-TIME DASHBOARD DATA FETCHER (API POLLING)
+    // =============================================
+    let refreshInterval;
+
+    function updateDashboard(data) {
+        // Update Driver Info
+        const driverNameEl = document.getElementById('driver-name');
+        if (driverNameEl) driverNameEl.textContent = data.driver_name;
+
+        const busInfoEl = document.getElementById('assigned-bus-info');
+        if (busInfoEl && data.assigned_bus.number) {
+            busInfoEl.textContent = `🚌 Bus: ${data.assigned_bus.number} | Plate: ${data.assigned_bus.plate}`;
+        }
+
+        // Update Stats
+        if (data.passenger_count !== undefined) {
+            document.querySelectorAll('#passengerCount,#passengerStat,#seatCount,#totalPassengers').forEach(el => {
+                if(el) el.textContent = data.passenger_count;
+            });
+        }
+        if (data.trips_completed !== undefined) {
+            const tripsEl = document.getElementById('tripsCompleted');
+            if (tripsEl) tripsEl.textContent = data.trips_completed;
+        }
+        if (data.today_earnings !== undefined) {
+            const earningsEl = document.getElementById('todayEarnings');
+            if (earningsEl) earningsEl.textContent = '৳' + Math.floor(data.today_earnings);
+        }
+
+        // Update Trips List (if on home section)
+        const tripsContainer = document.querySelector('#sec-home .card');
+        if (tripsContainer && data.trips && data.trips.length > 0) {
+            let html = '<div class="card-title"><span class="dot"></span>Today\'s Trips</div>';
+            data.trips.forEach(trip => {
+                const badgeClass = trip.status === 'completed' ? 'green' : (trip.status === 'ongoing' ? 'blue' : 'gold');
+                html += `<div class="schedule-item">
+                    <div class="schedule-time">${trip.departure_time}</div>
+                    <div class="schedule-dot-col"><div class="schedule-dot ${trip.status === 'completed' || trip.status === 'ongoing' ? 'done' : 'upcoming'}"></div></div>
+                    <div class="schedule-info">
+                        <div class="schedule-route">${trip.route_name}</div>
+                        <div class="schedule-detail"><span class="badge badge-${badgeClass}">${trip.status}</span> · 🚌 ${trip.bus_number}</div>
+                    </div>
+                </div>`;
+            });
+            tripsContainer.innerHTML = html;
+        }
+
+        // Update server time display (optional)
+        const timeEl = document.getElementById('server-time');
+        if (timeEl) timeEl.textContent = data.server_time;
+    }
+
+    function fetchDashboardData() {
+        fetch('/driver/dashboard/api/', {
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            updateDashboard(data);
+        })
+        .catch(error => {
+            console.error('❌ Dashboard sync error:', error);
+        });
+    }
+
+    // Initialize polling when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchDashboardData(); // First load
+        refreshInterval = setInterval(fetchDashboardData, 5000); // Poll every 5 seconds
+    });
+
+    // Pause polling when tab is hidden to save battery/resources
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            clearInterval(refreshInterval);
+        } else {
+            refreshInterval = setInterval(fetchDashboardData, 5000);
+        }
+    });
+
+    // =============================================
+    // REAL PASSENGER DATA FROM DATABASE VIA API
+    // =============================================
+
     function loadPassengers() {
         var tbody = document.getElementById('passengerTable');
         tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Loading passengers...</div></tr>';

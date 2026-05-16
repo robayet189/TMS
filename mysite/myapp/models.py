@@ -5,10 +5,7 @@ from django.utils import timezone
 
 
 class UserProfile(models.Model):
-    """
-    Extended user profile for institutional transport system
-    CHANGE REASON: Store additional user data beyond Django's default User model
-    """
+    """Extended user profile for institutional transport system"""
     USER_TYPES = [
         ('student', 'Student'),
         ('faculty', 'Faculty'),
@@ -39,7 +36,7 @@ class Bus(models.Model):
     """Bus/fleet management model"""
     bus_number = models.CharField(max_length=20, unique=True)
     capacity = models.IntegerField(default=40)
-    driver_name = models.CharField(max_length=100)
+    driver_name = models.CharField(max_length=100, blank=True)  # ✅ Added blank=True
     driver_phone = models.CharField(max_length=15, blank=True)
     driver = models.ForeignKey('Driver', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_buses')
     has_ac = models.BooleanField(default=False)
@@ -63,21 +60,22 @@ class Route(models.Model):
 
 
 class Schedule(models.Model):
-    """Scheduled trip instances for booking"""
     route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='schedules')
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='schedules')
+    driver = models.ForeignKey('Driver', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_schedules')
     departure_time = models.TimeField()
     arrival_time = models.TimeField(null=True, blank=True)
     travel_date = models.DateField()
     fare = models.DecimalField(max_digits=8, decimal_places=2, default=60.00)
     is_active = models.BooleanField(default=True)
     available_seats = models.IntegerField(default=40)
-
+    
     class Meta:
         unique_together = ['route', 'travel_date', 'departure_time']
-
+        
     def __str__(self):
-        return f"{self.route.code} on {self.travel_date}"
+        driver_name = self.driver.user.get_full_name() if self.driver else "Unassigned"
+        return f"{self.route.code} on {self.travel_date} | Driver: {driver_name}"
 
 
 class Booking(models.Model):
@@ -306,12 +304,16 @@ class Driver(models.Model):
 
 
 class Trip(models.Model):
-    """Trip assignment for drivers with real-time tracking"""
+    """
+    Trip assignment for drivers with real-time tracking
+    ✅ FIXED: Proper relationship with Schedule for auto-sync
+    """
     STATUS_CHOICES = [('pending', 'Pending'), ('ongoing', 'Ongoing'), ('completed', 'Completed'), ('cancelled', 'Cancelled')]
 
+    schedule = models.ForeignKey(Schedule, on_delete=models.SET_NULL, null=True, blank=True, related_name='trips')  # ✅ Link to Schedule
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='trips')
-    route = models.ForeignKey(Route, on_delete=models.CASCADE)
-    bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='trips')
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='trips')
     travel_date = models.DateField()
     departure_time = models.TimeField()
     arrival_time = models.TimeField(null=True, blank=True)
@@ -321,6 +323,9 @@ class Trip(models.Model):
     last_location_update = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['driver', 'travel_date', 'departure_time']  # Prevent duplicate trips
 
     def __str__(self):
         return f"{self.route.code} - {self.travel_date} ({self.driver.user.get_full_name()})"
@@ -376,14 +381,8 @@ class Alert(models.Model):
         return f"{self.get_alert_type_display()} - {self.created_at}"
 
 
-# ==================== NOTIFICATION MODEL (NEW) ====================
-
 class Notification(models.Model):
-    """
-    Admin notification system for tracking system events
-    CHANGE REASON: Centralized notification system for admin dashboard
-    Tracks: bookings, payments, driver activities, emergencies, system events
-    """
+    """Admin notification system for tracking system events"""
     NOTIFICATION_TYPES = [
         ('booking', 'Booking'),
         ('payment', 'Payment'),
